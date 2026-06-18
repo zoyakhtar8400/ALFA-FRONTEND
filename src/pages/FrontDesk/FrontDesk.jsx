@@ -1,14 +1,16 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { 
-  FaPlus, 
-  FaSearch, 
-  FaFileExport, 
-  FaTable, 
-  FaHotel, 
-  FaDollarSign, 
+import Table from '../../components/common/Table';
+import {
+  FaPlus,
+  FaSearch,
+  FaFileExport,
+  FaTable,
+  FaHotel,
+  FaDollarSign,
   FaFileDownload,
   FaArrowRight,
+  FaArrowLeft,
   FaCalendarCheck,
   FaCheckCircle,
   FaExchangeAlt,
@@ -27,6 +29,141 @@ import {
 const FrontDesk = ({ showToast }) => {
   const location = useLocation();
   const path = location.pathname;
+  const [showAddTaxForm, setShowAddTaxForm] = React.useState(false);
+
+  React.useEffect(() => {
+    setShowAddTaxForm(false);
+  }, [path]);
+
+  const renderAddTaxForm = () => {
+    const slabColumns = [
+      { key: 'sNo', label: 'S.No' },
+      { key: 'taxName', label: 'Tax Name' },
+      { key: 'taxCode', label: 'Tax Code' },
+      { key: 'type', label: 'Type' },
+      { key: 'percentAmount', label: '% / Amount' },
+      { key: 'fromRate', label: 'From Rate' },
+      { key: 'toRate', label: 'To Rate' }
+    ];
+
+    const slabTaxesData = [
+      { sNo: '2', taxName: 'NO TAX', taxCode: '', type: '%', percentAmount: '', fromRate: '1.0', toRate: '10000.0' },
+      { sNo: '3', taxName: 'BEVERAGE TAX', taxCode: '', type: '%', percentAmount: '', fromRate: '1.0', toRate: '10000.0' },
+      { sNo: '4', taxName: 'MEAL TAX', taxCode: '', type: '%', percentAmount: '', fromRate: '1.0', toRate: '1000.0' },
+      { sNo: '6', taxName: 'TAX @5%', taxCode: '', type: '%', percentAmount: '', fromRate: '0.0', toRate: '0.0' },
+      { sNo: '8', taxName: 'TAX @12', taxCode: '', type: '%', percentAmount: '', fromRate: '1.0', toRate: '7499.0' }
+    ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* Title and Back Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+          <div>
+            <h3 className="panel-title" style={{ fontSize: '1.35rem' }}>Add Information</h3>
+            <p className="text-secondary" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+              Create a new tax structure and specify rates.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="table-btn-action"
+            onClick={() => setShowAddTaxForm(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 'bold',
+              borderRadius: '20px',
+              border: '1px solid var(--border)',
+              padding: '8px 18px',
+              backgroundColor: 'var(--surface)'
+            }}
+          >
+            <FaArrowLeft size={12} />
+            <span>Back to List</span>
+          </button>
+        </div>
+
+        {/* Form Grid */}
+        <form onSubmit={(e) => { e.preventDefault(); showToast('Tax Structure added successfully!'); setShowAddTaxForm(false); }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label className="form-label">Name</label>
+              <input type="text" placeholder="Name" className="form-input" required />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Applicable Date</label>
+              <input type="date" className="form-input" required />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Active</label>
+              <select className="form-select">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Type</label>
+              <select className="form-select">
+                <option value="Select">Select</option>
+                <option value="%">%</option>
+                <option value="Amount">Amount</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Slab Taxes sub-section */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '10px' }}>
+            <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+              <h4 style={{ fontWeight: '700', color: 'var(--dark)' }}>Slab Taxes</h4>
+            </div>
+
+            <Table
+              title="Slab Taxes"
+              columns={slabColumns}
+              data={slabTaxesData}
+              defaultEntriesPerPage={10}
+              showToast={showToast}
+            />
+          </div>
+
+          {/* Save / Cancel buttons */}
+          {/* <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start', marginTop: '10px' }}>
+            <button 
+              type="submit" 
+              className="panel-action" 
+              style={{ backgroundColor: 'var(--primary)', color: '#ffffff', border: 'none', padding: '12px 28px', borderRadius: '24px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              Save Tax Structure
+            </button>
+            <button 
+              type="button" 
+              className="panel-action" 
+              onClick={() => setShowAddTaxForm(false)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                backgroundColor: '#ffffff', 
+                color: 'var(--text-secondary)', 
+                border: '1px solid var(--border)', 
+                padding: '12px 28px', 
+                borderRadius: '24px', 
+                fontWeight: 'bold', 
+                cursor: 'pointer' 
+              }}
+            >
+              <FaArrowLeft size={12} />
+              <span>Back to List</span>
+            </button>
+          </div> */}
+        </form>
+      </div>
+    );
+  };
 
   // Resolve Sub-section and Sub-item from URL path
   const getRouteInfo = () => {
@@ -49,121 +186,161 @@ const FrontDesk = ({ showToast }) => {
 
   // Helper to generate mock data based on item selection (Master items)
   const renderMasterContent = (itemName) => {
-    let headers = [];
-    let rows = [];
+    if (itemName === 'Tax Structure' && showAddTaxForm) {
+      return renderAddTaxForm();
+    }
+
+    let columns = [];
+    let data = [];
+
+    const tableActions = [
+      { label: 'Edit', onClick: (row) => showToast(`Edit entry inside ${itemName}: ${row.name || row.code || row.roomNo || ''} (Dummy Action)`) },
+      { label: 'Delete', onClick: (row) => showToast(`Delete entry inside ${itemName}: ${row.name || row.code || row.roomNo || ''} (Dummy Action)`), isDanger: true }
+    ];
 
     switch (itemName) {
       case 'Tax Structure':
-        headers = ['Tax Code', 'Tax Name', 'Percentage Rate', 'Status'];
-        rows = [
-          { c1: 'TX-VAT15', c2: 'Value Added Tax', c3: '15.00%', c4: 'Active' },
-          { c1: 'TX-GST05', c2: 'Goods & Services Tax', c3: '5.00%', c4: 'Active' },
-          { c1: 'TX-LXT10', c2: 'Luxury Accommodation Tax', c3: '10.00%', c4: 'Active' }
+        columns = [
+          { key: 'name', label: 'Name' },
+          { key: 'applicableDate', label: 'Applicable Date' },
+          {
+            key: 'active',
+            label: 'Active',
+            render: (val) => (
+              <span className={`status-badge ${val === 'Yes' ? 'available' : 'occupied'}`}>
+                {val}
+              </span>
+            )
+          },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { name: 'NO TAX', applicableDate: '01-04-2023', active: 'Yes' },
+          { name: 'BEVERAGE TAX', applicableDate: '01-04-2023', active: 'Yes' },
+          { name: 'MEAL TAX', applicableDate: '06-11-2023', active: 'Yes' },
+          { name: 'TAX @5%', applicableDate: '14-01-2024', active: 'Yes' },
+          { name: 'TAX @12', applicableDate: '13-02-2024', active: 'Yes' }
         ];
         break;
+
       case 'Floor Master':
-        headers = ['Floor Code', 'Floor Name', 'Total Rooms Allocated', 'Status'];
-        rows = [
-          { c1: 'FL-GND', c2: 'Ground Floor', c3: '12 Rooms', c4: 'Active' },
-          { c1: 'FL-001', c2: 'First Floor', c3: '16 Rooms', c4: 'Active' },
-          { c1: 'FL-002', c2: 'Second Floor (Executive Suite)', c3: '10 Rooms', c4: 'Active' }
+        columns = [
+          { key: 'code', label: 'Floor Code' },
+          { key: 'name', label: 'Floor Name' },
+          { key: 'allocated', label: 'Total Rooms Allocated' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (val) => (
+              <span className={`status-badge ${val === 'Active' ? 'available' : 'occupied'}`}>
+                {val}
+              </span>
+            )
+          },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { code: 'FL-GND', name: 'Ground Floor', allocated: '12 Rooms', status: 'Active' },
+          { code: 'FL-001', name: 'First Floor', allocated: '16 Rooms', status: 'Active' },
+          { code: 'FL-002', name: 'Second Floor (Executive Suite)', allocated: '10 Rooms', status: 'Active' }
         ];
         break;
+
       case 'Room Feature':
-        headers = ['Feature Code', 'Feature Name', 'Surcharge Price', 'Status'];
-        rows = [
-          { c1: 'FT-OVW', c2: 'Ocean Front View balcony', c3: '+Rs. 35.00 / night', c4: 'Active' },
-          { c1: 'FT-MINI', c2: 'Fully Stocked Mini bar', c3: '+Rs. 15.00 / night', c4: 'Active' },
-          { c1: 'FT-JACZ', c2: 'In-Room Private Jacuzzi tub', c3: '+Rs. 60.00 / night', c4: 'Active' }
+        columns = [
+          { key: 'code', label: 'Feature Code' },
+          { key: 'name', label: 'Feature Name' },
+          { key: 'price', label: 'Surcharge Price' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (val) => (
+              <span className={`status-badge ${val === 'Active' ? 'available' : 'occupied'}`}>
+                {val}
+              </span>
+            )
+          },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { code: 'FT-OVW', name: 'Ocean Front View balcony', price: '+Rs. 35.00 / night', status: 'Active' },
+          { code: 'FT-MINI', name: 'Fully Stocked Mini bar', price: '+Rs. 15.00 / night', status: 'Active' },
+          { code: 'FT-JACZ', name: 'In-Room Private Jacuzzi tub', price: '+Rs. 60.00 / night', status: 'Active' }
         ];
         break;
+
       case 'Room Category':
-        headers = ['Category Code', 'Category Title', 'Base Rate', 'Max Adults / Kids'];
-        rows = [
-          { c1: 'CAT-STD', c2: 'Standard Comfort Room', c3: 'Rs. 120.00', c4: '2 Adults / 1 Kid' },
-          { c1: 'CAT-DLX', c2: 'Premium Deluxe King Room', c3: 'Rs. 220.00', c4: '3 Adults / 2 Kids' },
-          { c1: 'CAT-SUT', c2: 'Presidential Penthouse Suite', c3: 'Rs. 450.00', c4: '4 Adults / 2 Kids' }
+        columns = [
+          { key: 'code', label: 'Category Code' },
+          { key: 'name', label: 'Category Title' },
+          { key: 'rate', label: 'Base Rate' },
+          { key: 'capacity', label: 'Max Adults / Kids' },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { code: 'CAT-STD', name: 'Standard Comfort Room', rate: 'Rs. 120.00', capacity: '2 Adults / 1 Kid' },
+          { code: 'CAT-DLX', name: 'Premium Deluxe King Room', rate: 'Rs. 220.00', capacity: '3 Adults / 2 Kids' },
+          { code: 'CAT-SUT', name: 'Presidential Penthouse Suite', rate: 'Rs. 450.00', capacity: '4 Adults / 2 Kids' }
         ];
         break;
+
       case 'Room Master':
-        headers = ['Room No', 'Floor', 'Category', 'Housekeeping Status'];
-        rows = [
-          { c1: 'Room 101', c2: 'First Floor', c3: 'Standard Comfort Room', c4: 'Clean' },
-          { c1: 'Room 102', c2: 'First Floor', c3: 'Standard Comfort Room', c4: 'Dirty' },
-          { c1: 'Room 201', c2: 'Second Floor', c3: 'Premium Deluxe King Room', c4: 'Clean' },
-          { c1: 'Room 301', c2: 'Third Floor', c3: 'Presidential Penthouse Suite', c4: 'Clean' }
+        columns = [
+          { key: 'roomNo', label: 'Room No' },
+          { key: 'floor', label: 'Floor' },
+          { key: 'category', label: 'Category' },
+          {
+            key: 'hkStatus',
+            label: 'Housekeeping Status',
+            render: (val) => (
+              <span className={`status-badge ${val === 'Clean' ? 'available' : 'occupied'}`}>
+                {val}
+              </span>
+            )
+          },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { roomNo: 'Room 101', floor: 'First Floor', category: 'Standard Comfort Room', hkStatus: 'Clean' },
+          { roomNo: 'Room 102', floor: 'First Floor', category: 'Standard Comfort Room', hkStatus: 'Dirty' },
+          { roomNo: 'Room 201', floor: 'Second Floor', category: 'Premium Deluxe King Room', hkStatus: 'Clean' },
+          { roomNo: 'Room 301', floor: 'Third Floor', category: 'Presidential Penthouse Suite', hkStatus: 'Clean' }
         ];
         break;
+
       default:
-        headers = ['Field Code', 'Configuration Title', 'Value', 'Status'];
-        rows = [
-          { c1: 'CONF-01', c2: `${itemName} Configuration`, c3: 'Default Mode', c4: 'Active' },
-          { c1: 'CONF-02', c2: `${itemName} Parameters`, c3: 'System Managed', c4: 'Active' }
+        columns = [
+          { key: 'code', label: 'Field Code' },
+          { key: 'title', label: 'Configuration Title' },
+          { key: 'value', label: 'Value' },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (val) => (
+              <span className={`status-badge ${val === 'Active' ? 'available' : 'occupied'}`}>
+                {val}
+              </span>
+            )
+          },
+          { key: 'action', label: 'Action', sortable: false }
+        ];
+        data = [
+          { code: 'CONF-01', title: `${itemName} Configuration`, value: 'Default Mode', status: 'Active' },
+          { code: 'CONF-02', title: `${itemName} Parameters`, value: 'System Managed', status: 'Active' }
         ];
         break;
     }
 
     return (
-      <div className="dashboard-panel">
-        <div className="panel-header" style={{ borderBottom: 'none', paddingBottom: '0' }}>
-          <div>
-            <h3 className="panel-title">{itemName} Configuration</h3>
-            <p className="text-secondary" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
-              System settings and values parameter entries for {itemName}.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="panel-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => showToast(`Opening Excel export spreadsheet (Dummy Action)`)}>
-              <FaFileExport size={12} />
-              <span>Export</span>
-            </button>
-            <button className="panel-action" style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', color: '#ffffff' }} onClick={() => showToast(`Add new row entry inside ${itemName} master (Dummy Action)`)}>
-              <FaPlus size={12} />
-              <span>Add Entry</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search & Statistics mini row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '12px', padding: '12px 20px', backgroundColor: '#F8FAFC' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#ffffff', border: '1px solid var(--border)', borderRadius: '8px', padding: '6px 12px', width: '280px' }}>
-            <FaSearch color="var(--text-light)" size={14} />
-            <input type="text" placeholder={`Search ${itemName}...`} style={{ border: 'none', outline: 'none', fontSize: '0.85rem', width: '100%' }} />
-          </div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Showing {rows.length} total register entries</span>
-        </div>
-
-        {/* Responsive Table */}
-        <div className="custom-table-container">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                {headers.map((h, i) => <th key={i}>{h}</th>)}
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i}>
-                  <td style={{ fontWeight: '700', color: 'var(--primary)' }}>{row.c1}</td>
-                  <td style={{ fontWeight: '600' }}>{row.c2}</td>
-                  <td>{row.c3}</td>
-                  <td>
-                    <span className={`status-badge ${row.c4 === 'Active' || row.c4 === 'Clean' ? 'available' : 'occupied'}`}>
-                      {row.c4}
-                    </span>
-                  </td>
-                  <td>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' }} onClick={() => showToast(`Edit entry ${row.c1} inside ${itemName} (Dummy Action)`)}>
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table
+        title={`${itemName} Configuration`}
+        columns={columns}
+        data={data}
+        actions={tableActions}
+        onAddEntry={itemName === 'Tax Structure' ? () => setShowAddTaxForm(true) : () => showToast(`Add new row entry inside ${itemName} master (Dummy Action)`)}
+        addEntryLabel="Add Entry"
+        showToast={showToast}
+      />
     );
   };
 
@@ -183,7 +360,7 @@ const FrontDesk = ({ showToast }) => {
                 <span>New Booking</span>
               </button>
             </div>
-            
+
             <div className="custom-table-container">
               <table className="custom-table">
                 <thead>
@@ -222,7 +399,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Walk-In Guest Registration (Check-In)</h3>
             </div>
-            
+
             <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} onSubmit={(e) => { e.preventDefault(); showToast("Check-In Registered Successfully (Dummy)!"); }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--dark)' }}>Guest Full Name</label>
@@ -263,7 +440,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Record Guest Payment Entry</h3>
             </div>
-            
+
             <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} onSubmit={(e) => { e.preventDefault(); showToast("Payment Received Entry Saved (Dummy)!"); }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--dark)' }}>Select Active Room / Stay Guest</label>
@@ -300,7 +477,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Room Change / Transfer Form</h3>
             </div>
-            
+
             <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} onSubmit={(e) => { e.preventDefault(); showToast("Room Transfer Request Executed (Dummy)!"); }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--dark)' }}>Current Stay Room</label>
@@ -338,7 +515,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Guest Checkout Clearance & Invoicing</h3>
             </div>
-            
+
             <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} onSubmit={(e) => { e.preventDefault(); showToast("Checkout Completed! Room flagged for housekeeping cleaning. (Dummy)!"); }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--dark)' }}>Select Room Pending Checkout</label>
@@ -347,7 +524,7 @@ const FrontDesk = ({ showToast }) => {
                   <option>Room 201 - Alice Smith (Outstanding Invoice: Rs. 0.00 - Paid)</option>
                 </select>
               </div>
-              
+
               <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: '#F8FAFC' }}>
                 <h4 style={{ fontWeight: '700', color: 'var(--dark)', marginBottom: '12px' }}>Folio Charge Breakdown Summary</h4>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '8px' }}>
@@ -382,7 +559,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Post Refund / Credit Note Entry</h3>
             </div>
-            
+
             <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }} onSubmit={(e) => { e.preventDefault(); showToast("Refund Processed & Credit Slip Issued (Dummy)!"); }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -415,7 +592,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Add Extra Guest / Co-Occupant</h3>
             </div>
-            
+
             <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} onSubmit={(e) => { e.preventDefault(); showToast("Extra Co-Occupant Added to Stay (Dummy)!"); }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--dark)' }}>Select Primary Stay Room</label>
@@ -452,7 +629,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Perform Hotel Night Audit Processing</h3>
             </div>
-            
+
             <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: '#F8FAFC', marginBottom: '12px' }}>
               <h4 style={{ fontWeight: '700', color: 'var(--dark)', marginBottom: '8px' }}>Audit Status Checklists</h4>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: '10px', listStyle: 'none', fontSize: '0.9rem' }}>
@@ -673,7 +850,7 @@ const FrontDesk = ({ showToast }) => {
             <div className="panel-header">
               <h3 className="panel-title">Front Office Real-Time Metrics</h3>
             </div>
-            
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
               <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: '#F8FAFC' }}>
                 <h4 style={{ fontWeight: '700', color: 'var(--dark)' }}>Room Allocation Spread</h4>
@@ -751,7 +928,7 @@ const FrontDesk = ({ showToast }) => {
           <div className="panel-header">
             <h3 className="panel-title">Front Desk Operations Hub</h3>
           </div>
-          
+
           <div className="stats-grid" style={{ margin: '0' }}>
             <div className="stats-card" style={{ cursor: 'pointer' }} onClick={() => showToast("Opening Check-in list (Dummy Action)")}>
               <div className="stats-info">
@@ -763,7 +940,7 @@ const FrontDesk = ({ showToast }) => {
               </div>
               <div className="stats-icon-wrapper"><FaHotel /></div>
             </div>
-            
+
             <div className="stats-card" style={{ cursor: 'pointer' }} onClick={() => showToast("Opening Guest Ledgers (Dummy Action)")}>
               <div className="stats-info">
                 <span className="stats-label">Active Folios</span>
@@ -788,9 +965,9 @@ const FrontDesk = ({ showToast }) => {
           <div className="panel-header">
             <h3 className="panel-title">Management Information System (MIS) Reports</h3>
           </div>
-          
+
           <p className="text-secondary">Explore advanced revenue parameters, average daily rate (ADR), and revenue per available room (RevPAR) indices.</p>
-          
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '12px' }}>
             <div style={{ border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', backgroundColor: '#F8FAFC' }}>
               <h4 style={{ fontWeight: '700', color: 'var(--dark)', marginBottom: '8px' }}>Average Daily Rate (ADR)</h4>
