@@ -8,6 +8,8 @@ import {
   FaEdit,
   FaTrash
 } from 'react-icons/fa';
+import PrintStyles from './PrintStyles';
+import { handlePrint } from '../../utils/printUtil';
 
 const Table = ({ 
   title = '', 
@@ -63,10 +65,7 @@ const Table = ({
     showToast('Exported CSV file successfully!');
   };
 
-  // Handle Print
-  const handlePrint = () => {
-    window.print();
-  };
+  // Handle Print — uses the shared common utility
 
   // Handle Sorting
   const handleSort = (key, sortable) => {
@@ -139,6 +138,13 @@ const Table = ({
 
   return (
     <div className="dashboard-panel" style={{ gap: 0, padding: 0 }}>
+      <PrintStyles />
+      
+      {/* Print Header - Hidden on screen, visible on print */}
+      <div className="print-header" style={{ display: 'none' }}>
+        <img src="/logo/hotel-logo.png" alt="Hotel Logo" className="print-logo-img" />
+        <div className="print-title">{title}</div>
+      </div>
 
       {/* Top Header */}
       <div className="table-header-controls">
@@ -206,6 +212,7 @@ const Table = ({
         <table className="custom-table">
           <thead>
             <tr>
+              <th style={{ width: '60px' }}>S.No</th>
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -228,6 +235,7 @@ const Table = ({
             {currentEntries.length > 0 ? (
               currentEntries.map((row, index) => (
                 <tr key={indexOfFirstEntry + index}>
+                  <td style={{ textAlign: 'center', fontWeight: 600 }}>{indexOfFirstEntry + index + 1}</td>
                   {columns.map((col) => {
                     if (col.key === 'action') {
                       return (
@@ -261,7 +269,7 @@ const Table = ({
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <td colSpan={columns.length + 1} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   No matching records found
                 </td>
               </tr>
@@ -303,6 +311,11 @@ const Table = ({
             </button>
           </div>
         )}
+      </div>
+
+      {/* Print Footer - Hidden on screen, visible on print */}
+      <div className="print-footer" style={{ display: 'none' }}>
+        Printed By: Admin on {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
       </div>
 
     </div>
