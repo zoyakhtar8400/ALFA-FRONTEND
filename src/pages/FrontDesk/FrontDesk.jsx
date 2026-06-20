@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import MasterPage from './master/MasterPage';
+import PageHeader from '../../components/common/PageHeader';
 
 const FrontDesk = ({ showToast }) => {
   const location = useLocation();
@@ -28,60 +29,61 @@ const FrontDesk = ({ showToast }) => {
 
     if (section === 'OPERATION' && item) {
       return (
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h3 className="panel-title">{item}</h3>
+        <div>
+          <PageHeader
+            title={item}
+            breadcrumbs={['Dashboard', 'Front Desk', 'Operation', item]}
+          />
+          <div className="dashboard-panel">
+            <p className="text-secondary">Operation form for {item} coming soon.</p>
           </div>
-          <p className="text-secondary">Operation form for {item} coming soon.</p>
         </div>
       );
     }
 
     if (section === 'MIS' && item) {
       return (
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h3 className="panel-title">{item}</h3>
+        <div>
+          <PageHeader
+            title={item}
+            breadcrumbs={['Dashboard', 'Front Desk', 'MIS', item]}
+          />
+          <div className="dashboard-panel">
+            <p className="text-secondary">MIS report for {item} coming soon.</p>
           </div>
-          <p className="text-secondary">MIS report for {item} coming soon.</p>
         </div>
       );
     }
 
     if (section === 'REPORT') {
       return (
-        <div className="dashboard-panel">
-          <div className="panel-header">
-            <h3 className="panel-title">Reports</h3>
+        <div>
+          <PageHeader
+            title="Reports"
+            breadcrumbs={['Dashboard', 'Front Desk', 'Reports']}
+          />
+          <div className="dashboard-panel">
+            <p className="text-secondary">Reports section coming soon.</p>
           </div>
-          <p className="text-secondary">Reports section coming soon.</p>
         </div>
       );
     }
 
     return (
-      <div className="dashboard-panel">
-        <div className="panel-header">
-          <h3 className="panel-title">Front Desk Operations</h3>
+      <div>
+        <PageHeader
+          title="Front Desk Operations"
+          breadcrumbs={['Dashboard', 'Front Desk']}
+        />
+        <div className="dashboard-panel">
+          <p className="text-secondary">Please select a category from the sidebar.</p>
         </div>
-        <p className="text-secondary">Please select a category from the sidebar.</p>
       </div>
     );
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '24px' }}>
-        <span>Front Desk</span>
-        <span>&rsaquo;</span>
-        <span style={{ color: 'var(--primary)' }}>{section}</span>
-        {item && (
-          <>
-            <span>&rsaquo;</span>
-            <span style={{ color: 'var(--dark)', fontWeight: '700' }}>{item}</span>
-          </>
-        )}
-      </div>
       {renderContent()}
     </div>
   );

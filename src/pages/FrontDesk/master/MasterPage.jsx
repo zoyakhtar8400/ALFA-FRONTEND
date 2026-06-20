@@ -51,3 +51,4 @@ const MasterPage = ({ masterName, showToast }) => {
 };
 
 export default MasterPage;
+

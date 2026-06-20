@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  FaTachometerAlt, 
-  FaConciergeBell, 
-  FaBroom, 
-  FaCashRegister, 
-  FaUtensils, 
-  FaGlassCheers, 
-  FaShoppingCart, 
+import {
+  FaTachometerAlt,
+  FaConciergeBell,
+  FaBroom,
+  FaCashRegister,
+  FaUtensils,
+  FaGlassCheers,
+  FaShoppingCart,
   FaCog,
   FaTimes,
   FaSignOutAlt,
@@ -106,8 +106,8 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
   return (
     <>
       {/* Backdrop for mobile devices */}
-      <div 
-        className={`sidebar-backdrop ${isOpen ? 'open' : ''}`} 
+      <div
+        className={`sidebar-backdrop ${isOpen ? 'open' : ''}`}
         onClick={toggleSidebar}
       />
 
@@ -115,9 +115,9 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
         <div className="sidebar-brand">
           <img src="/logo/hotel-logo.png" alt="Logo" className="sidebar-logo" />
           {/* Close button for mobile menu */}
-          <button 
-            className="menu-toggle-btn" 
-            style={{ display: 'none', color: '#ffffff', marginLeft: 'auto', padding: '4px' }} 
+          <button
+            className="menu-toggle-btn"
+            style={{ display: 'none', color: '#ffffff', marginLeft: 'auto', padding: '4px' }}
             onClick={toggleSidebar}
           >
             <FaTimes />
@@ -133,7 +133,7 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
 
           {/* Front Desk Accordion Container */}
           <div>
-            <div 
+            <div
               className={`sidebar-item ${location.pathname.startsWith('/front-desk') ? 'active' : ''}`}
               onClick={() => setFrontDeskOpen(!frontDeskOpen)}
               style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
@@ -148,8 +148,8 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
               <div className="sidebar-submenu">
                 {/* Master Sub-Accordion */}
                 <div>
-                  <div 
-                    className="sidebar-subitem" 
+                  <div
+                    className="sidebar-subitem"
                     onClick={handleMasterToggle}
                     style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                   >
@@ -162,9 +162,9 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
                   {masterOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {masters.map((m) => (
-                        <NavLink 
-                          key={m.name} 
-                          to={m.path} 
+                        <NavLink
+                          key={m.name}
+                          to={m.path}
                           className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
                           onClick={handleMobileNav}
                         >
@@ -177,8 +177,8 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
 
                 {/* Operations Sub-Accordion */}
                 <div>
-                  <div 
-                    className="sidebar-subitem" 
+                  <div
+                    className="sidebar-subitem"
                     onClick={handleOperationToggle}
                     style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                   >
@@ -191,9 +191,9 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
                   {operationOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {operations.map((o) => (
-                        <NavLink 
-                          key={o.name} 
-                          to={o.path} 
+                        <NavLink
+                          key={o.name}
+                          to={o.path}
                           className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
                           onClick={handleMobileNav}
                         >
@@ -206,8 +206,8 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
 
                 {/* MIS Sub-Accordion */}
                 <div>
-                  <div 
-                    className="sidebar-subitem" 
+                  <div
+                    className="sidebar-subitem"
                     onClick={handleMisToggle}
                     style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                   >
@@ -220,9 +220,9 @@ const Sidebar = ({ isOpen, toggleSidebar, onLogout }) => {
                   {misOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {misItems.map((mis) => (
-                        <NavLink 
-                          key={mis.name} 
-                          to={mis.path} 
+                        <NavLink
+                          key={mis.name}
+                          to={mis.path}
                           className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
                           onClick={handleMobileNav}
                         >

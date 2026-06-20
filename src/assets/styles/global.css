@@ -1404,3 +1404,159 @@ body {
   background-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(65, 138, 139, 0.15);
 }
+
+/* ==========================================
+   Professional Print Layout Definitions
+   ========================================== */
+
+/* Screen styles for print-only elements */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide complete layout headers, sidebars, controls, buttons */
+  .sidebar,
+  .navbar,
+  .no-print,
+  button,
+  .table-header-controls,
+  .table-footer-controls,
+  .pagination-controls,
+  .table-btn-group,
+  .entries-select-wrapper,
+  .table-search-wrapper,
+  .table-action-icon-btn,
+  .MuiButton-root,
+  .MuiIconButton-root,
+  .MuiTouchRipple-root {
+    display: none !important;
+  }
+
+  /* Force display: block and clear heights/borders for print readability */
+  .app-container,
+  .main-layout,
+  .content-area,
+  .dashboard-panel,
+  .custom-table-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide the action columns in tables (usually the last column) */
+  th:last-child,
+  td:last-child,
+  .action-column {
+    display: none !important;
+  }
+
+  /* Show and format print-only sections */
+  .print-only {
+    display: block !important;
+  }
+
+  .print-header-container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    margin-bottom: 30px !important;
+    padding-bottom: 15px !important;
+    border-bottom: 2px solid #333333 !important;
+    width: 100% !important;
+  }
+
+  .print-logo {
+    height: 70px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    margin-bottom: 10px !important;
+  }
+
+  .print-company-name {
+    font-size: 18pt !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+  }
+
+  .print-report-title {
+    font-size: 14pt !important;
+    font-weight: 700 !important;
+    color: #222222 !important;
+    margin: 8px 0 4px 0 !important;
+  }
+
+  .print-date-time {
+    font-size: 10pt !important;
+    color: #444444 !important;
+    margin-top: 4px !important;
+  }
+
+  .print-footer-container {
+    display: block !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    text-align: center !important;
+    font-size: 9pt !important;
+    color: #555555 !important;
+    border-top: 1px solid #cccccc !important;
+    padding-top: 10px !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Print Table Layout */
+  table.custom-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 15px !important;
+    margin-bottom: 30px !important;
+  }
+
+  table.custom-table th,
+  table.custom-table td {
+    border: 1px solid #aaaaaa !important;
+    padding: 8px 12px !important;
+    font-size: 10pt !important;
+    color: #000000 !important;
+  }
+
+  table.custom-table th {
+    background-color: #e5e7eb !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table.custom-table tr {
+    page-break-inside: avoid !important;
+  }
+
+  /* Keep table header visible on all printed pages */
+  table.custom-table thead {
+    display: table-header-group !important;
+  }
+}
+

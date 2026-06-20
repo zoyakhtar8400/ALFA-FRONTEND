@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import Table from '../../../../components/common/Table';
+import { FaTimes } from 'react-icons/fa';
+import CustomTable from './CustomTable';
 import ConfirmModal from '../../../../components/common/ConfirmModal';
 
 const EMPTY_MODAL = { open: false, mode: 'add', row: null };
@@ -75,7 +76,7 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
 
   return (
     <>
-      <Table
+      <CustomTable
         title={title}
         columns={cols}
         data={data}
@@ -87,6 +88,7 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
         addEntryLabel="+ Add Entry"
         searchPlaceholder={`Search ${title}...`}
         showToast={showToast}
+        breadcrumbs={['Dashboard', 'Front Desk', 'Master', title]}
       />
 
       {FormComponent && modal.open && (
@@ -101,36 +103,76 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
       )}
 
       {!FormComponent && modal.open && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '520px', boxShadow: 'var(--shadow)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--dark)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(15,23,42,0.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div className="bg-white rounded-2xl p-10 w-full max-w-[640px] shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex justify-between items-center pb-4 mb-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-[#244e5f]">
                 {modal.mode === 'add' ? `Add ${title}` : `Edit ${title}`}
               </h3>
-              <button onClick={closeModal} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}>&times;</button>
+              <button 
+                onClick={closeModal} 
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded-full transition-all"
+              >
+                <FaTimes size={16} />
+              </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Body */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {formFields.map(field => (
-                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: field.fullWidth ? 'span 2' : 'span 1' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>{field.label}</label>
+                <div key={field.key} className={`flex flex-col ${field.fullWidth ? 'sm:col-span-2' : ''}`}>
+                  <label className="text-xs font-semibold text-[#244e5f] mb-1.5 block">
+                    {field.label}
+                  </label>
                   {field.type === 'select' ? (
-                    <select value={form[field.key] || ''} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                      style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem', backgroundColor: '#fff' }}>
-                      {field.options.map(opt => <option key={opt}>{opt}</option>)}
+                    <select
+                      value={form[field.key] || ''}
+                      onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                    >
+                      {field.options.map((opt, idx) => {
+                        const val = typeof opt === 'object' ? opt.value : opt;
+                        const labelText = typeof opt === 'object' ? opt.label : opt;
+                        return <option key={idx} value={val}>{labelText}</option>;
+                      })}
                     </select>
+                  ) : field.type === 'date' ? (
+                    <input
+                      type="date"
+                      value={form[field.key] || ''}
+                      onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                      className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg bg-[#F8FAFC] text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                    />
                   ) : (
-                    <input type={field.type} value={form[field.key] || ''} onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                    <input
+                      type={field.type || 'text'}
+                      value={form[field.key] || ''}
+                      onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                       placeholder={field.label}
-                      style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem' }} />
+                      className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                    />
                   )}
                 </div>
               ))}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-              <button onClick={closeModal} style={{ padding: '9px 22px', borderRadius: '30px', border: '1px solid var(--border)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', backgroundColor: '#fff', color: 'var(--text-secondary)' }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: '9px 22px', borderRadius: '30px', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', backgroundColor: 'var(--primary)', color: '#fff' }}>Save</button>
+            {/* Footer Actions */}
+            <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-5 py-2 text-sm font-semibold rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave(form)}
+                className="px-5 py-2 text-sm font-semibold rounded-full bg-[#418a8b] hover:bg-[#357273] text-white shadow-sm hover:shadow-md transition-all cursor-pointer"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>

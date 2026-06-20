@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 
 const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
   const [form, setForm] = useState({ regNo: '', type: 'Sedan', driver: '', mobile: '', model: '', status: 'Active' });
@@ -17,60 +18,114 @@ const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-      <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '540px', boxShadow: 'var(--shadow)', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--dark)' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(15,23,42,0.18)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+    >
+      <div className="w-full max-w-[640px] rounded-2xl border border-gray-100 bg-white p-10 shadow-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
+          <h3 className="text-base font-bold text-[#244e5f]">
             {mode === 'add' ? 'Add Vehicle' : 'Edit Vehicle'}
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer' }}>&times;</button>
+          <button
+            onClick={onClose}
+            className="cursor-pointer text-xl font-bold text-gray-400 transition-colors hover:text-gray-600"
+          >
+            &times;
+          </button>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Registration No</label>
-              <input type="text" value={form.regNo} onChange={e => setForm(f => ({ ...f, regNo: e.target.value }))} placeholder="NY-AX-1234" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem' }} required />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+            {/* Registration No */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">
+                Registration No <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="NY-AX-1234"
+                value={form.regNo}
+                onChange={(e) => setForm((prev) => ({ ...prev, regNo: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-gray-300 bg-[#F8FAFC] px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Vehicle Type</label>
-              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem', backgroundColor: '#fff' }}>
-                <option>Sedan</option>
-                <option>SUV</option>
-                <option>Mini Van</option>
-                <option>Bus</option>
+            {/* Vehicle Type */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">Vehicle Type</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}
+                className="w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              >
+                <option value="Sedan">Sedan</option>
+                <option value="SUV">SUV</option>
+                <option value="Mini Van">Mini Van</option>
+                <option value="Bus">Bus</option>
               </select>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Driver Name</label>
-              <input type="text" value={form.driver} onChange={e => setForm(f => ({ ...f, driver: e.target.value }))} placeholder="Enter driver name" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem' }} required />
+            {/* Driver Name */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">
+                Driver Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Enter driver name"
+                value={form.driver}
+                onChange={(e) => setForm((prev) => ({ ...prev, driver: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-gray-300 bg-[#F8FAFC] px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Mobile</label>
-              <input type="text" value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} placeholder="+1 555-0000" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem' }} />
+            {/* Mobile */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">Mobile</label>
+              <input
+                type="text"
+                placeholder="+1 555-0000"
+                value={form.mobile}
+                onChange={(e) => setForm((prev) => ({ ...prev, mobile: e.target.value }))}
+                className="w-full rounded-xl border border-gray-300 bg-[#F8FAFC] px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Model</label>
-              <input type="text" value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} placeholder="Enter model" style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem' }} />
+            {/* Model */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">Model</label>
+              <input
+                type="text"
+                placeholder="Enter model"
+                value={form.model}
+                onChange={(e) => setForm((prev) => ({ ...prev, model: e.target.value }))}
+                className="w-full rounded-xl border border-gray-300 bg-[#F8FAFC] px-4 py-3 text-sm text-gray-800 placeholder-gray-400 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--dark)' }}>Status</label>
-              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '9px 12px', fontSize: '0.88rem', backgroundColor: '#fff' }}>
-                <option>Active</option>
-                <option>Inactive</option>
+            {/* Status */}
+            <div className="flex flex-col gap-2">
+              <label className="block text-xs font-semibold text-[#244e5f]">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+                className="w-full cursor-pointer rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 transition-all focus:border-[#418a8b] focus:outline-none focus:ring-2 focus:ring-[#418a8b]/20"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
               </select>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-            <button type="button" onClick={onClose} style={{ padding: '9px 22px', borderRadius: '30px', border: '1px solid var(--border)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', backgroundColor: '#fff', color: 'var(--text-secondary)' }}>Cancel</button>
-            <button type="submit" style={{ padding: '9px 22px', borderRadius: '30px', border: 'none', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', backgroundColor: 'var(--primary)', color: '#fff' }}>Save</button>
-          </div>
+          <CommonActionButtons
+            onCancel={onClose}
+            saveText={mode === 'add' ? 'Save' : 'Update'}
+          />
         </form>
       </div>
     </div>

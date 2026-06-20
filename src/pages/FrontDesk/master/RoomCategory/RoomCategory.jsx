@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Table from '../../../../components/common/Table';
+import CustomTable from '../components/CustomTable';
 import ConfirmModal from '../../../../components/common/ConfirmModal';
 import RoomCategoryForm from './RoomCategoryForm';
 
@@ -53,7 +53,7 @@ const RoomCategory = ({ showToast }) => {
 
   return (
     <>
-      <Table
+      <CustomTable
         title="Room Category"
         columns={columns}
         data={data}
@@ -65,6 +65,7 @@ const RoomCategory = ({ showToast }) => {
         addEntryLabel="+ Add Category"
         searchPlaceholder="Search categories..."
         showToast={showToast}
+        breadcrumbs={['Dashboard', 'Front Desk', 'Room Category']}
       />
 
       <ConfirmModal
