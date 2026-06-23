@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import CustomTable from '../components/CustomTable';
-import ConfirmModal from '../../../../components/common/ConfirmModal';
+import CommonTable from '../../../../components/common/CommonTable';
+import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import MealMasterForm from './MealMasterForm';
 
 const MealMaster = ({ showToast }) => {
@@ -54,7 +54,7 @@ const MealMaster = ({ showToast }) => {
 
   return (
     <>
-      <CustomTable
+      <CommonTable
         title="Meal Master"
         columns={columns}
         data={data}
@@ -69,11 +69,11 @@ const MealMaster = ({ showToast }) => {
         breadcrumbs={['Dashboard', 'Front Desk', 'Meal Master']}
       />
 
-      <ConfirmModal
+      <DeleteConfirmationModal
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, row: null })}
         onConfirm={handleDelete}
-        message={`Delete meal plan "${deleteModal.row?.name}"? This cannot be undone.`}
+        itemName={deleteModal.row?.name}
       />
     </>
   );

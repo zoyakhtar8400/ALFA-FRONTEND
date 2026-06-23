@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { FaBars, FaBell, FaSearch, FaUserCircle, FaFlask } from 'react-icons/fa';
 
-const Navbar = ({ toggleSidebar, showToast }) => {
+const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) => {
   const location = useLocation();
 
   const getPageTitle = (path) => {
@@ -30,10 +30,24 @@ const Navbar = ({ toggleSidebar, showToast }) => {
     }
   };
 
+  // On desktop, hamburger toggles collapse. On mobile, it opens the drawer.
+  const handleHamburger = () => {
+    if (window.innerWidth > 768) {
+      toggleCollapse();
+    } else {
+      toggleSidebar();
+    }
+  };
+
   return (
     <header className="navbar">
       <div className="navbar-left">
-        <button className="menu-toggle-btn" onClick={toggleSidebar} aria-label="Toggle Sidebar">
+        <button
+          className="menu-toggle-btn"
+          onClick={handleHamburger}
+          aria-label={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+        >
           <FaBars />
         </button>
         <span className="navbar-page-title">{getPageTitle(location.pathname)}</span>

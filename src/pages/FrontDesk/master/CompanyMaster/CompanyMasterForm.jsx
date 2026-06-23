@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
-
-const FormCard = ({ title, children }) => (
-  <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-md mb-6 animate-in fade-in duration-200">
-    <h3 className="text-base font-bold text-[#244e5f] mb-6 pb-3 border-b border-gray-100">{title}</h3>
-    {children}
-  </div>
-);
+import FormCard from '../../../../components/common/FormCard';
 
 const CITIES = [
   'Mumbai',
@@ -81,7 +75,7 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
   };
 
   return (
-    <div className="p-6 md:p-8 animate-in fade-in duration-200">
+    <div className="animate-in duration-200">
       <PageHeader
         title={mode === 'add' ? 'Add Company' : 'Edit Company'}
         breadcrumbs={['Dashboard', 'Front Desk', 'Company Master', mode === 'add' ? 'Add' : 'Edit']}
@@ -89,13 +83,13 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         onBack={onCancel}
       />
 
-      <form onSubmit={handleSubmit} className="mt-6">
-        {/* Card: Company Information in 4 column layout */}
+      <form onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
+        {/* Card: Company Information in 2 column layout */}
         <FormCard title="Company Information">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
+          <div className="form-grid-2">
             {/* Name */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">
+            <div className="form-field">
+              <label className="form-label">
                 Company Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -104,77 +98,77 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. Alfa Group Ltd"
                 required
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Under Group */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Under Group</label>
+            <div className="form-field">
+              <label className="form-label">Under Group</label>
               <input
                 type="text"
                 value={form.underGroup}
                 onChange={e => setForm(f => ({ ...f, underGroup: e.target.value }))}
                 placeholder="Sundry Debtors"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Short Name */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Short Name</label>
+            <div className="form-field">
+              <label className="form-label">Short Name</label>
               <input
                 type="text"
                 value={form.shortName}
                 onChange={e => setForm(f => ({ ...f, shortName: e.target.value }))}
                 placeholder="e.g. ALFA"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Nature */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Nature</label>
+            <div className="form-field">
+              <label className="form-label">Nature</label>
               <input
                 type="text"
                 value={form.nature}
                 onChange={e => setForm(f => ({ ...f, nature: e.target.value }))}
                 placeholder="Corporate"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* GSTIN No. */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">GSTIN No.</label>
+            <div className="form-field">
+              <label className="form-label">GSTIN No.</label>
               <input
                 type="text"
                 value={form.gstNumber}
                 onChange={e => setForm(f => ({ ...f, gstNumber: e.target.value }))}
                 placeholder="e.g. 29AAAAA1111A1Z1"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Contact Person */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Contract Person</label>
+            <div className="form-field">
+              <label className="form-label">Contract Person</label>
               <input
                 type="text"
                 value={form.contractPerson}
                 onChange={e => setForm(f => ({ ...f, contractPerson: e.target.value }))}
                 placeholder="e.g. John Doe"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* City */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">City</label>
+            <div className="form-field">
+              <label className="form-label">City</label>
               <select
                 value={form.city}
                 onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 {CITIES.map(c => (
                   <option key={c} value={c}>{c}</option>
@@ -183,72 +177,74 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
             </div>
 
             {/* Phone */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Phone</label>
+            <div className="form-field">
+              <label className="form-label">Phone</label>
               <input
                 type="text"
                 value={form.phone}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                 placeholder="e.g. +91 22 123456"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Mobile Number */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Mobile Number</label>
+            <div className="form-field">
+              <label className="form-label">Mobile Number</label>
               <input
                 type="text"
                 value={form.mobile}
                 onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))}
                 placeholder="e.g. +91 9876543210"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Email */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Email</label>
+            <div className="form-field">
+              <label className="form-label">Email</label>
               <input
                 type="email"
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="e.g. info@alfagroup.com"
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Active */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Active</label>
+            <div className="form-field form-span-2">
+              <label className="form-label">Active</label>
               <select
                 value={form.active}
                 onChange={e => setForm(f => ({ ...f, active: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
             </div>
 
-            {/* Address (Spans remaining columns or full width on md/lg) */}
-            <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Address</label>
+            {/* Address */}
+            <div className="form-field form-span-2">
+              <label className="form-label">Address</label>
               <textarea
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                 placeholder="Enter complete office address..."
                 rows={3}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-textarea"
               />
             </div>
           </div>
         </FormCard>
 
-        <CommonActionButtons
-          onCancel={onCancel}
-          saveText={mode === 'add' ? 'Save' : 'Update'}
-        />
+        <div className="mt-2 border-t border-slate-100 pt-4">
+          <CommonActionButtons
+            onCancel={onCancel}
+            saveText={mode === 'add' ? 'Save' : 'Update'}
+          />
+        </div>
       </form>
     </div>
   );

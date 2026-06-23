@@ -13,7 +13,7 @@ import Setting from '../pages/Setting/Setting';
 const AppRoutes = ({ showToast }) => {
   return (
     <Routes>
-      <Route path="#" element={<Dashboard showToast={showToast} />} />
+      <Route path="/" element={<Dashboard showToast={showToast} />} />
       <Route path="/front-desk/*" element={<FrontDesk showToast={showToast} />} />
       <Route path="/housekeeping" element={<HouseKeeping />} />
       <Route path="/pos" element={<PointOfSale />} />

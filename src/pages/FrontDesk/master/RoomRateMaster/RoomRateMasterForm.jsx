@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
-
-const FormCard = ({ title, children, className = "" }) => (
-  <div className={`bg-white rounded-2xl p-8 border border-gray-100 shadow-md animate-in fade-in duration-200 ${className}`}>
-    <h3 className="text-base font-bold text-[#244e5f] mb-6 pb-3 border-b border-gray-100">{title}</h3>
-    {children}
-  </div>
-);
+import FormCard from '../../../../components/common/FormCard';
 
 // Room Category Rates seed for auto-population
 const CATEGORY_RATES = {
@@ -139,7 +133,7 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
   };
 
   return (
-    <div className="p-6 md:p-8 animate-in fade-in duration-200">
+    <div className="animate-in duration-200">
       <PageHeader
         title={mode === 'add' ? 'Add Room Rate Plan' : 'Edit Room Rate Plan'}
         breadcrumbs={['Dashboard', 'Front Desk', 'Room Rate Master', mode === 'add' ? 'Add' : 'Edit']}
@@ -147,13 +141,13 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         onBack={onCancel}
       />
 
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
         {/* Card 1: Basic Information */}
         <FormCard title="Basic Information">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
             {/* Name */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">
+            <div className="form-field">
+              <label className="form-label">
                 Rate Plan Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -162,13 +156,13 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. Peak Season Rate"
                 required
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Short Name */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">
+            <div className="form-field">
+              <label className="form-label">
                 Short Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -177,28 +171,28 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 onChange={e => setForm(f => ({ ...f, shortName: e.target.value }))}
                 placeholder="e.g. PEAK"
                 required
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Applicable Date */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Applicable Date</label>
+            <div className="form-field">
+              <label className="form-label">Applicable Date</label>
               <input
                 type="date"
                 value={form.applicableDate}
                 onChange={e => setForm(f => ({ ...f, applicableDate: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                className="form-input"
               />
             </div>
 
             {/* Room Category */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Room Category</label>
+            <div className="form-field">
+              <label className="form-label">Room Category</label>
               <select
                 value={form.category}
                 onChange={e => handleCategoryChange(e.target.value)}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 <option value="Standard Comfort Room">Standard Comfort Room</option>
                 <option value="Premium Deluxe King Room">Premium Deluxe King Room</option>
@@ -207,12 +201,12 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
             </div>
 
             {/* Plan Type */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Plan Type</label>
+            <div className="form-field">
+              <label className="form-label">Plan Type</label>
               <select
                 value={form.planType}
                 onChange={e => setForm(f => ({ ...f, planType: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 <option value="American Plan">American Plan</option>
                 <option value="MAP">Modified American Plan (MAP)</option>
@@ -222,12 +216,12 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
             </div>
 
             {/* Meal Type */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Meal Type</label>
+            <div className="form-field">
+              <label className="form-label">Meal Type</label>
               <select
                 value={form.mealType}
                 onChange={e => setForm(f => ({ ...f, mealType: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 <option value="Veg">Veg</option>
                 <option value="Non-Veg">Non-Veg</option>
@@ -236,12 +230,12 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
             </div>
 
             {/* Active */}
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <label className="text-xs font-semibold text-[#244e5f]">Active</label>
+            <div className="form-field md:col-span-2">
+              <label className="form-label">Active</label>
               <select
                 value={form.active}
                 onChange={e => setForm(f => ({ ...f, active: e.target.value }))}
-                className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-white text-gray-800 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all cursor-pointer"
+                className="form-select"
               >
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
@@ -254,7 +248,7 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Card 2: Room Charges */}
           <FormCard title="Room Charges" className="mb-0">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="form-grid-2">
               {[
                 { label: 'Single Rate', key: 'roomSingle' },
                 { label: 'Double Rate', key: 'roomDouble' },
@@ -263,14 +257,14 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult', key: 'roomExtraAdult' },
                 { label: 'Extra Child', key: 'roomExtraChild' }
               ].map(({ label, key }) => (
-                <div key={key} className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-slate-600">{label}</label>
+                <div key={key} className="form-field">
+                  <label className="form-label">{label}</label>
                   <input
                     type="number"
                     value={form[key]}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                    className="form-input"
                   />
                 </div>
               ))}
@@ -279,7 +273,7 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
 
           {/* Card 3: Meal Charges */}
           <FormCard title="Meal Charges" className="mb-0">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="form-grid-2">
               {[
                 { label: 'Single Rate', key: 'mealSingle' },
                 { label: 'Double Rate', key: 'mealDouble' },
@@ -288,23 +282,23 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult', key: 'mealExtraAdult' },
                 { label: 'Extra Child', key: 'mealExtraChild' }
               ].map(({ label, key }) => (
-                <div key={key} className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-slate-600">{label}</label>
+                <div key={key} className="form-field">
+                  <label className="form-label">{label}</label>
                   <input
                     type="number"
                     value={form[key]}
                     onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl bg-[#F8FAFC] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#418a8b] focus:ring-2 focus:ring-[#418a8b]/20 transition-all"
+                    className="form-input"
                   />
                 </div>
               ))}
             </div>
           </FormCard>
 
-          {/* Card 4: Net Charges */}
+          {/* Card 4: Net Charges (Room + Meal) */}
           <FormCard title="Net Charges (Room + Meal)" className="mb-0">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="form-grid-2">
               {[
                 { label: 'Single Net', value: getNetSingle() },
                 { label: 'Double Net', value: getNetDouble() },
@@ -313,8 +307,8 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult Net', value: getNetExtraAdult() },
                 { label: 'Extra Child Net', value: getNetExtraChild() }
               ].map(({ label, value }) => (
-                <div key={label} className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-[#244e5f]">{label}</label>
+                <div key={label} className="form-field">
+                  <label className="form-label">{label}</label>
                   <div className="w-full px-4 py-2.5 text-sm font-bold border border-emerald-100 rounded-xl bg-emerald-50/30 text-emerald-800 select-none text-center truncate">
                     Rs. {value}
                   </div>
@@ -324,7 +318,7 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
           </FormCard>
         </div>
 
-        <div className="mt-2">
+        <div className="mt-2 border-t border-slate-100 pt-4">
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}

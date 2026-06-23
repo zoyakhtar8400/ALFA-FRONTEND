@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import MasterPage from './master/MasterPage';
+import OperationPage from './operation/OperationPage';
 import PageHeader from '../../components/common/PageHeader';
 
 const FrontDesk = ({ showToast }) => {
@@ -28,17 +29,7 @@ const FrontDesk = ({ showToast }) => {
     }
 
     if (section === 'OPERATION' && item) {
-      return (
-        <div>
-          <PageHeader
-            title={item}
-            breadcrumbs={['Dashboard', 'Front Desk', 'Operation', item]}
-          />
-          <div className="dashboard-panel">
-            <p className="text-secondary">Operation form for {item} coming soon.</p>
-          </div>
-        </div>
-      );
+      return <OperationPage operationName={item} showToast={showToast} />;
     }
 
     if (section === 'MIS' && item) {

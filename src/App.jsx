@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
@@ -7,11 +7,28 @@ import { FaInfoCircle } from 'react-icons/fa';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Mobile drawer state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Desktop collapse state — persisted in localStorage
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebarCollapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [toastMessage, setToastMessage] = useState('');
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    setSidebarOpen(prev => !prev);
+  };
+
+  const toggleCollapse = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebarCollapsed', String(next)); } catch {}
+      return next;
+    });
   };
 
   const showToast = (message) => {
@@ -55,10 +72,21 @@ function App() {
         </div>
       )}
 
-      <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} onLogout={handleLogout} />
-      
+      <Sidebar
+        isOpen={sidebarOpen}
+        toggleSidebar={toggleSidebar}
+        isCollapsed={sidebarCollapsed}
+        toggleCollapse={toggleCollapse}
+        onLogout={handleLogout}
+      />
+
       <div className="main-layout">
-        <Navbar toggleSidebar={toggleSidebar} showToast={showToast} />
+        <Navbar
+          toggleSidebar={toggleSidebar}
+          toggleCollapse={toggleCollapse}
+          sidebarCollapsed={sidebarCollapsed}
+          showToast={showToast}
+        />
         <main className="content-area">
           <AppRoutes showToast={showToast} />
         </main>

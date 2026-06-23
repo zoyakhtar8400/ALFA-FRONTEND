@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import CustomTable from '../components/CustomTable';
-import ConfirmModal from '../../../../components/common/ConfirmModal';
+import CommonTable from '../../../../components/common/CommonTable';
+import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CompanyMasterForm from './CompanyMasterForm';
 
 const CompanyMaster = ({ showToast }) => {
@@ -54,7 +54,7 @@ const CompanyMaster = ({ showToast }) => {
 
   return (
     <>
-      <CustomTable
+      <CommonTable
         title="Company Master"
         columns={columns}
         data={data}
@@ -69,11 +69,11 @@ const CompanyMaster = ({ showToast }) => {
         breadcrumbs={['Dashboard', 'Front Desk', 'Company Master']}
       />
 
-      <ConfirmModal
+      <DeleteConfirmationModal
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, row: null })}
         onConfirm={handleDelete}
-        message={`Delete company "${deleteModal.row?.name}"? This cannot be undone.`}
+        itemName={deleteModal.row?.name}
       />
     </>
   );
