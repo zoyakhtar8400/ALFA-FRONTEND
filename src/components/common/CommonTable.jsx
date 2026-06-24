@@ -26,6 +26,7 @@ const CommonTable = ({
   breadcrumbs = [],
   statusFilterKey = 'active',
   isLoading = false,
+  onlyTable = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -98,11 +99,7 @@ const CommonTable = ({
     if (statusFilter !== 'All') {
       result = result.filter(row => {
         const val = String(row[statusFilterKey] || row['status'] || row['active'] || '').toLowerCase();
-        if (statusFilter === 'Active') {
-          return val === 'yes' || val === 'active';
-        } else {
-          return val === 'no' || val === 'inactive';
-        }
+        return val === statusFilter.toLowerCase();
       });
     }
 
@@ -121,6 +118,7 @@ const CommonTable = ({
 
     // 3. Sorting
     if (sortColumn) {
+      const column = columns.find(c => c.key === sortColumn);
       result.sort((a, b) => {
         let valA = a[sortColumn];
         let valB = b[sortColumn];
@@ -155,12 +153,14 @@ const CommonTable = ({
       <PrintHeader title={title} />
 
       {/* Page Header */}
-      <PageHeader
-        title={title}
-        breadcrumbs={breadcrumbs.length > 0 ? breadcrumbs : ['Dashboard', 'Front Desk', title]}
-        showPrint
-        onPrint={handlePrint}
-      />
+      {!onlyTable && (
+        <PageHeader
+          title={title}
+          breadcrumbs={breadcrumbs.length > 0 ? breadcrumbs : ['Dashboard', 'Front Desk', title]}
+          showPrint
+          onPrint={handlePrint}
+        />
+      )}
 
       {/* Controls Bar */}
       <div className="no-print table-header-controls flex flex-wrap justify-between items-center gap-4">
@@ -172,44 +172,48 @@ const CommonTable = ({
             placeholder={searchPlaceholder}
           />
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="entries-select"
-          >
-            <option value="All">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+          {!onlyTable && (
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="entries-select"
+            >
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          )}
         </div>
 
         {/* Right Action buttons */}
-        <div className="table-right-controls flex items-center gap-3">
-          <button
-            onClick={handleRefresh}
-            className="btn-secondary"
-          >
-            <FaSync size={11} />
-            <span>Refresh</span>
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            className="btn-secondary"
-          >
-            <FaFileExport size={11} />
-            <span>Export</span>
-          </button>
-
-          {onAddEntry && (
+        {!onlyTable && (
+          <div className="table-right-controls flex items-center gap-3">
             <button
-              onClick={onAddEntry}
-              className="btn-primary"
+              onClick={handleRefresh}
+              className="btn-secondary"
             >
-              {addEntryLabel}
+              <FaSync size={11} />
+              <span>Refresh</span>
             </button>
-          )}
-        </div>
+
+            <button
+              onClick={handleExportCSV}
+              className="btn-secondary"
+            >
+              <FaFileExport size={11} />
+              <span>Export</span>
+            </button>
+
+            {onAddEntry && (
+              <button
+                onClick={onAddEntry}
+                className="btn-primary"
+              >
+                {addEntryLabel}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Main Table Content */}
@@ -309,6 +313,7 @@ const CommonTable = ({
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setEntriesPerPage}
+                onlyTable={onlyTable}
               />
             )}
           </>

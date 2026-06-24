@@ -5,13 +5,13 @@ import { FaTimes } from 'react-icons/fa';
  * CommonModal component for consistent popup/dialog behavior.
  * Uses a backdrop blur effect and animated entrance.
  */
-const CommonModal = ({ isOpen, onClose, title, children, maxWidth = '640px' }) => {
+const CommonModal = ({ isOpen, onClose, title, children, maxWidth = '640px', lessPadding = false }) => {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
-        className="modal-container"
+        className={`modal-container ${lessPadding ? 'less-padding' : ''}`}
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >

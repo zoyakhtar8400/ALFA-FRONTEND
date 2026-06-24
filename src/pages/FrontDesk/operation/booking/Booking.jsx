@@ -3,7 +3,7 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import BookingForm from './BookingForm';
 
-const Booking = ({ showToast }) => {
+const Booking = ({ showToast, onlyList = false }) => {
   const [data, setData] = useState([
     { id: 1, bookingNo: 'BK-1001', guestName: 'Rohan Sharma', roomCategory: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-25', adults: 2, children: 1, mealPlan: 'CP (Bed & Breakfast)', ratePlan: 'Standard Rate', advance: 3000, remarks: 'Require airport pickup.', active: 'Yes' },
     { id: 2, bookingNo: 'BK-1002', guestName: 'Amanda Smith', roomCategory: 'Executive Suite', checkIn: '2026-06-24', checkOut: '2026-06-28', adults: 2, children: 0, mealPlan: 'MAP (Half Board)', ratePlan: 'Seasonal Offer', advance: 8000, remarks: 'High floor preferred.', active: 'Yes' },
@@ -22,7 +22,7 @@ const Booking = ({ showToast }) => {
     { key: 'mealPlan', label: 'Meal Plan' },
     { key: 'advance', label: 'Advance Paid' },
     { key: 'active', label: 'Active', renderStatus: true },
-    { key: 'action', label: 'Action', sortable: false },
+    ...(onlyList ? [] : [{ key: 'action', label: 'Action', sortable: false }]),
   ];
 
   const handleSave = (formData) => {
@@ -59,15 +59,16 @@ const Booking = ({ showToast }) => {
         title="Booking"
         columns={columns}
         data={data}
-        actions={[
+        actions={onlyList ? [] : [
           { label: 'Edit', onClick: (row) => { setEditMode({ mode: 'edit', row }); setShowForm(true); } },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) },
         ]}
-        onAddEntry={() => { setEditMode({ mode: 'add', row: null }); setShowForm(true); }}
+        onAddEntry={onlyList ? null : () => { setEditMode({ mode: 'add', row: null }); setShowForm(true); }}
         addEntryLabel="+ Add Booking"
         searchPlaceholder="Search bookings..."
         showToast={showToast}
         breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Booking']}
+        onlyTable={onlyList}
       />
 
       <DeleteConfirmationModal

@@ -4,6 +4,7 @@ import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
 import Login from './pages/Login/Login';
 import { FaInfoCircle } from 'react-icons/fa';
+import { initKeyboardNavigation } from './utils/keyboardNavigation';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -37,6 +38,15 @@ function App() {
       setToastMessage('');
     }, 3000);
   };
+
+  useEffect(() => {
+    window.showToast = showToast;
+    const cleanup = initKeyboardNavigation();
+    return () => {
+      cleanup();
+      delete window.showToast;
+    };
+  }, []);
 
   const handleLogin = () => {
     setIsAuthenticated(true);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 
-const RoomEnquiry = ({ showToast }) => {
+const RoomEnquiry = ({ showToast, onlyList = false }) => {
   const [data] = useState([
     { id: 1, guestName: 'Deepak Nair', mobile: '+91 9087654321', roomCategory: 'Deluxe Room', checkIn: '2026-06-25', checkOut: '2026-06-28', adults: 2, children: 0, source: 'Phone', active: 'Yes' },
     { id: 2, guestName: 'Laura Jenkins', mobile: '+1 555 102 3456', roomCategory: 'Executive Suite', checkIn: '2026-07-01', checkOut: '2026-07-07', adults: 2, children: 1, source: 'Online', active: 'Yes' },
@@ -29,6 +29,7 @@ const RoomEnquiry = ({ showToast }) => {
       searchPlaceholder="Search by guest name, room category..."
       showToast={showToast}
       breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Room Enquiry Entry']}
+      onlyTable={onlyList}
     />
   );
 };

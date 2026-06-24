@@ -11,34 +11,41 @@ const CommonPagination = ({
   onPageChange,
   onItemsPerPageChange,
   itemsPerPageOptions = [10, 25, 50, 100],
+  onlyTable = false,
 }) => {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const startRange = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endRange = Math.min(currentPage * itemsPerPage, totalItems);
 
+  if (onlyTable && totalPages <= 1) return null;
+
   return (
     <div className="no-print table-footer-controls">
       {/* Items per page selector */}
-      <div className="entries-select-wrapper">
-        <span>Show</span>
-        <select
-          value={itemsPerPage}
-          onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="entries-select"
-        >
-          {itemsPerPageOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-        <span>entries</span>
-      </div>
+      {!onlyTable && (
+        <div className="entries-select-wrapper">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+            className="entries-select"
+          >
+            {itemsPerPageOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          <span>entries</span>
+        </div>
+      )}
 
       {/* Info text */}
-      <div className="text-slate-500 font-medium">
-        Showing {startRange} to {endRange} of {totalItems} records
-      </div>
+      {!onlyTable && (
+        <div className="text-slate-500 font-medium">
+          Showing {startRange} to {endRange} of {totalItems} records
+        </div>
+      )}
 
       {/* Pagination buttons */}
       <div className="pagination-controls">
