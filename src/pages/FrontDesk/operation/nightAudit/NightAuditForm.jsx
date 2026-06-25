@@ -1,4 +1,25 @@
 import React, { useState } from 'react';
+import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+
+const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
+  <div className="form-field" style={{ marginBottom: '4px', ...style }}>
+    <label className="form-label" style={{ marginBottom: '2px' }}>
+      {label}{required && <span className="text-red-500"> *</span>}
+    </label>
+    {children || (
+      <input
+        className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${inputClassName || ''}`}
+        type={type}
+        value={value ?? ''}
+        onChange={disabled ? undefined : onChange}
+        disabled={disabled}
+        placeholder={placeholder}
+        required={required}
+        style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', ...inputStyle }}
+      />
+    )}
+  </div>
+);
 
 const NightAuditForm = ({ mode, initialData, onSave, onCancel }) => {
   const [auditDate, setAuditDate] = useState(
@@ -10,14 +31,14 @@ const NightAuditForm = ({ mode, initialData, onSave, onCancel }) => {
     setRunning(true);
     setTimeout(() => {
       setRunning(false);
-      onSave({ auditDate });
+      onSave({ auditDate, notes: 'Night audit ran and posting completed successfully.', active: 'Yes' });
     }, 1500);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <div className="form-field">
-        <label className="form-label">Audit Date <span className="text-red-500">*</span></label>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      
+      <F label="Audit Date" required>
         <input
           className="form-input"
           type="date"
@@ -25,29 +46,33 @@ const NightAuditForm = ({ mode, initialData, onSave, onCancel }) => {
           onChange={(e) => setAuditDate(e.target.value)}
           required
           disabled={running}
+          style={{ fontSize: '0.95rem', fontWeight: 600, padding: '4px 8px', height: '34px' }}
         />
-      </div>
+      </F>
 
       {running && (
-        <div style={{ padding: '14px 18px', background: 'var(--primary-light)', borderRadius: '10px', fontSize: '0.875rem', color: 'var(--dark)', fontWeight: 500 }}>
+        <div style={{
+          padding: '12px 14px',
+          background: 'linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)',
+          borderRadius: '6px',
+          fontSize: '0.85rem',
+          color: '#fff',
+          fontWeight: 600,
+          boxShadow: '0 4px 10px rgba(109, 40, 217, 0.2)',
+          textAlign: 'center',
+          animation: 'pulse 1.5s infinite ease-in-out'
+        }}>
           ⟳ Running night audit for {auditDate}, please wait...
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: '8px' }}>
-        <button type="button" onClick={onCancel} className="btn-secondary" disabled={running}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleNightAudit}
-          disabled={running}
-          className="btn-primary"
-          style={{ minWidth: '140px' }}
-        >
-          {running ? '⟳ Running...' : 'Run Audit'}
-        </button>
-      </div>
+      <CommonActionButtons
+        onSave={handleNightAudit}
+        onCancel={onCancel}
+        saveText={running ? 'Running...' : 'Run Audit'}
+        cancelText="Exit"
+        loading={running}
+      />
     </div>
   );
 };

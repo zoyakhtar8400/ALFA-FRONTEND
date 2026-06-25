@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 
 // Room Category Rates seed for auto-population
 const CATEGORY_RATES = {
@@ -31,55 +32,31 @@ const CATEGORY_RATES = {
   }
 };
 
+/* ── Field wrapper — defined OUTSIDE parent to prevent remount on every keystroke ── */
+const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
+  <div className="form-field" style={{ marginBottom: '4px', ...style }}>
+    <label className="form-label" style={{ marginBottom: '2px' }}>
+      {label}{required && <span className="text-red-500"> *</span>}
+    </label>
+    {children || (
+      <input
+        className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${inputClassName || ''}`}
+        type={type}
+        value={value ?? ''}
+        onChange={disabled ? undefined : onChange}
+        disabled={disabled}
+        placeholder={placeholder}
+        required={required}
+        style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', ...inputStyle }}
+      />
+    )}
+  </div>
+);
+
 const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    name: '',
-    shortName: '',
-    applicableDate: '',
-    category: 'Standard Comfort Room',
-    planType: 'American Plan',
-    mealType: 'Veg',
-    active: 'Yes',
-
-    // Room rates
-    roomSingle: '100.00',
-    roomDouble: '120.00',
-    roomExtraAdult: '30.00',
-    roomTriple: '150.00',
-    roomQuadrant: '180.00',
-    roomExtraChild: '20.00',
-
-    // Meal rates (defaults to 0)
-    mealSingle: '0.00',
-    mealDouble: '0.00',
-    mealExtraAdult: '0.00',
-    mealTriple: '0.00',
-    mealQuadrant: '0.00',
-    mealExtraChild: '0.00'
-  });
-
-  // Fetch rates when room category is changed
-  const handleCategoryChange = (catName) => {
-    const rates = CATEGORY_RATES[catName];
-    if (rates) {
-      setForm(prev => ({
-        ...prev,
-        category: catName,
-        roomSingle: rates.singleRate.toFixed(2),
-        roomDouble: rates.doubleRate.toFixed(2),
-        roomExtraAdult: rates.extraAdult.toFixed(2),
-        roomTriple: rates.tripleRate.toFixed(2),
-        roomQuadrant: rates.quadrantRate.toFixed(2),
-        roomExtraChild: rates.extraChild.toFixed(2)
-      }));
-    } else {
-      setForm(prev => ({ ...prev, category: catName }));
-    }
-  };
-
-  useEffect(() => {
+  const [form, setForm] = useState(() => {
     if (initialData) {
-      setForm({
+      return {
         ...initialData,
         name: initialData.name || initialData.code || '',
         shortName: initialData.shortName || initialData.code?.split('-')[2] || '',
@@ -102,11 +79,55 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         mealTriple: parseFloat(initialData.mealTriple || 0.00).toFixed(2),
         mealQuadrant: parseFloat(initialData.mealQuadrant || 0.00).toFixed(2),
         mealExtraChild: parseFloat(initialData.mealExtraChild || 0.00).toFixed(2)
-      });
-    } else {
-      handleCategoryChange('Standard Comfort Room');
+      };
     }
-  }, [initialData]);
+
+    const rates = CATEGORY_RATES['Standard Comfort Room'];
+    return {
+      name: '',
+      shortName: '',
+      applicableDate: '',
+      category: 'Standard Comfort Room',
+      planType: 'American Plan',
+      mealType: 'Veg',
+      active: 'Yes',
+
+      // Room rates
+      roomSingle: rates.singleRate.toFixed(2),
+      roomDouble: rates.doubleRate.toFixed(2),
+      roomExtraAdult: rates.extraAdult.toFixed(2),
+      roomTriple: rates.tripleRate.toFixed(2),
+      roomQuadrant: rates.quadrantRate.toFixed(2),
+      roomExtraChild: rates.extraChild.toFixed(2),
+
+      // Meal rates (defaults to 0)
+      mealSingle: '0.00',
+      mealDouble: '0.00',
+      mealExtraAdult: '0.00',
+      mealTriple: '0.00',
+      mealQuadrant: '0.00',
+      mealExtraChild: '0.00'
+    };
+  });
+
+  // Fetch rates when room category is changed
+  const handleCategoryChange = (catName) => {
+    const rates = CATEGORY_RATES[catName];
+    if (rates) {
+      setForm(prev => ({
+        ...prev,
+        category: catName,
+        roomSingle: rates.singleRate.toFixed(2),
+        roomDouble: rates.doubleRate.toFixed(2),
+        roomExtraAdult: rates.extraAdult.toFixed(2),
+        roomTriple: rates.tripleRate.toFixed(2),
+        roomQuadrant: rates.quadrantRate.toFixed(2),
+        roomExtraChild: rates.extraChild.toFixed(2)
+      }));
+    } else {
+      setForm(prev => ({ ...prev, category: catName }));
+    }
+  };
 
   // Real-time calculation helpers
   const getNetSingle = () => (parseFloat(form.roomSingle || 0) + parseFloat(form.mealSingle || 0)).toFixed(2);
@@ -133,114 +154,113 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
   };
 
   return (
-    <div className="animate-in duration-200">
+    <div className="animate-in duration-200" style={{ padding: '0 8px' }}>
+      {/* Hide ALL scrollbars globally for a premium desktop app feel */}
+      <style dangerouslySetInnerHTML={{__html: `
+        ::-webkit-scrollbar {
+          display: none !important;
+          width: 0px !important;
+          height: 0px !important;
+        }
+        * {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+      `}} />
+
       <PageHeader
         title={mode === 'add' ? 'Add Room Rate Plan' : 'Edit Room Rate Plan'}
         breadcrumbs={['Dashboard', 'Front Desk', 'Room Rate Master', mode === 'add' ? 'Add' : 'Edit']}
         showBack
         onBack={onCancel}
+        style={{ marginBottom: '4px', paddingBottom: '2px' }}
       />
 
-      <form onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} onKeyDown={handleEnterNavigation} className="p-4 flex flex-col gap-4">
         {/* Card 1: Basic Information */}
         <FormCard title="Basic Information">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
             {/* Name */}
-            <div className="form-field">
-              <label className="form-label">
-                Rate Plan Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Peak Season Rate"
-                required
-                className="form-input"
-              />
-            </div>
+            <F
+              label="Rate Plan Name"
+              required
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Peak Season Rate"
+            />
 
             {/* Short Name */}
-            <div className="form-field">
-              <label className="form-label">
-                Short Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.shortName}
-                onChange={e => setForm(f => ({ ...f, shortName: e.target.value }))}
-                placeholder="e.g. PEAK"
-                required
-                className="form-input"
-              />
-            </div>
+            <F
+              label="Short Name"
+              required
+              value={form.shortName}
+              onChange={e => setForm(f => ({ ...f, shortName: e.target.value }))}
+              placeholder="e.g. PEAK"
+            />
 
             {/* Applicable Date */}
-            <div className="form-field">
-              <label className="form-label">Applicable Date</label>
-              <input
-                type="date"
-                value={form.applicableDate}
-                onChange={e => setForm(f => ({ ...f, applicableDate: e.target.value }))}
-                className="form-input"
-              />
-            </div>
+            <F
+              label="Applicable Date"
+              type="date"
+              value={form.applicableDate}
+              onChange={e => setForm(f => ({ ...f, applicableDate: e.target.value }))}
+            />
 
             {/* Room Category */}
-            <div className="form-field">
-              <label className="form-label">Room Category</label>
+            <F label="Room Category">
               <select
                 value={form.category}
                 onChange={e => handleCategoryChange(e.target.value)}
                 className="form-select"
+                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', width: '100%' }}
               >
                 <option value="Standard Comfort Room">Standard Comfort Room</option>
                 <option value="Premium Deluxe King Room">Premium Deluxe King Room</option>
                 <option value="Presidential Penthouse Suite">Presidential Penthouse Suite</option>
               </select>
-            </div>
+            </F>
 
             {/* Plan Type */}
-            <div className="form-field">
-              <label className="form-label">Plan Type</label>
+            <F label="Plan Type">
               <select
                 value={form.planType}
                 onChange={e => setForm(f => ({ ...f, planType: e.target.value }))}
                 className="form-select"
+                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', width: '100%' }}
               >
                 <option value="American Plan">American Plan</option>
                 <option value="MAP">Modified American Plan (MAP)</option>
                 <option value="EP">European Plan (EP)</option>
                 <option value="CP">Continental Plan (CP)</option>
               </select>
-            </div>
+            </F>
 
             {/* Meal Type */}
-            <div className="form-field">
-              <label className="form-label">Meal Type</label>
+            <F label="Meal Type">
               <select
                 value={form.mealType}
                 onChange={e => setForm(f => ({ ...f, mealType: e.target.value }))}
                 className="form-select"
+                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', width: '100%' }}
               >
                 <option value="Veg">Veg</option>
                 <option value="Non-Veg">Non-Veg</option>
                 <option value="Mixed">Mixed</option>
               </select>
-            </div>
+            </F>
 
             {/* Active */}
-            <div className="form-field md:col-span-2">
-              <label className="form-label">Active</label>
+            <F label="Active" style={{ gridColumn: 'span 2' }}>
               <select
                 value={form.active}
                 onChange={e => setForm(f => ({ ...f, active: e.target.value }))}
                 className="form-select"
+                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', width: '100%' }}
               >
                 <option value="Yes">Yes</option>
                 <option value="No">No</option>
               </select>
-            </div>
+            </F>
           </div>
         </FormCard>
 
@@ -257,16 +277,14 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult', key: 'roomExtraAdult' },
                 { label: 'Extra Child', key: 'roomExtraChild' }
               ].map(({ label, key }) => (
-                <div key={key} className="form-field">
-                  <label className="form-label">{label}</label>
-                  <input
-                    type="number"
-                    value={form[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder="0.00"
-                    className="form-input"
-                  />
-                </div>
+                <F
+                  key={key}
+                  label={label}
+                  type="number"
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder="0.00"
+                />
               ))}
             </div>
           </FormCard>
@@ -282,16 +300,14 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult', key: 'mealExtraAdult' },
                 { label: 'Extra Child', key: 'mealExtraChild' }
               ].map(({ label, key }) => (
-                <div key={key} className="form-field">
-                  <label className="form-label">{label}</label>
-                  <input
-                    type="number"
-                    value={form[key]}
-                    onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    placeholder="0.00"
-                    className="form-input"
-                  />
-                </div>
+                <F
+                  key={key}
+                  label={label}
+                  type="number"
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder="0.00"
+                />
               ))}
             </div>
           </FormCard>
@@ -307,12 +323,23 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
                 { label: 'Extra Adult Net', value: getNetExtraAdult() },
                 { label: 'Extra Child Net', value: getNetExtraChild() }
               ].map(({ label, value }) => (
-                <div key={label} className="form-field">
-                  <label className="form-label">{label}</label>
-                  <div className="w-full px-4 py-2.5 text-sm font-bold border border-emerald-100 rounded-xl bg-emerald-50/30 text-emerald-800 select-none text-center truncate">
+                <F key={label} label={label}>
+                  <div style={{
+                    width: '100%',
+                    padding: '0 12px',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    border: '1.5px dashed #10b981',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.06)',
+                    color: '#047857',
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '34px',
+                  }}>
                     Rs. {value}
                   </div>
-                </div>
+                </F>
               ))}
             </div>
           </FormCard>

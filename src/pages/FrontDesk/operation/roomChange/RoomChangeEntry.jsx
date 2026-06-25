@@ -5,18 +5,20 @@ import RoomChangeEntryForm from './RoomChangeEntryForm';
 
 const RoomChangeEntry = ({ showToast }) => {
   const [data, setData] = useState([
-    { id: 1, folioNo: 'FL-4051', fromRoom: '101', toRoom: '202', changeDate: '2026-06-22', reason: 'AC not cooling properly in 101.', active: 'Yes' },
-    { id: 2, folioNo: 'FL-4052', fromRoom: '104', toRoom: '105', changeDate: '2026-06-22', reason: 'Guest upgraded to larger room.', active: 'Yes' },
+    { id: 1, voucherNo: 'RCH-1001', date: '2026-06-22', grcNo: 'GRC-1001', roomNo: '101', guestName: 'Rajan Mehta', adult: 1, child: 0, plan: 'EP', rate: '2500', taxInclusive: 'No', newRoom: '202', changeDate: '2026-06-22', changeTime: '14:30', newPlan: 'EP', newAdult: 1, newChild: 0, newRate: '2500', newTaxInclusive: 'No', discountPercent: '', reason: 'AC not cooling properly in 101.', active: 'Yes' },
+    { id: 2, voucherNo: 'RCH-1002', date: '2026-06-22', grcNo: 'GRC-1002', roomNo: '104', guestName: 'Maria Sharapova', adult: 2, child: 1, plan: 'CP', rate: '4500', taxInclusive: 'Yes', newRoom: '105', changeDate: '2026-06-22', changeTime: '15:10', newPlan: 'CP', newAdult: 2, newChild: 1, newRate: '4500', newTaxInclusive: 'Yes', discountPercent: '', reason: 'Guest upgraded to larger room.', active: 'Yes' },
   ]);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
 
   const columns = [
-    { key: 'folioNo', label: 'Folio No' },
-    { key: 'fromRoom', label: 'From Room' },
-    { key: 'toRoom', label: 'To Room' },
-    { key: 'changeDate', label: 'Change Date' },
+    { key: 'voucherNo', label: 'Voucher No' },
+    { key: 'date', label: 'Date' },
+    { key: 'grcNo', label: 'GRC No' },
+    { key: 'roomNo', label: 'From Room' },
+    { key: 'newRoom', label: 'To Room' },
+    { key: 'guestName', label: 'Guest Name' },
     { key: 'reason', label: 'Reason for Change' },
     { key: 'active', label: 'Active', renderStatus: true },
     { key: 'action', label: 'Action', sortable: false },
@@ -62,7 +64,7 @@ const RoomChangeEntry = ({ showToast }) => {
         ]}
         onAddEntry={() => { setEditMode({ mode: 'add', row: null }); setShowForm(true); }}
         addEntryLabel="+ Add Room Change"
-        searchPlaceholder="Search folio, from/to room or reason..."
+        searchPlaceholder="Search by guest, room, or reason..."
         showToast={showToast}
         breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Room Change Entry']}
       />
@@ -71,7 +73,7 @@ const RoomChangeEntry = ({ showToast }) => {
         isOpen={deleteModal.open}
         onClose={() => setDeleteModal({ open: false, row: null })}
         onConfirm={handleDelete}
-        itemName={`Folio ${deleteModal.row?.folioNo} (Room ${deleteModal.row?.fromRoom} -> ${deleteModal.row?.toRoom})`}
+        itemName={`Voucher ${deleteModal.row?.voucherNo} (Room ${deleteModal.row?.roomNo} -> ${deleteModal.row?.newRoom})`}
       />
     </>
   );

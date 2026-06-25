@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -25,7 +26,7 @@ const FloorMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
       onClose={onClose}
       title={mode === 'add' ? 'Add Floor' : 'Edit Floor'}
     >
-      <form onSubmit={handleSubmit}>
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit}>
         <div className="form-grid-2">
           {/* Floor Name */}
           <div className="form-field">

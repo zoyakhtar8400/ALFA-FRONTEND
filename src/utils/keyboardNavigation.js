@@ -1,5 +1,6 @@
 // src/utils/keyboardNavigation.js
 //
+import { useEffect } from 'react';
 // ALFA HMS — Global Enter-Key Navigation
 // ─────────────────────────────────────────────────────────────────
 // Rules:
@@ -73,7 +74,7 @@ const getFields = (el) => {
 const focusField = (el) => {
   el.focus();
   if (el.select && el.tagName !== 'SELECT') {
-    try { el.select(); } catch (_) { /* ignore */ }
+    try { el.select(); } catch { /* ignore */ }
   }
 };
 
@@ -89,7 +90,7 @@ const submitForm = (el) => {
   if (submitBtn) {
     submitBtn.click();
   } else {
-    try { form.requestSubmit(); } catch (_) { form.submit(); }
+    try { form.requestSubmit(); } catch { form.submit(); }
   }
 };
 
@@ -104,14 +105,7 @@ const handleKeyDown = (e) => {
   // ── Buttons handle themselves ─────────────────────────────────
   if (active.tagName === 'BUTTON') return;
 
-  // ── Textarea: normal Enter; Ctrl+Enter advances ───────────────
-  if (active.tagName === 'TEXTAREA') {
-    if (!e.ctrlKey) return; // let newline happen normally
-    e.preventDefault();
-    // Fall through to advance logic below
-  } else {
-    e.preventDefault();
-  }
+  e.preventDefault();
 
   // ── SELECT: open on first Enter, advance on second ───────────
   if (active.tagName === 'SELECT') {
@@ -129,7 +123,7 @@ const handleKeyDown = (e) => {
           };
           active.addEventListener('change', close, { once: true });
           active.addEventListener('blur', close, { once: true });
-        } catch (_) { /* showPicker not supported — fall through */ }
+        } catch { /* showPicker not supported — fall through */ }
       }
       return; // Wait for user to pick a value
     }
@@ -158,8 +152,14 @@ const handleKeyDown = (e) => {
     return;
   }
 
-  // ── Enter on last field → submit ─────────────────────────────
-  if (idx >= fields.length - 1) {
+  // ── Check if there are any remaining input/select/textarea fields after this one ──
+  const remainingFields = fields.slice(idx + 1);
+  const hasMoreInputs = remainingFields.some(f =>
+    f.tagName === 'INPUT' || f.tagName === 'SELECT' || f.tagName === 'TEXTAREA'
+  );
+
+  // If no other input/select/textarea fields exist, submit the form directly
+  if (!hasMoreInputs) {
     submitForm(active);
     return;
   }
@@ -242,7 +242,6 @@ export const initKeyboardNavigation = () => {
  * (e.g., modals) that need standalone Enter navigation.
  */
 export const useEnterNavigation = () => {
-  const { useEffect } = require('react');
   useEffect(() => {
     const cleanup = initKeyboardNavigation();
     return cleanup;

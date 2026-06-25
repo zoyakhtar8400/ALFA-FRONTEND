@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -66,7 +67,7 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
         onBack={onCancel}
       />
 
-      <form onSubmit={handleSubmit} className="m-6 p-4">
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit} className="m-6 p-4">
         {/* Card: Service Charge Information - arranged in 2-column layout */}
         <FormCard title="Service Charge Information">
           <div className="form-grid-2">

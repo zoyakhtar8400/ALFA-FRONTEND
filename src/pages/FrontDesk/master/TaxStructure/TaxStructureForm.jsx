@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from "react";
 import CommonModal from "../../../../components/common/CommonModal";
 import CommonActionButtons from "../../../../components/common/CommonActionButtons";
@@ -38,7 +39,7 @@ const TaxStructureForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
       onClose={onClose}
       title={mode === "add" ? "Add Tax Structure" : "Edit Tax Structure"}
     >
-      <form onSubmit={handleSubmit}>
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit}>
         <div className="form-grid-2">
           {/* Name */}
           <div className="form-field form-span-2">

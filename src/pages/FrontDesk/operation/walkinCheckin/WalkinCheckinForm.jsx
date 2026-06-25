@@ -4,13 +4,13 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import CommonModal from '../../../../components/common/CommonModal';
 import Booking from '../booking/Booking';
 import RoomEnquiry from '../roomEnquiry/RoomEnquiry';
-import { 
-  FaUser, 
-  FaPlus, 
-  FaTrash, 
-  FaClock, 
-  FaTag, 
-  FaBed 
+import {
+  FaUser,
+  FaPlus,
+  FaTrash,
+  FaClock,
+  FaTag,
+  FaBed
 } from 'react-icons/fa';
 
 /* ── Field wrapper — defined OUTSIDE parent to prevent remount on every keystroke ── */
@@ -162,6 +162,8 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
   // Modal display states
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+  const [roomInfoExpanded, setRoomInfoExpanded] = useState(true);
+
 
   // Auto calculate expected checkout date if checkinDate or days changes
   useEffect(() => {
@@ -177,21 +179,21 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
   }, [form.checkinDate, form.days]);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
-  
+
   const setRoom = (idx, key, val) => {
     setRooms(prev => prev.map((r, i) => i === idx ? { ...r, [key]: val } : r));
   };
 
   const addRoom = () => setRooms(prev => [
-    ...prev, 
+    ...prev,
     { roomNo: '', plan: '', adults: 1, children: 0, rate: '', taxInclusive: 'No', leader: 'No' }
   ]);
 
   const removeRoom = idx => setRooms(prev => prev.filter((_, i) => i !== idx));
 
-  const handleSubmit = e => { 
-    if (e) e.preventDefault(); 
-    onSave({ ...form, rooms }); 
+  const handleSubmit = e => {
+    if (e) e.preventDefault();
+    onSave({ ...form, rooms });
   };
 
   const sectionTitle = (icon, title) => (
@@ -206,9 +208,10 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
 
   return (
     <div className="animate-in duration-200" style={{ padding: '0 8px' }}>
-      
+
       {/* Hide ALL scrollbars globally for a premium desktop app feel */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         ::-webkit-scrollbar {
           display: none !important;
           width: 0px !important;
@@ -220,11 +223,11 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
         }
       `}} />
 
-      <PageHeader 
+      <PageHeader
         title={mode === 'add' ? 'Walkin Checkin Entry' : 'Edit Walkin Checkin'}
         breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Walkin Checkin Entry', mode === 'add' ? 'Add' : 'Edit']}
-        showBack 
-        onBack={onCancel} 
+        showBack
+        onBack={onCancel}
         style={{ marginBottom: '4px', paddingBottom: '2px' }}
       />
 
@@ -377,11 +380,11 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
       </div>
 
       <form onSubmit={handleSubmit} style={{ padding: '0 8px 4px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
-          
+        <div style={{ display: 'grid', gridTemplateColumns: '4fr 6fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
+
           {/* LEFT COLUMN: Stay & GRC + Guest Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            
+
             {/* 1. Stay & GRC Information */}
             <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
               {sectionTitle(<FaClock />, 'Stay & GRC Information')}
@@ -483,263 +486,290 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast }) =
 
           </div>
 
-          {/* RIGHT COLUMN: Marketing & Reference */}
-          <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-            {sectionTitle(<FaTag />, 'Marketing & Reference Information')}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 8px', alignItems: 'start' }}>
+          {/* RIGHT COLUMN: Marketing & Reference + Room Information */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
+              {sectionTitle(<FaTag />, 'Marketing & Reference Information')}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 8px', alignItems: 'start' }}>
 
-              {/* Row 1: Purpose | Company */}
-              <div style={{ gridColumn: 'span 3', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <F label="Purpose of Visit">
-                  <select className="form-select" value={form.purposeOfVisit} onChange={set('purposeOfVisit')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}>
-                    <option value="">Select Purpose</option>
-                    <option value="Business">Business</option>
+                {/* Row 1: Purpose | Company */}
+                <div style={{ gridColumn: 'span 3', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <F label="Purpose of Visit">
+                    <select className="form-select" value={form.purposeOfVisit} onChange={set('purposeOfVisit')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}>
+                      <option value="">Select Purpose</option>
+                      <option value="Business">Business</option>
+                      <option value="Leisure">Leisure</option>
+                      <option value="Medical">Medical</option>
+                      <option value="Transit">Transit</option>
+                      <option value="Education">Education</option>
+                    </select>
+                  </F>
+                  <SearchDropdown
+                    label="Company"
+                    value={form.company}
+                    onChange={val => setForm(f => ({ ...f, company: val }))}
+                    options={[
+                      { value: 'Alfa Corp', label: 'Alfa Corp' },
+                      { value: 'Google', label: 'Google' },
+                      { value: 'Microsoft', label: 'Microsoft' },
+                      { value: 'Infosys', label: 'Infosys' },
+                      { value: 'TCS', label: 'TCS' },
+                      { value: 'Wipro', label: 'Wipro' },
+                      { value: 'Reliance', label: 'Reliance' },
+                    ]}
+                    placeholder="Search company..."
+                  />
+                </div>
+
+                {/* Row 2: Company GSTIN */}
+                <div style={{ gridColumn: 'span 3' }}>
+                  <F label="Company GSTIN" placeholder="GST number" value={form.companyGstin} onChange={set('companyGstin')} />
+                </div>
+
+                {/* Row 3: Market Seg | Bus. Src | Bkg Ref No */}
+                <F label="Market Seg" required>
+                  <select className="form-select" value={form.marketSegment} onChange={set('marketSegment')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
+                    <option value="SELF">SELF</option>
+                    <option value="Corporate">Corporate</option>
+                    <option value="FIT">FIT</option>
+                    <option value="Group">Group</option>
+                    <option value="Government">Government</option>
                     <option value="Leisure">Leisure</option>
-                    <option value="Medical">Medical</option>
-                    <option value="Transit">Transit</option>
-                    <option value="Education">Education</option>
                   </select>
                 </F>
-                <SearchDropdown
-                  label="Company"
-                  value={form.company}
-                  onChange={val => setForm(f => ({ ...f, company: val }))}
-                  options={[
-                    { value: 'Alfa Corp', label: 'Alfa Corp' },
-                    { value: 'Google', label: 'Google' },
-                    { value: 'Microsoft', label: 'Microsoft' },
-                    { value: 'Infosys', label: 'Infosys' },
-                    { value: 'TCS', label: 'TCS' },
-                    { value: 'Wipro', label: 'Wipro' },
-                    { value: 'Reliance', label: 'Reliance' },
-                  ]}
-                  placeholder="Search company..."
-                />
+                <F label="Bus. Src" required>
+                  <select className="form-select" value={form.businessSource} onChange={set('businessSource')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
+                    <option value="SELF">SELF</option>
+                    <option value="Direct">Direct</option>
+                    <option value="OTA">OTA</option>
+                    <option value="Travel Agent">Travel Agent</option>
+                    <option value="Walk-in">Walk-in</option>
+                  </select>
+                </F>
+                <F label="Bkg Ref No" placeholder="Booking Ref No" value={form.bookingRefNo} onChange={set('bookingRefNo')} />
+
+                {/* Row 4: Mgmt Blk | Arrived From | Destination */}
+                <F label="Mgmt Blk">
+                  <select className="form-select" value={form.managementBlock} onChange={set('managementBlock')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}>
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </F>
+                <F label="Arrived From" placeholder="Arrived from" value={form.arrivedFrom} onChange={set('arrivedFrom')} />
+                <F label="Destination" placeholder="Destination" required value={form.destination} onChange={set('destination')} />
+
+                {/* Row 5: Discount | Payment Mode | Remark */}
+                <F label="Discount" type="number" placeholder="0" value={form.discount} onChange={set('discount')} />
+                <F label="Payment Mode" required>
+                  <select className="form-select" value={form.paymentMode} onChange={set('paymentMode')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
+                    <option value="CASH">CASH</option>
+                    <option value="CARD">CARD</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK TRANSFER">BANK TRANSFER</option>
+                    <option value="CREDIT">CREDIT</option>
+                  </select>
+                </F>
+                <F label="Remark" placeholder="Remarks..." value={form.remark} onChange={set('remark')} />
+
+              </div>
+            </div>
+
+            {/* Room Information Table */}
+            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
+              <div
+                onClick={() => setRoomInfoExpanded(prev => !prev)}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+              >
+                <div style={{ pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0 4px', borderBottom: '2px solid var(--primary)', flex: 1 }}>
+                  <span style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', color: 'var(--primary)' }}><FaBed /></span>
+                  <span style={{ fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>Room Information</span>
+                </div>
+                <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {roomInfoExpanded ? '▲ Collapse' : '▼ Expand'}
+                </div>
               </div>
 
-              {/* Row 2: Company GSTIN */}
-              <div style={{ gridColumn: 'span 3' }}>
-                <F label="Company GSTIN" placeholder="GST number" value={form.companyGstin} onChange={set('companyGstin')} />
+              <div style={{
+                maxHeight: roomInfoExpanded ? '1000px' : '0px',
+                opacity: roomInfoExpanded ? 1 : 0,
+                overflowY: 'hidden',
+                overflowX: 'hidden',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                marginTop: roomInfoExpanded ? '10px' : '0px'
+              }}>
+                <div style={{ overflowX: 'auto', width: '100%', marginBottom: '8px', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                  <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--primary-light)', borderBottom: '1.5px solid var(--border)' }}>
+                        {['Remove', 'S No.', 'Room No', 'Plan / Package', 'No. of Adults', 'No. of Childs', 'Rate', 'Tax Inc.', 'Leader'].map((h, idx) => {
+                          const widths = ['6%', '7%', '14%', '14%', '11%', '11%', '13%', '12%', '12%'];
+                          return (
+                            <th key={h} style={{
+                              padding: '8px 4px',
+                              width: widths[idx],
+                              textAlign: idx === 0 ? 'center' : 'left',
+                              fontWeight: 700,
+                              color: 'var(--primary)',
+                              fontSize: '0.72rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.02em',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {h}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rooms.map((row, idx) => (
+                        <tr key={idx} style={{
+                          borderBottom: '1px solid var(--border)',
+                          background: idx % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.015)'
+                        }}>
+                          {/* Remove Action */}
+                          <td style={{ padding: '4px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => removeRoom(idx)}
+                              disabled={rooms.length === 1}
+                              style={{
+                                color: rooms.length === 1 ? '#cbd5e1' : 'var(--danger)',
+                                background: 'none',
+                                border: 'none',
+                                cursor: rooms.length === 1 ? 'not-allowed' : 'pointer',
+                                fontWeight: 700,
+                                fontSize: '0.95rem'
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </td>
+
+                          {/* S No. */}
+                          <td style={{ padding: '6px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                            {idx + 1}
+                          </td>
+
+                          {/* Room No */}
+                          <td style={{ padding: '4px' }}>
+                            <select
+                              className="form-select"
+                              value={row.roomNo}
+                              onChange={e => setRoom(idx, 'roomNo', e.target.value)}
+                              style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '100%', boxSizing: 'border-box' }}
+                              required
+                            >
+                              <option value="">Select</option>
+                              <option value="101">101</option>
+                              <option value="102">102</option>
+                              <option value="201">201</option>
+                              <option value="202">202</option>
+                            </select>
+                          </td>
+
+                          {/* Plan / Package */}
+                          <td style={{ padding: '4px' }}>
+                            <select
+                              className="form-select"
+                              value={row.plan}
+                              onChange={e => setRoom(idx, 'plan', e.target.value)}
+                              style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '100%', boxSizing: 'border-box' }}
+                              required
+                            >
+                              <option value="">Select</option>
+                              <option value="EP">EP</option>
+                              <option value="CP">CP</option>
+                              <option value="MAP">MAP</option>
+                              <option value="AP">AP</option>
+                            </select>
+                          </td>
+
+                          {/* No. of Adults */}
+                          <td style={{ padding: '4px' }}>
+                            <input
+                              className="form-input"
+                              type="number"
+                              min="1"
+                              value={row.adults}
+                              onChange={e => setRoom(idx, 'adults', e.target.value)}
+                              style={{ width: '100%', fontSize: '0.85rem', height: '32px', padding: '2px 4px', boxSizing: 'border-box' }}
+                              required
+                            />
+                          </td>
+
+                          {/* No. of Childs */}
+                          <td style={{ padding: '4px' }}>
+                            <input
+                              className="form-input"
+                              type="number"
+                              min="0"
+                              value={row.children}
+                              onChange={e => setRoom(idx, 'children', e.target.value)}
+                              style={{ width: '100%', fontSize: '0.85rem', height: '32px', padding: '2px 4px', boxSizing: 'border-box' }}
+                              required
+                            />
+                          </td>
+
+                          {/* Rate */}
+                          <td style={{ padding: '4px' }}>
+                            <input
+                              className="form-input"
+                              type="number"
+                              value={row.rate}
+                              onChange={e => setRoom(idx, 'rate', e.target.value)}
+                              placeholder="0.00"
+                              style={{ width: '100%', fontSize: '0.85rem', height: '32px', padding: '2px 4px', boxSizing: 'border-box' }}
+                              required
+                            />
+                          </td>
+
+                          {/* Tax Inc. */}
+                          <td style={{ padding: '4px' }}>
+                            <select
+                              className="form-select"
+                              value={row.taxInclusive}
+                              onChange={e => setRoom(idx, 'taxInclusive', e.target.value)}
+                              style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '100%', boxSizing: 'border-box' }}
+                              required
+                            >
+                              <option value="No">No</option>
+                              <option value="Yes">Yes</option>
+                            </select>
+                          </td>
+
+                          {/* Leader */}
+                          <td style={{ padding: '4px' }}>
+                            <select
+                              className="form-select"
+                              value={row.leader}
+                              onChange={e => setRoom(idx, 'leader', e.target.value)}
+                              style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '100%', boxSizing: 'border-box' }}
+                              required
+                            >
+                              <option value="No">No</option>
+                              <option value="Yes">Yes</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addRoom}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.82rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <FaPlus size={8} /> Add Room
+                </button>
               </div>
-
-              {/* Row 3: Market Seg | Bus. Src | Bkg Ref No */}
-              <F label="Market Seg" required>
-                <select className="form-select" value={form.marketSegment} onChange={set('marketSegment')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
-                  <option value="SELF">SELF</option>
-                  <option value="Corporate">Corporate</option>
-                  <option value="FIT">FIT</option>
-                  <option value="Group">Group</option>
-                  <option value="Government">Government</option>
-                  <option value="Leisure">Leisure</option>
-                </select>
-              </F>
-              <F label="Bus. Src" required>
-                <select className="form-select" value={form.businessSource} onChange={set('businessSource')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
-                  <option value="SELF">SELF</option>
-                  <option value="Direct">Direct</option>
-                  <option value="OTA">OTA</option>
-                  <option value="Travel Agent">Travel Agent</option>
-                  <option value="Walk-in">Walk-in</option>
-                </select>
-              </F>
-              <F label="Bkg Ref No" placeholder="Booking Ref No" value={form.bookingRefNo} onChange={set('bookingRefNo')} />
-
-              {/* Row 4: Mgmt Blk | Arrived From | Destination */}
-              <F label="Mgmt Blk">
-                <select className="form-select" value={form.managementBlock} onChange={set('managementBlock')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}>
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
-              </F>
-              <F label="Arrived From" placeholder="Arrived from" value={form.arrivedFrom} onChange={set('arrivedFrom')} />
-              <F label="Destination" placeholder="Destination" required value={form.destination} onChange={set('destination')} />
-
-              {/* Row 5: Discount | Payment Mode | Remark */}
-              <F label="Discount" type="number" placeholder="0" value={form.discount} onChange={set('discount')} />
-              <F label="Payment Mode" required>
-                <select className="form-select" value={form.paymentMode} onChange={set('paymentMode')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
-                  <option value="CASH">CASH</option>
-                  <option value="CARD">CARD</option>
-                  <option value="UPI">UPI</option>
-                  <option value="BANK TRANSFER">BANK TRANSFER</option>
-                  <option value="CREDIT">CREDIT</option>
-                </select>
-              </F>
-              <F label="Remark" placeholder="Remarks..." value={form.remark} onChange={set('remark')} />
-
             </div>
           </div>
-
-        </div>
-
-        {/* FULL WIDTH BELOW: Room Allocation Table */}
-        <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px', marginBottom: '10px' }}>
-          {sectionTitle(<FaBed />, 'Room Information')}
-          
-          <div style={{ overflowX: 'auto', width: '100%', marginBottom: '8px', border: '1px solid var(--border)', borderRadius: '6px' }}>
-            <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ background: 'var(--primary-light)', borderBottom: '1.5px solid var(--border)' }}>
-                  {['Remove', 'S No.', 'Room No', 'Plan / Package', 'No. of Adults', 'No. of Childs', 'Rate', 'Tax Inc.', 'Leader'].map((h, idx) => (
-                    <th key={h} style={{ 
-                      padding: '8px 6px', 
-                      textAlign: idx === 0 ? 'center' : 'left', 
-                      fontWeight: 700, 
-                      color: 'var(--primary)', 
-                      fontSize: '0.72rem', 
-                      textTransform: 'uppercase', 
-                      letterSpacing: '0.02em', 
-                      whiteSpace: 'nowrap' 
-                    }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rooms.map((row, idx) => (
-                  <tr key={idx} style={{ 
-                    borderBottom: '1px solid var(--border)',
-                    background: idx % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.015)'
-                  }}>
-                    {/* Remove Action */}
-                    <td style={{ padding: '4px', textAlign: 'center' }}>
-                      <button 
-                        type="button" 
-                        onClick={() => removeRoom(idx)} 
-                        disabled={rooms.length === 1}
-                        style={{ 
-                          color: rooms.length === 1 ? '#cbd5e1' : 'var(--danger)', 
-                          background: 'none', 
-                          border: 'none', 
-                          cursor: rooms.length === 1 ? 'not-allowed' : 'pointer', 
-                          fontWeight: 700, 
-                          fontSize: '0.95rem' 
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </td>
-
-                    {/* S No. */}
-                    <td style={{ padding: '6px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {idx + 1}
-                    </td>
-
-                    {/* Room No */}
-                    <td style={{ padding: '4px' }}>
-                      <select 
-                        className="form-select" 
-                        value={row.roomNo} 
-                        onChange={e => setRoom(idx, 'roomNo', e.target.value)} 
-                        style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '110px' }}
-                        required
-                      >
-                        <option value="">Select</option>
-                        <option value="101">101</option>
-                        <option value="102">102</option>
-                        <option value="201">201</option>
-                        <option value="202">202</option>
-                      </select>
-                    </td>
-
-                    {/* Plan / Package */}
-                    <td style={{ padding: '4px' }}>
-                      <select 
-                        className="form-select" 
-                        value={row.plan} 
-                        onChange={e => setRoom(idx, 'plan', e.target.value)} 
-                        style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '110px' }}
-                        required
-                      >
-                        <option value="">Select</option>
-                        <option value="EP">EP</option>
-                        <option value="CP">CP</option>
-                        <option value="MAP">MAP</option>
-                        <option value="AP">AP</option>
-                      </select>
-                    </td>
-
-                    {/* No. of Adults */}
-                    <td style={{ padding: '4px' }}>
-                      <input 
-                        className="form-input" 
-                        type="number" 
-                        min="1" 
-                        value={row.adults} 
-                        onChange={e => setRoom(idx, 'adults', e.target.value)} 
-                        style={{ width: '60px', fontSize: '0.85rem', height: '32px', padding: '2px 4px' }} 
-                        required
-                      />
-                    </td>
-
-                    {/* No. of Childs */}
-                    <td style={{ padding: '4px' }}>
-                      <input 
-                        className="form-input" 
-                        type="number" 
-                        min="0" 
-                        value={row.children} 
-                        onChange={e => setRoom(idx, 'children', e.target.value)} 
-                        style={{ width: '60px', fontSize: '0.85rem', height: '32px', padding: '2px 4px' }} 
-                        required
-                      />
-                    </td>
-
-                    {/* Rate */}
-                    <td style={{ padding: '4px' }}>
-                      <input 
-                        className="form-input" 
-                        type="number" 
-                        value={row.rate} 
-                        onChange={e => setRoom(idx, 'rate', e.target.value)} 
-                        placeholder="0.00" 
-                        style={{ width: '90px', fontSize: '0.85rem', height: '32px', padding: '2px 4px' }} 
-                        required
-                      />
-                    </td>
-
-                    {/* Tax Inc. */}
-                    <td style={{ padding: '4px' }}>
-                      <select 
-                        className="form-select" 
-                        value={row.taxInclusive} 
-                        onChange={e => setRoom(idx, 'taxInclusive', e.target.value)} 
-                        style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '80px' }}
-                        required
-                      >
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </td>
-
-                    {/* Leader */}
-                    <td style={{ padding: '4px' }}>
-                      <select 
-                        className="form-select" 
-                        value={row.leader} 
-                        onChange={e => setRoom(idx, 'leader', e.target.value)} 
-                        style={{ fontSize: '0.85rem', padding: '2px 4px', height: '32px', width: '80px' }}
-                        required
-                      >
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <button 
-            type="button" 
-            onClick={addRoom} 
-            className="btn-secondary" 
-            style={{ fontSize: '0.82rem', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <FaPlus size={8} /> Add Room
-          </button>
         </div>
 
         {/* Footer Actions */}

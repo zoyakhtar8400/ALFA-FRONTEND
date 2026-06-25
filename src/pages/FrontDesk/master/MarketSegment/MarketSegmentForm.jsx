@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -25,7 +26,7 @@ const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
       onClose={onClose}
       title={mode === 'add' ? 'Add Market Segment' : 'Edit Market Segment'}
     >
-      <form onSubmit={handleSubmit}>
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit}>
         <div className="form-grid-2">
           {/* Segment Name */}
           <div className="form-field form-span-2">

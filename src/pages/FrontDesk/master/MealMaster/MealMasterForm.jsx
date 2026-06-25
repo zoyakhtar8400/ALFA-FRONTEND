@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -51,7 +52,7 @@ const MealMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         onBack={onCancel}
       />
 
-      <form onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Card 1: Basic Information */}
           <FormCard title="Basic Information">

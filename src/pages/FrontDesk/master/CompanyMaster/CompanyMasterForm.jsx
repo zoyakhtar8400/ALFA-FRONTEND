@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -83,7 +84,7 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
         onBack={onCancel}
       />
 
-      <form onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit} className="m-6 p-4 flex flex-col gap-4">
         {/* Card: Company Information in 2 column layout */}
         <FormCard title="Company Information">
           <div className="form-grid-2">

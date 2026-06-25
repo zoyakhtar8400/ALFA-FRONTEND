@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import React, { useState, useEffect } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
@@ -22,7 +23,7 @@ const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
       onClose={onClose}
       title={mode === 'add' ? 'Add Vehicle' : 'Edit Vehicle'}
     >
-      <form onSubmit={handleSubmit}>
+      <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit}>
         <div className="form-grid-2">
           {/* Registration No */}
           <div className="form-field">

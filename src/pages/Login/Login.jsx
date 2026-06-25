@@ -1,3 +1,4 @@
+import { handleEnterNavigation } from '../../utils/keyboardNavigation';
 import React, { useState } from 'react';
 import { FaUser, FaLock, FaSignInAlt, FaInfoCircle } from 'react-icons/fa';
 
@@ -31,7 +32,7 @@ const Login = ({ onLogin, showToast }) => {
           <p className="login-subtitle">Sign in to manage your hotel operations</p>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form onKeyDown={handleEnterNavigation} className="login-form" onSubmit={handleSubmit}>
           <div className="login-input-group">
             <label className="login-label">Email Address</label>
             <div className="login-input-wrapper">
