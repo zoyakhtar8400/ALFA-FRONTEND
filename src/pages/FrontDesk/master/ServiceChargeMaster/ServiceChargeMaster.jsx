@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ServiceChargeForm from './ServiceChargeForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const ServiceChargeMaster = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, name: 'Laundry Service', acName: 'Laundry Revenue', nature: 'Fixed', adultRate: '50.00', childRate: '25.00', applicableDate: '2026-04-01', taxStructure: 'NO TAX', sacCode: '996311', discountAllowed: 'Yes', backDateAllow: 'No', active: 'Yes' },
@@ -42,12 +44,14 @@ const ServiceChargeMaster = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <ServiceChargeForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <ServiceChargeForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

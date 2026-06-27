@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import PaymentReceiveForm from './PaymentReceiveForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const PaymentReceive = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-2021', guestName: 'Amit Verma', roomNo: '102', paymentMode: 'UPI', amount: 5000, receiptNo: 'RCP-5501', date: '2026-06-22', active: 'Yes' },
@@ -44,12 +46,14 @@ const PaymentReceive = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <PaymentReceiveForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <PaymentReceiveForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

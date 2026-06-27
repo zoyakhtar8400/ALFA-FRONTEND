@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import MealMasterForm from './MealMasterForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const MealMaster = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, name: 'European Plan (Room Only)', acName: 'Food Revenue', taxStructure: 'NO TAX', active: 'Yes', singleRate: '0.00', doubleRate: '0.00', extraAdult: '0.00', tripleRate: '0.00', quadrantRate: '0.00', extraChild: '0.00' },
@@ -43,12 +45,14 @@ const MealMaster = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <MealMasterForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <MealMasterForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

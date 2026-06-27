@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import BookingForm from './BookingForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const Booking = ({ showToast, onlyList = false }) => {
   const [data, setData] = useState([
     { id: 1, bookingNo: 'BK-1001', guestName: 'Rohan Sharma', roomCategory: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-25', adults: 2, children: 1, mealPlan: 'CP (Bed & Breakfast)', ratePlan: 'Standard Rate', advance: 3000, remarks: 'Require airport pickup.', active: 'Yes' },
@@ -44,12 +46,14 @@ const Booking = ({ showToast, onlyList = false }) => {
 
   if (showForm) {
     return (
-      <BookingForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <BookingForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

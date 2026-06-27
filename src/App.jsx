@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
@@ -8,6 +9,7 @@ import { initKeyboardNavigation } from './utils/keyboardNavigation';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const location = useLocation();
   // Mobile drawer state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Desktop collapse state — persisted in localStorage
@@ -97,7 +99,7 @@ function App() {
           sidebarCollapsed={sidebarCollapsed}
           showToast={showToast}
         />
-        <main className="content-area">
+        <main className="content-area relative" style={{ position: 'relative' }}>
           <AppRoutes showToast={showToast} />
         </main>
       </div>

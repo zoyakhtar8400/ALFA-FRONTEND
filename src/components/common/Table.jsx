@@ -1,15 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
-  FaFileExport, 
-  FaPrint, 
-  FaSearch, 
-  FaChevronLeft, 
-  FaChevronRight,
-  FaEdit,
-  FaTrash
+   FaFileExport, 
+   FaPrint, 
+   FaSearch, 
+   FaChevronLeft, 
+   FaChevronRight,
+   FaEdit,
+   FaTrash
 } from 'react-icons/fa';
 import PrintStyles from './PrintStyles';
 import { handlePrint } from '../../utils/printUtil';
+import LoadingState from './LoadingState';
+
+const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
+  return (
+    <tr>
+      <td style={{ textAlign: 'center', fontWeight: 600 }}>{indexOfFirstEntry + index + 1}</td>
+      {columns.map((col) => {
+        if (col.key === 'action') {
+          return (
+            <td key={col.key}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {actions.map((act, actIdx) => {
+                  const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
+                  const IconComponent = act.icon || (act.label.toLowerCase() === 'edit' ? <FaEdit size={14} /> : <FaTrash size={14} />);
+                  return (
+                    <button
+                      key={actIdx}
+                      className={`table-action-icon-btn ${isDelete ? 'delete' : 'edit'}`}
+                      onClick={(e) => { e.stopPropagation(); act.onClick(row); }}
+                      title={act.label}
+                    >
+                      {IconComponent}
+                    </button>
+                  );
+                })}
+              </div>
+            </td>
+          );
+        }
+        return (
+          <td key={col.key}>
+            {col.render ? col.render(row[col.key], row) : row[col.key]}
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
 
 const Table = ({ 
   title = '', 
@@ -27,14 +65,24 @@ const Table = ({
   const [entriesPerPage, setEntriesPerPage] = useState(defaultEntriesPerPage);
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  const [localLoading, setLocalLoading] = useState(true);
+
+  // Simulated loading simulation for 400ms on interaction changes
+  useEffect(() => {
+    setLocalLoading(true);
+    const timer = setTimeout(() => {
+      setLocalLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, currentPage, entriesPerPage, sortColumn, sortDirection]);
 
   // Reset page when search or entries count change
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, entriesPerPage]);
 
   // Handle Export to CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (data.length === 0) {
       showToast('No data to export.');
       return;
@@ -45,7 +93,7 @@ const Table = ({
     const headersLine = exportColumns.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
     
     // Data rows
-    const rowsLines = data.map(row => 
+    const rowsLines = processedData.map(row => 
       exportColumns.map(col => {
         let val = row[col.key];
         if (val === undefined || val === null) val = '';
@@ -63,24 +111,23 @@ const Table = ({
     link.click();
     document.body.removeChild(link);
     showToast('Exported CSV file successfully!');
-  };
-
-  // Handle Print — uses the shared common utility
+  }, [data, columns, title, showToast]);
 
   // Handle Sorting
-  const handleSort = (key, sortable) => {
+  const handleSort = useCallback((key, sortable) => {
     if (!sortable) return;
-    
-    if (sortColumn === key) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(key);
+    setSortColumn(prevCol => {
+      if (prevCol === key) {
+        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
+        return key;
+      }
       setSortDirection('asc');
-    }
-  };
+      return key;
+    });
+  }, []);
 
   // Process data (Search & Sort)
-  const processedData = React.useMemo(() => {
+  const processedData = useMemo(() => {
     let result = [...data];
 
     // 1. Search Filter
@@ -232,40 +279,22 @@ const Table = ({
             </tr>
           </thead>
           <tbody>
-            {currentEntries.length > 0 ? (
+            {localLoading ? (
+              <tr>
+                <td colSpan={columns.length + 1} style={{ padding: 0, border: 'none' }}>
+                  <LoadingState message="Loading records..." />
+                </td>
+              </tr>
+            ) : currentEntries.length > 0 ? (
               currentEntries.map((row, index) => (
-                <tr key={indexOfFirstEntry + index}>
-                  <td style={{ textAlign: 'center', fontWeight: 600 }}>{indexOfFirstEntry + index + 1}</td>
-                  {columns.map((col) => {
-                    if (col.key === 'action') {
-                      return (
-                        <td key={col.key}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {actions.map((act, actIdx) => {
-                              const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
-                              const IconComponent = act.icon || (act.label.toLowerCase() === 'edit' ? <FaEdit size={14} /> : <FaTrash size={14} />);
-                              return (
-                                <button
-                                  key={actIdx}
-                                  className={`table-action-icon-btn ${isDelete ? 'delete' : 'edit'}`}
-                                  onClick={(e) => { e.stopPropagation(); act.onClick(row); }}
-                                  title={act.label}
-                                >
-                                  {IconComponent}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </td>
-                      );
-                    }
-                    return (
-                      <td key={col.key}>
-                        {col.render ? col.render(row[col.key], row) : row[col.key]}
-                      </td>
-                    );
-                  })}
-                </tr>
+                <TableRow
+                  key={`table-row-${indexOfFirstEntry + index}`}
+                  row={row}
+                  index={index}
+                  indexOfFirstEntry={indexOfFirstEntry}
+                  columns={columns}
+                  actions={actions}
+                />
               ))
             ) : (
               <tr>

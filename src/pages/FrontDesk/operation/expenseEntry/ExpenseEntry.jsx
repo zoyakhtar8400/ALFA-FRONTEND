@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ExpenseEntryForm from './ExpenseEntryForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const ExpenseEntry = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, expenseNo: 'EXP-1001', date: '2026-06-20', expenseDate: '2026-06-20', expenseCharge: 'Office Supplies', expenseMaster: 'Office Supplies', amount: 1500, payType: 'Cash', paymentMode: 'Cash', reference: 'REF-001', remark: 'Pens and notebooks.', remarks: 'Pens and notebooks.', active: 'Yes' },
@@ -51,12 +53,14 @@ const ExpenseEntry = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <ExpenseEntryForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <ExpenseEntryForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

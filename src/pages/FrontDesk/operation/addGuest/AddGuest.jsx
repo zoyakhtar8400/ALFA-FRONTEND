@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import AddGuestForm from './AddGuestForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const AddGuest = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Priya Sharma', idType: 'Aadhaar Card', idNo: '9876-5432-1098', relation: 'Spouse', active: 'Yes' },
@@ -42,12 +44,14 @@ const AddGuest = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <AddGuestForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <AddGuestForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

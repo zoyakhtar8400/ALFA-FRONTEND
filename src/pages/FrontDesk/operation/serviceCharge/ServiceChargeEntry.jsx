@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ServiceChargeEntryForm from './ServiceChargeEntryForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const ServiceChargeEntry = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-3011', roomNo: '103', serviceName: 'Airport Transfer', date: '2026-06-22', adultQty: 2, childQty: 0, rate: 1200, amount: 2400, active: 'Yes' },
@@ -43,12 +45,14 @@ const ServiceChargeEntry = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <ServiceChargeEntryForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <ServiceChargeEntryForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

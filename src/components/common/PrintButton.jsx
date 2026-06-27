@@ -1,20 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@mui/material';
 import { FaPrint } from 'react-icons/fa';
 import { handlePrint } from '../../utils/printUtil';
 
 const PrintButton = ({ onClick, label = 'Print', ...props }) => {
+  const [printLoading, setPrintLoading] = useState(false);
+
   const defaultClick = () => {
-    // Search for print-footer text element to update or just run handlePrint
     handlePrint();
+  };
+
+  const handleClick = (e) => {
+    setPrintLoading(true);
+    if (window.showToast) {
+      window.showToast("Loading...");
+    }
+    setTimeout(() => {
+      if (onClick) {
+        onClick(e);
+      } else {
+        defaultClick();
+      }
+      setPrintLoading(false);
+      if (window.showToast) {
+        window.showToast("Print Completed");
+      }
+    }, 400);
   };
 
   return (
     <Button
       variant="outlined"
-      onClick={onClick || defaultClick}
+      onClick={handleClick}
+      disabled={printLoading}
       className="no-print"
-      startIcon={<FaPrint size={12} />}
+      startIcon={printLoading ? undefined : <FaPrint size={12} />}
       sx={{
         borderRadius: '20px',
         borderColor: 'var(--border)',
@@ -30,11 +50,20 @@ const PrintButton = ({ onClick, label = 'Print', ...props }) => {
           backgroundColor: 'var(--primary-light)',
           color: 'var(--primary)',
         },
+        '&.Mui-disabled': {
+          backgroundColor: 'var(--border)',
+          color: 'var(--text-light)',
+        },
         transition: 'var(--transition)'
       }}
       {...props}
     >
-      {label}
+      {printLoading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-slate-400 border-t-transparent"></div>
+          <span>Printing...</span>
+        </div>
+      ) : label}
     </Button>
   );
 };

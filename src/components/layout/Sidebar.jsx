@@ -183,9 +183,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   ];
 
   const misItems = [
-    { name: 'Reservation Dashboard', path: '/front-desk/mis/reservation-dashboard' },
+        { name: 'Reservation Dashboard', path: '/front-desk/mis/reservation-dashboard' },
+
     { name: 'Front Office Dashboard', path: '/front-desk/mis/front-office-dashboard' },
-    { name: 'Guest Status', path: '/front-desk/mis/guest-status' },
   ];
 
   const handleMobileNav = () => {

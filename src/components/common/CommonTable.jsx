@@ -1,17 +1,68 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { FaFileExport, FaEdit, FaTrash, FaSync } from 'react-icons/fa';
 import PageHeader from './PageHeader';
 import CommonSearch from './CommonSearch';
 import CommonPagination from './CommonPagination';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
-import LoadingState from './LoadingState';
 import { PrintHeader, PrintFooter } from './PrintComponent';
+
+/**
+ * TableRow component memoized using React.memo to prevent unnecessary row re-renders.
+ */
+const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
+  return (
+    <tr>
+      <td style={{ textAlign: 'center', fontWeight: 600 }}>
+        {indexOfFirstEntry + index + 1}
+      </td>
+
+      {columns.map((col) => {
+        if (col.key === 'action') {
+          return (
+            <td key={col.key} className="action-column" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                {actions.map((act, actIdx) => {
+                  const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
+                  const IconComponent = act.icon || (act.label.toLowerCase() === 'edit' ? <FaEdit size={13} /> : <FaTrash size={13} />);
+                  return (
+                    <button
+                      key={actIdx}
+                      onClick={(e) => { e.stopPropagation(); act.onClick(row); }}
+                      className={`table-action-icon-btn ${isDelete ? 'delete' : 'edit'}`}
+                      title={act.label}
+                    >
+                      {IconComponent}
+                    </button>
+                  );
+                })}
+              </div>
+            </td>
+          );
+        }
+
+        // Apply StatusBadge if renderStatus is true
+        if (col.renderStatus) {
+          return (
+            <td key={col.key}>
+              <StatusBadge value={row[col.key]} activeValue={col.activeValue} />
+            </td>
+          );
+        }
+
+        return (
+          <td key={col.key}>
+            {col.render ? col.render(row[col.key], row) : row[col.key]}
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
 
 /**
  * CommonTable component to manage master registrations with search, sorting, pagination,
  * dynamic status badges, custom renderers, printing headers/footers, and styling actions.
- * Row selection checkboxes are removed completely.
  */
 const CommonTable = ({
   title = '',
@@ -35,6 +86,16 @@ const CommonTable = ({
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [localLoading, setLocalLoading] = useState(true);
+
+  // Simulated loading simulation for 400ms on interaction changes
+  useEffect(() => {
+    setLocalLoading(true);
+    const timer = setTimeout(() => {
+      setLocalLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter, currentPage, entriesPerPage, sortColumn, sortDirection, refreshKey]);
 
   // Reset page when search or filters change
   useEffect(() => {
@@ -42,7 +103,7 @@ const CommonTable = ({
   }, [searchTerm, statusFilter, entriesPerPage, refreshKey]);
 
   // Handle Export to CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (data.length === 0) {
       showToast('No data to export.');
       return;
@@ -67,29 +128,31 @@ const CommonTable = ({
     link.click();
     document.body.removeChild(link);
     showToast('Exported CSV file successfully!');
-  };
+  }, [data, columns, title, showToast]);
 
   // Handle Print
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
   // Handle Refresh
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshKey(prev => prev + 1);
     showToast('Data refreshed.');
-  };
+  }, [showToast]);
 
   // Handle Sorting
-  const handleSort = (key, sortable) => {
+  const handleSort = useCallback((key, sortable) => {
     if (!sortable) return;
-    if (sortColumn === key) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(key);
+    setSortColumn(prevCol => {
+      if (prevCol === key) {
+        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
+        return key;
+      }
       setSortDirection('asc');
-    }
-  };
+      return key;
+    });
+  }, []);
 
   // Process data (Search, Status Filter, Sort)
   const processedData = useMemo(() => {
@@ -146,6 +209,8 @@ const CommonTable = ({
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
   const currentEntries = processedData.slice(indexOfFirstEntry, indexOfLastEntry);
+
+  const isTableLoading = isLoading || localLoading;
 
   return (
     <div className="w-full flex flex-col">
@@ -218,105 +283,71 @@ const CommonTable = ({
 
       {/* Main Table Content */}
       <div className="custom-table-container">
-        {isLoading ? (
-          <LoadingState />
-        ) : (
-          <>
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '70px', textAlign: 'center' }}>S.No</th>
-                  {columns.map((col) => (
-                    <th
-                      key={col.key}
-                      onClick={() => handleSort(col.key, col.sortable !== false)}
-                      className={col.key === 'action' ? 'action-column' : ''}
-                      style={{ cursor: col.sortable !== false ? 'pointer' : 'default' }}
-                    >
-                      <div className="flex items-center gap-1.5 justify-start">
-                        <span>{col.label}</span>
-                        {col.sortable !== false && sortColumn === col.key && (
-                          <span className="text-[10px] opacity-70">
-                            {sortDirection === 'asc' ? '▲' : '▼'}
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th style={{ width: '70px', textAlign: 'center' }}>S.No</th>
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key, col.sortable !== false)}
+                  className={col.key === 'action' ? 'action-column' : ''}
+                  style={{ cursor: col.sortable !== false ? 'pointer' : 'default' }}
+                >
+                  <div className="flex items-center gap-1.5 justify-start">
+                    <span>{col.label}</span>
+                    {col.sortable !== false && sortColumn === col.key && (
+                      <span className="text-[10px] opacity-70">
+                        {sortDirection === 'asc' ? '▲' : '▼'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-              <tbody>
-                {currentEntries.length > 0 ? (
-                  currentEntries.map((row, index) => (
-                    <tr key={row.id || index}>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>
-                        {indexOfFirstEntry + index + 1}
-                      </td>
-
-                      {columns.map((col) => {
-                        if (col.key === 'action') {
-                          return (
-                            <td key={col.key} className="action-column" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center gap-2">
-                                {actions.map((act, actIdx) => {
-                                  const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
-                                  const IconComponent = act.icon || (act.label.toLowerCase() === 'edit' ? <FaEdit size={13} /> : <FaTrash size={13} />);
-                                  return (
-                                    <button
-                                      key={actIdx}
-                                      onClick={(e) => { e.stopPropagation(); act.onClick(row); }}
-                                      className={`table-action-icon-btn ${isDelete ? 'delete' : 'edit'}`}
-                                      title={act.label}
-                                    >
-                                      {IconComponent}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          );
-                        }
-
-                        // Apply StatusBadge if renderStatus is true
-                        if (col.renderStatus) {
-                          return (
-                            <td key={col.key}>
-                              <StatusBadge value={row[col.key]} activeValue={col.activeValue} />
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td key={col.key}>
-                            {col.render ? col.render(row[col.key], row) : row[col.key]}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={columns.length + 1} className="p-0 border-none">
-                      <EmptyState />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {/* Pagination Controls */}
-            {totalEntries > 0 && (
-              <CommonPagination
-                totalItems={totalEntries}
-                itemsPerPage={entriesPerPage}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-                onItemsPerPageChange={setEntriesPerPage}
-                onlyTable={onlyTable}
-              />
+          <tbody>
+            {isTableLoading ? (
+              <tr>
+                <td colSpan={columns.length + 1} className="p-0 border-none">
+                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white w-full rounded-b-2xl" style={{ minHeight: '300px' }}>
+                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-100 border-t-[#418a8b] mb-4"></div>
+                    <p className="text-sm font-bold text-slate-500">Loading records...</p>
+                  </div>
+                </td>
+              </tr>
+            ) : currentEntries.length > 0 ? (
+              currentEntries.map((row, index) => (
+                <TableRow
+                  key={row.id || `row-${index}`}
+                  row={row}
+                  index={index}
+                  indexOfFirstEntry={indexOfFirstEntry}
+                  columns={columns}
+                  actions={actions}
+                />
+              ))
+            ) : (
+              <tr>
+                <td colSpan={columns.length + 1} className="p-0 border-none">
+                  <EmptyState />
+                </td>
+              </tr>
             )}
-          </>
+          </tbody>
+        </table>
+
+        {/* Pagination Controls */}
+        {totalEntries > 0 && (
+          <CommonPagination
+            totalItems={totalEntries}
+            itemsPerPage={entriesPerPage}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setEntriesPerPage}
+            onlyTable={onlyTable}
+          />
         )}
       </div>
 

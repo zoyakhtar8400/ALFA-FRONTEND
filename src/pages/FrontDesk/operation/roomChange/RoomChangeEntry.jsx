@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RoomChangeEntryForm from './RoomChangeEntryForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const RoomChangeEntry = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, voucherNo: 'RCH-1001', date: '2026-06-22', grcNo: 'GRC-1001', roomNo: '101', guestName: 'Rajan Mehta', adult: 1, child: 0, plan: 'EP', rate: '2500', taxInclusive: 'No', newRoom: '202', changeDate: '2026-06-22', changeTime: '14:30', newPlan: 'EP', newAdult: 1, newChild: 0, newRate: '2500', newTaxInclusive: 'No', discountPercent: '', reason: 'AC not cooling properly in 101.', active: 'Yes' },
@@ -43,12 +45,14 @@ const RoomChangeEntry = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <RoomChangeEntryForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <RoomChangeEntryForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

@@ -1,5 +1,5 @@
 // src/components/common/CommonActionButtons.jsx
-import React from "react";
+import React, { useState } from "react";
 
 const CommonActionButtons = ({
   onSave,
@@ -10,12 +10,60 @@ const CommonActionButtons = ({
   showSaveAndNew = false,
   onSaveAndNew,
 }) => {
+  const [localLoading, setLocalLoading] = useState(false);
+
+  const getLoadingText = () => {
+    if (saveText === "Save") return "Saving...";
+    if (saveText === "Update") return "Updating...";
+    if (saveText === "Submit") return "Submitting...";
+    if (saveText === "Print") return "Printing...";
+    if (saveText === "Delete") return "Deleting...";
+    return `${saveText}...`;
+  };
+
+  const handleSaveClick = (e) => {
+    const button = e.currentTarget;
+    const form = button.closest("form");
+    
+    // Check form validity before loading to prevent stuck states on validation errors
+    if (form && !form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    // Prevent default form submission to handle simulated delay first
+    e.preventDefault();
+    setLocalLoading(true);
+
+    if (window.showToast) {
+      window.showToast("Loading...");
+    }
+
+    setTimeout(() => {
+      if (onSave) {
+        onSave(e);
+      } else if (form) {
+        form.requestSubmit();
+      }
+      setLocalLoading(false);
+      if (window.showToast) {
+        const successMsg = saveText === "Save" ? "Saved Successfully" :
+                           saveText === "Update" ? "Updated Successfully" :
+                           saveText === "Submit" ? "Submitted Successfully" : "Completed Successfully";
+        window.showToast(successMsg);
+      }
+    }, 500);
+  };
+
+  const isSaveLoading = loading || localLoading;
+
   return (
     <div className="form-footer">
       {/* Cancel Button */}
       <button
         type="button"
         onClick={onCancel}
+        disabled={isSaveLoading}
         className="btn-secondary"
       >
         {cancelText}
@@ -26,6 +74,7 @@ const CommonActionButtons = ({
         <button
           type="button"
           onClick={onSaveAndNew}
+          disabled={isSaveLoading}
           className="btn-secondary"
           style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
         >
@@ -36,11 +85,15 @@ const CommonActionButtons = ({
       {/* Save Button */}
       <button
         type="submit"
-        onClick={onSave}
-        disabled={loading}
-        className="btn-primary"
+        onClick={handleSaveClick}
+        disabled={isSaveLoading}
+        className="btn-primary flex items-center justify-center gap-2"
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
       >
-        {loading ? "Saving..." : saveText}
+        {isSaveLoading && (
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+        )}
+        <span>{isSaveLoading ? getLoadingText() : saveText}</span>
       </button>
     </div>
   );

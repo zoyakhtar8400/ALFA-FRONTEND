@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import GuestProfileForm from './GuestProfileForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const GuestProfile = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, name: 'Sanjay Dutt', dob: '1980-05-15', idType: 'Aadhaar Card', idNo: '8877-6655-4433', mobile: '+91 9876541234', email: 'sanjay@dutt.com', address: 'Bandra West', city: 'Mumbai', state: 'Maharashtra', country: 'India', nationality: 'Indian', active: 'Yes' },
@@ -43,12 +45,14 @@ const GuestProfile = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <GuestProfileForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <GuestProfileForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

@@ -6,6 +6,8 @@ const MultiRoomCheckout = ({ showToast }) => {
   const [checkoutDate, setCheckoutDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('UPI');
 
+  const [isSaving, setIsSaving] = useState(false);
+
   // Currently occupied rooms that can be checked out directly from this checkbox list
   const [rooms, setRooms] = useState([
     { id: 1, roomNo: '101', grcNo: 'GRC-1001', guestName: 'Rajan Mehta', checkinDate: '2026-06-18', checkoutDate: '2026-06-22', balance: 12000, selected: false },
@@ -31,10 +33,14 @@ const MultiRoomCheckout = ({ showToast }) => {
       showToast('Please select at least one room to checkout.');
       return;
     }
-    const roomNos = selectedRooms.map(r => r.roomNo).join(', ');
-    showToast(`Checked out rooms: ${roomNos} successfully via ${paymentMode}!`);
-    // Remove the checked out rooms from active state to simulate checkout
-    setRooms(prev => prev.filter(r => !r.selected));
+    setIsSaving(true);
+    setTimeout(() => {
+      const roomNos = selectedRooms.map(r => r.roomNo).join(', ');
+      showToast(`Checked out rooms: ${roomNos} successfully via ${paymentMode}!`);
+      // Remove the checked out rooms from active state to simulate checkout
+      setRooms(prev => prev.filter(r => !r.selected));
+      setIsSaving(false);
+    }, 500);
   };
 
   const sectionTitle = (icon, title) => (
@@ -64,54 +70,39 @@ const MultiRoomCheckout = ({ showToast }) => {
         style={{ marginBottom: '8px' }}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3.5fr 6.5fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px', marginTop: '12px' }}>
         
-        {/* Left Column: Settlement & Actions */}
-        <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-          {sectionTitle(<FaCoins />, 'Settlement Settings')}
+        {/* Left Column: Settlement Panel */}
+        <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px', height: 'fit-content', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {sectionTitle(<FaCoins />, 'Checkout Settlement')}
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
-            <div className="form-field">
-              <label className="form-label" style={{ marginBottom: '2px' }}>Checkout Date</label>
-              <input
-                className="form-input"
-                type="date"
-                value={checkoutDate}
-                onChange={e => setCheckoutDate(e.target.value)}
-                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px' }}
-              />
-            </div>
-
-            <div className="form-field">
-              <label className="form-label" style={{ marginBottom: '2px' }}>Payment Mode</label>
-              <select
-                className="form-select"
-                value={paymentMode}
-                onChange={e => setPaymentMode(e.target.value)}
-                style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px' }}
-              >
-                <option value="UPI">UPI</option>
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-              </select>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Checkout Date</label>
+            <input
+              type="date"
+              value={checkoutDate}
+              onChange={e => setCheckoutDate(e.target.value)}
+              style={{ width: '100%', height: '32px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.85rem' }}
+            />
           </div>
 
-          {/* Highlighted Sum Card */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-            background: 'linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)',
-            borderRadius: '6px',
-            padding: '10px 14px',
-            boxShadow: '0 4px 10px rgba(109, 40, 217, 0.25)',
-            color: '#fff',
-            marginBottom: '12px'
-          }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255, 255, 255, 0.9)' }}>
-              Selected Rooms Total Balance
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Payment Mode</label>
+            <select
+              value={paymentMode}
+              onChange={e => setPaymentMode(e.target.value)}
+              style={{ width: '100%', height: '32px', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: '4px', fontSize: '0.85rem' }}
+            >
+              <option value="UPI">UPI / GPay / PhonePe</option>
+              <option value="Card">Credit / Debit Card</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer / NEFT</option>
+            </select>
+          </div>
+
+          <div style={{ background: 'linear-gradient(135deg, #4f46e5, #4338ca)', color: '#fff', borderRadius: '6px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, opacity: 0.9 }}>
+              Total Selected Balance
             </label>
             <div style={{ fontSize: '1.35rem', fontWeight: 800 }}>
               ₹ {totalBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -124,21 +115,35 @@ const MultiRoomCheckout = ({ showToast }) => {
           <button
             type="button"
             onClick={handleGroupCheckout}
-            disabled={selectedRooms.length === 0}
+            disabled={selectedRooms.length === 0 || isSaving}
             className="btn-primary"
             style={{
               width: '100%',
               height: '38px',
               fontWeight: 700,
               fontSize: '0.9rem',
-              cursor: selectedRooms.length === 0 ? 'not-allowed' : 'pointer',
-              boxShadow: selectedRooms.length > 0 ? '0 4px 10px rgba(79, 70, 229, 0.3)' : 'none',
-              background: selectedRooms.length === 0 ? '#cbd5e1' : 'var(--primary)',
-              borderColor: selectedRooms.length === 0 ? '#cbd5e1' : 'var(--primary)',
-              color: selectedRooms.length === 0 ? '#64748b' : '#fff'
+              cursor: (selectedRooms.length === 0 || isSaving) ? 'not-allowed' : 'pointer',
+              boxShadow: (selectedRooms.length > 0 && !isSaving) ? '0 4px 10px rgba(79, 70, 229, 0.3)' : 'none',
+              background: (selectedRooms.length === 0 || isSaving) ? '#cbd5e1' : 'var(--primary)',
+              borderColor: (selectedRooms.length === 0 || isSaving) ? '#cbd5e1' : 'var(--primary)',
+              color: (selectedRooms.length === 0 || isSaving) ? '#64748b' : '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
           >
-            Checkout Selected Rooms
+            {isSaving ? (
+              <>
+                <svg className="animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }}>
+                  <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Processing...</span>
+              </>
+            ) : (
+              'Checkout Selected Rooms'
+            )}
           </button>
         </div>
 

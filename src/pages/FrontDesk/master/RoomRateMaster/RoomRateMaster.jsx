@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RoomRateMasterForm from './RoomRateMasterForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const RoomRateMaster = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, name: 'Peak Season Standard Plan', shortName: 'PEAK-STD', category: 'Standard Comfort Room', applicableDate: '2026-11-01', planType: 'American Plan', mealType: 'Veg', active: 'Yes', roomSingle: '100.00', roomDouble: '120.00', roomExtraAdult: '30.00', roomTriple: '150.00', roomQuadrant: '180.00', roomExtraChild: '20.00', mealSingle: '15.00', mealDouble: '30.00', mealExtraAdult: '10.00', mealTriple: '45.00', mealQuadrant: '60.00', mealExtraChild: '5.00', netSingle: '115.00', netDouble: '150.00', netTriple: '195.00', netQuadrant: '240.00', netExtraAdult: '40.00', netExtraChild: '25.00' },
@@ -42,12 +44,14 @@ const RoomRateMaster = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <RoomRateMasterForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <RoomRateMasterForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

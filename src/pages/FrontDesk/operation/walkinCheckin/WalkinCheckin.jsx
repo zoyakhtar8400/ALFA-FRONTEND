@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import WalkinCheckinForm from './WalkinCheckinForm';
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const WalkinCheckin = ({ showToast }) => {
   const [data, setData] = useState([
@@ -43,12 +44,14 @@ const WalkinCheckin = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <WalkinCheckinForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <WalkinCheckinForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

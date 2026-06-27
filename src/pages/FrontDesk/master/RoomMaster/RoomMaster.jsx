@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RoomMasterForm from './RoomMasterForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const RoomMaster = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, roomNo: '101', name: 'Room 101', floor: 'First Floor', category: 'Standard Comfort Room', includeInCount: 'Yes', active: 'Yes', features: 'Air Conditioning, LED Television' },
@@ -43,12 +45,14 @@ const RoomMaster = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <RoomMasterForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <RoomMasterForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

@@ -11,7 +11,7 @@ const CommonModal = ({ isOpen, onClose, title, children, maxWidth = '640px', les
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
-        className={`modal-container ${lessPadding ? 'less-padding' : ''}`}
+         className={`modal-container ${lessPadding ? 'less-padding' : ''}`}
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >

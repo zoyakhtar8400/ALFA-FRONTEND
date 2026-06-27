@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CompanyMasterForm from './CompanyMasterForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const CompanyMaster = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, name: 'Alfa Group Ltd', underGroup: 'Sundry Debtors', shortName: 'ALFA-GRP', nature: 'Corporate', gstNumber: '29AAAAA1111A1Z1', contractPerson: 'Zoya Akhtar', address: '123 Luxury Ave', city: 'Mumbai', phone: '+91 22 998877', mobile: '+91 9876543210', email: 'info@alfagroup.com', active: 'Yes' },
@@ -43,12 +45,14 @@ const CompanyMaster = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <CompanyMasterForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <CompanyMasterForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

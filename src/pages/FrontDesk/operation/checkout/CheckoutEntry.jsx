@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CheckoutEntryForm from './CheckoutEntryForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const CheckoutEntry = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-8001', guestName: 'Harish Mehta', roomNo: '102', checkoutDate: '2026-06-22', totalAmount: 18500, discount: 1000, netAmount: 17500, paymentMode: 'Card', active: 'Yes' },
@@ -44,12 +46,14 @@ const CheckoutEntry = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <CheckoutEntryForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <CheckoutEntryForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

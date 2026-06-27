@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Table from '../../components/common/Table';
-import Modal from '../../components/common/Modal';
+import CommonTable from '../../components/common/CommonTable';
+import CommonModal from '../../components/common/CommonModal';
 
 const INITIAL_TAXES = [
   { id: 1, name: 'GST', type: 'Percentage', rate: '18%', appliedOn: 'Room Charges', status: 'Active' },
@@ -63,7 +63,7 @@ const TaxStructure = ({ showToast = () => {} }) => {
 
   return (
     <div>
-      <Table
+      <CommonTable
         title="Tax Structure"
         columns={columns}
         data={taxes}
@@ -75,7 +75,7 @@ const TaxStructure = ({ showToast = () => {} }) => {
       />
 
       {/* Add / Edit Modal */}
-      <Modal isOpen={modal.open} onClose={closeModal} title={modal.mode === 'add' ? 'Add Tax' : 'Edit Tax'}>
+      <CommonModal isOpen={modal.open} onClose={closeModal} title={modal.mode === 'add' ? 'Add Tax' : 'Edit Tax'}>
         <div className="flex flex-col gap-4">
           {[
             { label: 'Tax Name', key: 'name', placeholder: 'e.g. GST' },
@@ -129,10 +129,10 @@ const TaxStructure = ({ showToast = () => {} }) => {
             >Save</button>
           </div>
         </div>
-      </Modal>
+      </CommonModal>
 
       {/* Delete Confirm Modal */}
-      <Modal isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, row: null })} title="Confirm Delete">
+      <CommonModal isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, row: null })} title="Confirm Delete">
         <p className="text-sm text-slate-600 mb-6">
           Are you sure you want to delete <span className="font-bold text-slate-800">{deleteModal.row?.name}</span>?
         </p>
@@ -146,7 +146,7 @@ const TaxStructure = ({ showToast = () => {} }) => {
             onClick={handleDelete}
           >Delete</button>
         </div>
-      </Modal>
+      </CommonModal>
     </div>
   );
 };

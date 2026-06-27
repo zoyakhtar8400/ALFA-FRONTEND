@@ -3,6 +3,8 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RefundEntryForm from './RefundEntryForm';
 
+import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
+
 const RefundEntry = ({ showToast }) => {
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-9011', guestName: 'Karan Mehra', roomNo: '104', refundAmount: 1500, reason: 'Advance booking cancellation.', paymentMode: 'UPI', active: 'Yes' },
@@ -42,12 +44,14 @@ const RefundEntry = ({ showToast }) => {
 
   if (showForm) {
     return (
-      <RefundEntryForm
-        mode={editMode.mode}
-        initialData={editMode.row}
-        onSave={handleSave}
-        onCancel={() => setShowForm(false)}
-      />
+      <FormLoadingWrapper>
+        <RefundEntryForm
+          mode={editMode.mode}
+          initialData={editMode.row}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+        />
+      </FormLoadingWrapper>
     );
   }
 

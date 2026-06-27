@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import MasterPage from './master/MasterPage';
 import OperationPage from './operation/OperationPage';
+import MisPage from './mis/MisPage';
 import PageHeader from '../../components/common/PageHeader';
 
 const FrontDesk = ({ showToast }) => {
@@ -33,17 +34,7 @@ const FrontDesk = ({ showToast }) => {
     }
 
     if (section === 'MIS' && item) {
-      return (
-        <div>
-          <PageHeader
-            title={item}
-            breadcrumbs={['Dashboard', 'Front Desk', 'MIS', item]}
-          />
-          <div className="dashboard-panel">
-            <p className="text-secondary">MIS report for {item} coming soon.</p>
-          </div>
-        </div>
-      );
+      return <MisPage misName={item} showToast={showToast} />;
     }
 
     if (section === 'REPORT') {
