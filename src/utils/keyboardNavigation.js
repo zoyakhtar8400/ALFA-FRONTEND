@@ -168,12 +168,14 @@ const handleKeyDown = (e) => {
   focusField(fields[idx + 1]);
 };
 
-// ─── Alt shortcuts (Save / Cancel / New / etc.) ──────────────────
-const handleAltShortcuts = (e) => {
-  if (!e.altKey) return;
-  const key = e.key.toLowerCase();
+// ─── Global Shortcuts (Ctrl / Alt + Save, New, Print, Search, Edit, Delete, Close) ───
+const handleGlobalShortcuts = (e) => {
+  const isCtrl = e.ctrlKey || e.metaKey;
+  const isAlt = e.altKey;
+  if (!isCtrl && !isAlt) return;
 
-  const activeModal = document.querySelector('.modal-container');
+  const key = e.key.toLowerCase();
+  const activeModal = document.querySelector('.modal-container, .drawer-container');
   const container = activeModal || document;
 
   const find = (selector) => container.querySelector(selector);
@@ -183,13 +185,33 @@ const handleAltShortcuts = (e) => {
     );
 
   let handled = false;
-  if (key === 's') { find('button[type="submit"], button.btn-primary')?.click(); handled = true; }
-  else if (key === 'c') { find('.modal-close-btn, button.btn-secondary')?.click(); handled = true; }
-  else if (key === 'n') { findBtn('add', 'new', 'create')?.click(); handled = true; }
-  else if (key === 'e') { findBtn('edit')?.click(); handled = true; }
-  else if (key === 'd') { findBtn('delete', 'remove')?.click(); handled = true; }
-  else if (key === 'p') { findBtn('print')?.click(); handled = true; }
-  else if (key === 'b') { findBtn('back')?.click(); handled = true; }
+
+  if (key === 's') {
+    const saveBtn = find('button[type="submit"], button.btn-primary');
+    if (saveBtn) { saveBtn.click(); handled = true; }
+  } else if (key === 'c') {
+    const closeBtn = find('.modal-close-btn, .drawer-close-btn, button.btn-secondary');
+    if (closeBtn) { closeBtn.click(); handled = true; }
+  } else if (key === 'n') {
+    const newBtn = findBtn('add', 'new', 'create');
+    if (newBtn) { newBtn.click(); handled = true; }
+  } else if (key === 'e') {
+    const editBtn = findBtn('edit');
+    if (editBtn) { editBtn.click(); handled = true; }
+  } else if (key === 'd') {
+    const deleteBtn = findBtn('delete', 'remove');
+    if (deleteBtn) { deleteBtn.click(); handled = true; }
+  } else if (key === 'p') {
+    const printBtn = findBtn('print') || find('.no-print button');
+    if (printBtn) { printBtn.click(); handled = true; }
+  } else if (key === 'f') {
+    const searchInput = document.querySelector('input[type="search"], .search-input, input[placeholder*="Search"], input[placeholder*="search"]');
+    if (searchInput) {
+      searchInput.focus();
+      if (searchInput.select) searchInput.select();
+      handled = true;
+    }
+  }
 
   if (handled) {
     e.preventDefault();
@@ -197,35 +219,72 @@ const handleAltShortcuts = (e) => {
   }
 };
 
-// ─── Escape: close modal or custom dropdown ───────────────────────
+// ─── Escape: close modal or custom drawer ──────────────────────────
 const handleEscape = (e) => {
   if (e.key !== 'Escape') return;
-  const modal = document.querySelector('.modal-overlay, .modal-container');
+  const modal = document.querySelector('.modal-overlay, .modal-container, .drawer-overlay, .drawer-container');
   if (modal) {
-    const closeBtn = modal.querySelector('.modal-close-btn, button[aria-label="Close"]');
+    const closeBtn = modal.querySelector('.modal-close-btn, .drawer-close-btn, button[aria-label="Close"], button.btn-secondary');
     if (closeBtn) { e.preventDefault(); closeBtn.click(); }
+  }
+};
+
+// ─── Arrow Keys: navigate inside tables focusable rows ──────────────
+const handleArrowNavigation = (e) => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+
+  // Don't intercept arrow keys if we are typing inside input/textarea/select
+  const active = document.activeElement;
+  if (!active || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') {
+    return;
+  }
+
+  const row = active.closest('tr');
+  if (!row) return;
+  const tbody = row.closest('tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.getAttribute('tabindex') === '0');
+  const idx = rows.indexOf(row);
+  if (idx === -1) return;
+
+  e.preventDefault();
+  if (e.key === 'ArrowDown' && idx < rows.length - 1) {
+    rows[idx + 1].focus();
+  } else if (e.key === 'ArrowUp' && idx > 0) {
+    rows[idx - 1].focus();
   }
 };
 
 // ─── Public API ──────────────────────────────────────────────────
 
 /**
- * Initialize global Enter-key navigation for ALFA HMS.
+ * Initialize global Enter-key navigation and global shortcuts for ALFA HMS.
  * Call once from App.jsx / main entry point.
  * Returns a cleanup function.
- *
- * @example
- *   useEffect(() => initKeyboardNavigation(), []);
  */
 export const initKeyboardNavigation = () => {
   window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('keydown', handleAltShortcuts);
+  window.addEventListener('keydown', handleGlobalShortcuts);
   window.addEventListener('keydown', handleEscape);
+  window.addEventListener('keydown', handleArrowNavigation);
+
+  // Automatically focus first input element in dynamic forms
+  const handleAutoFocus = (e) => {
+    if (e.target && e.target.classList && (e.target.classList.contains('modal-container') || e.target.classList.contains('drawer-container') || e.target.tagName === 'FORM')) {
+      const firstInput = e.target.querySelector('input:not([type="hidden"]):not([type="submit"]):not([disabled])');
+      if (firstInput) {
+        setTimeout(() => firstInput.focus(), 50);
+      }
+    }
+  };
+  document.addEventListener('DOMNodeInserted', handleAutoFocus);
 
   return () => {
     window.removeEventListener('keydown', handleKeyDown);
-    window.removeEventListener('keydown', handleAltShortcuts);
+    window.removeEventListener('keydown', handleGlobalShortcuts);
     window.removeEventListener('keydown', handleEscape);
+    window.removeEventListener('keydown', handleArrowNavigation);
+    document.removeEventListener('DOMNodeInserted', handleAutoFocus);
   };
 };
 

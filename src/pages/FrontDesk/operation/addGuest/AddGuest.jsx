@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import AddGuestForm from './AddGuestForm';
@@ -6,6 +7,8 @@ import AddGuestForm from './AddGuestForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const AddGuest = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Priya Sharma', idType: 'Aadhaar Card', idNo: '9876-5432-1098', relation: 'Spouse', active: 'Yes' },
     { id: 2, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Aarav Sharma', idType: 'Passport', idNo: 'Y1234567', relation: 'Child', active: 'Yes' },
@@ -13,6 +16,20 @@ const AddGuest = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'roomNo', label: 'Room No' },
@@ -42,6 +59,14 @@ const AddGuest = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -49,7 +74,8 @@ const AddGuest = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

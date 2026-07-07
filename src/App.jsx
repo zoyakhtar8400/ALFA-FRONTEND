@@ -1,18 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
 import Login from './pages/Login/Login';
-import { FaInfoCircle } from 'react-icons/fa';
+import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { initKeyboardNavigation } from './utils/keyboardNavigation';
+
+const TOAST_THEMES = {
+  success: {
+    classes: 'bg-[#d1fae5] border-[#a7f3d0] text-[#065f46]',
+    icon: <FaCheckCircle size={15} />
+  },
+  warning: {
+    classes: 'bg-[#fef3c7] border-[#fde68a] text-[#92400e]',
+    icon: <FaExclamationTriangle size={15} />
+  },
+  error: {
+    classes: 'bg-[#fee2e2] border-[#fecaca] text-[#991b1b]',
+    icon: <FaTimesCircle size={15} />
+  },
+  info: {
+    classes: 'bg-[#e0f2fe] border-[#bae6fd] text-[#075985]',
+    icon: <FaInfoCircle size={15} />
+  }
+};
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const location = useLocation();
-  // Mobile drawer state
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Desktop collapse state — persisted in localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('sidebarCollapsed') === 'true';
@@ -20,7 +35,9 @@ function App() {
       return false;
     }
   });
-  const [toastMessage, setToastMessage] = useState('');
+
+  // Enterprise Toast State
+  const [toast, setToast] = useState({ message: '', type: 'info' });
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
@@ -29,16 +46,21 @@ function App() {
   const toggleCollapse = () => {
     setSidebarCollapsed(prev => {
       const next = !prev;
-      try { localStorage.setItem('sidebarCollapsed', String(next)); } catch {}
+      try {
+        localStorage.setItem('sidebarCollapsed', String(next));
+      } catch (err) {
+        /* ignore */
+      }
       return next;
     });
   };
 
-  const showToast = (message) => {
-    setToastMessage(message);
-    setTimeout(() => {
-      setToastMessage('');
-    }, 3000);
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    const timer = setTimeout(() => {
+      setToast({ message: '', type: 'info' });
+    }, 3500);
+    return () => clearTimeout(timer);
   };
 
   useEffect(() => {
@@ -56,17 +78,20 @@ function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    showToast("Logged out successfully.");
+    showToast("Logged out successfully.", "success");
   };
 
-  // If not authenticated, force display the premium login screen
+  const activeToastTheme = TOAST_THEMES[toast.type] || TOAST_THEMES.info;
+
   if (!isAuthenticated) {
     return (
       <div className="login-root-container">
-        {toastMessage && (
-          <div className="toast-container">
-            <FaInfoCircle size={18} />
-            <span>{toastMessage}</span>
+        {toast.message && (
+          <div 
+            className={`fixed bottom-6 right-6 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg z-[9999] transition-all duration-300 ${activeToastTheme.classes}`}
+          >
+            {activeToastTheme.icon}
+            <span className="text-xs font-bold">{toast.message}</span>
           </div>
         )}
         <Login onLogin={handleLogin} showToast={showToast} />
@@ -76,11 +101,13 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Global Toast Notification */}
-      {toastMessage && (
-        <div className="toast-container">
-          <FaInfoCircle size={18} />
-          <span>{toastMessage}</span>
+      {/* Global Enterprise Toast Notification */}
+      {toast.message && (
+        <div 
+          className={`fixed bottom-6 right-6 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg z-[9999] transition-all duration-300 ${activeToastTheme.classes}`}
+        >
+          {activeToastTheme.icon}
+          <span className="text-xs font-bold">{toast.message}</span>
         </div>
       )}
 

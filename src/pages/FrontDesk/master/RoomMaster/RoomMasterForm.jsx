@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const FEATURES_OPTIONS = [
   'Air Conditioning',
@@ -15,7 +16,7 @@ const FEATURES_OPTIONS = [
   'Tea/Coffee Maker'
 ];
 
-const RoomMasterForm = ({ mode, initialData, onSave, onCancel }) => {
+const RoomMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState({
     roomNo: '',
     name: '',
@@ -25,6 +26,14 @@ const RoomMasterForm = ({ mode, initialData, onSave, onCancel }) => {
     active: 'Yes',
     features: [],
     description: ''
+  });
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['roomNo'],
+    currentId: initialData?.id,
+    mode
   });
 
   useEffect(() => {
@@ -63,6 +72,7 @@ const RoomMasterForm = ({ mode, initialData, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.roomNo.trim()) return;
+    if (!checkBeforeSave()) return;
 
     const payload = {
       ...form,
@@ -211,8 +221,10 @@ const RoomMasterForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

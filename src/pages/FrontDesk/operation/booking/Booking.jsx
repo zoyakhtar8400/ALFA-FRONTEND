@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import BookingForm from './BookingForm';
@@ -6,6 +7,8 @@ import BookingForm from './BookingForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const Booking = ({ showToast, onlyList = false }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, bookingNo: 'BK-1001', guestName: 'Rohan Sharma', roomCategory: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-25', adults: 2, children: 1, mealPlan: 'CP (Bed & Breakfast)', ratePlan: 'Standard Rate', advance: 3000, remarks: 'Require airport pickup.', active: 'Yes' },
     { id: 2, bookingNo: 'BK-1002', guestName: 'Amanda Smith', roomCategory: 'Executive Suite', checkIn: '2026-06-24', checkOut: '2026-06-28', adults: 2, children: 0, mealPlan: 'MAP (Half Board)', ratePlan: 'Seasonal Offer', advance: 8000, remarks: 'High floor preferred.', active: 'Yes' },
@@ -44,14 +47,24 @@ const Booking = ({ showToast, onlyList = false }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
         <BookingForm
+          key={editMode.row?.id || 'new'}
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

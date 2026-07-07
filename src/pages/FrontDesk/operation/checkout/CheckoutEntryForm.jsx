@@ -1,420 +1,686 @@
-// src/pages/FrontDesk/operation/checkout/CheckoutEntryForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
-import CommonActionButtons from '../../../../components/common/CommonActionButtons';
-import { FaUser, FaRegFileAlt, FaCreditCard, FaCalculator, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaRegFileAlt, FaTrash } from 'react-icons/fa';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const BILL_COLS = ['Date', 'Particular', 'Room No', 'Base Amount', 'Gross Amount', 'Discount %', 'Discount', 'SGST', 'CGST', 'VAT', 'Received Amount'];
-const PAY_COLS = ['Receipt No', 'Date', 'Pay Type', 'Amount'];
+const OCCUPANT_DB = [
+  { grcNo: '119', guestName: 'PRAMOD MISHRA', roomNo: '104', checkinDate: '2026-06-29', checkinTime: '07:05', city: 'Ahmedabad', companyName: 'SELF', companyGstin: '', paymentMode: 'CASH', noOfDayStay: 3, grossAmount: '1109.00', discount: '0.00', sgst: '27.73', cgst: '27.73', roundOff: '0.45', netAmount: '1165.00', roomSettlement: '0.00', netTotal: '1165.00', advanceSettlement: '0.00', balance: '1165.00' },
+  { grcNo: '120', guestName: 'Sarah Wilson', roomNo: '201', checkinDate: '2026-06-26', checkinTime: '11:30', city: 'San Francisco', companyName: 'Direct', companyGstin: '', paymentMode: 'CARD', noOfDayStay: 3, grossAmount: '4500.00', discount: '0.00', sgst: '112.50', cgst: '112.50', roundOff: '0.00', netAmount: '4725.00', roomSettlement: '0.00', netTotal: '4725.00', advanceSettlement: '1000.00', balance: '3725.00' },
+  { grcNo: '122', guestName: 'Robert Taylor', roomNo: '301', checkinDate: '2026-06-26', checkinTime: '14:00', city: 'London', companyName: 'Agent', companyGstin: '', paymentMode: 'UPI', noOfDayStay: 6, grossAmount: '9000.00', discount: '500.00', sgst: '212.50', cgst: '212.50', roundOff: '0.00', netAmount: '8925.00', roomSettlement: '1500.00', netTotal: '8925.00', advanceSettlement: '1500.00', balance: '5925.00' },
+  { grcNo: '125', guestName: 'ANSH', roomNo: '114', checkinDate: '2026-07-01', checkinTime: '18:42', city: 'PRAYAGRAJ', companyName: 'SONY INDIA PVT. LTD', companyGstin: '09AAAAAAAAAAAAAAAA', paymentMode: 'CASH', noOfDayStay: 1, grossAmount: '1109.00', discount: '0.00', sgst: '27.73', cgst: '27.73', roundOff: '0.45', netAmount: '1165.00', roomSettlement: '0.00', netTotal: '1165.00', advanceSettlement: '0.00', balance: '1165.00' },
+  { grcNo: '128', guestName: 'John Smith', roomNo: '101', checkinDate: '2026-06-28', checkinTime: '10:00', city: 'New York', companyName: 'Direct', companyGstin: '', paymentMode: 'CASH', noOfDayStay: 3, grossAmount: '3000.00', discount: '0.00', sgst: '75.00', cgst: '75.00', roundOff: '0.00', netAmount: '3150.00', roomSettlement: '0.00', netTotal: '3150.00', advanceSettlement: '0.00', balance: '3150.00' },
+  { grcNo: '127', guestName: 'SURAJ', roomNo: '102', checkinDate: '02-07-2026', checkinTime: '15:21', city: 'DEORIA', companyName: 'SONY INDIA PVT. LTD', companyGstin: '09AAAAAAAAAAAAA', paymentMode: 'CASH', noOfDayStay: 1, grossAmount: '1000.00', discount: '0.00', sgst: '25.00', cgst: '25.00', roundOff: '0.00', netAmount: '1050.00', roomSettlement: '0.00', netTotal: '1050.00', advanceSettlement: '0.00', balance: '1050.00', checkoutDate: '03-07-2026', checkoutTime: '10:59' }
+];
 
-const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
-  <div className="form-field" style={{ marginBottom: '4px', ...style }}>
-    <label className="form-label" style={{ marginBottom: '2px' }}>
-      {label}{required && <span className="text-red-500"> *</span>}
-    </label>
-    {children || (
-      <input
-        className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${inputClassName || ''}`}
-        type={type}
-        value={value ?? ''}
-        onChange={disabled ? undefined : onChange}
-        disabled={disabled}
-        placeholder={placeholder}
-        required={required}
-        style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', ...inputStyle }}
-      />
-    )}
-  </div>
-);
-
-const SummaryRow = ({ label, value, bold }) => (
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '6px 0',
-      borderBottom: '1px solid var(--border)',
-      fontWeight: bold ? 700 : 400,
-      color: bold ? 'var(--primary)' : 'var(--text-secondary)',
-    }}
-  >
-    <span style={{ fontSize: '0.8rem' }}>{label}</span>
-    <span style={{ fontSize: '0.85rem', fontFamily: 'monospace', fontWeight: bold ? 700 : 600 }}>₹ {value}</span>
-  </div>
-);
-
-const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    grcNo: initialData?.grcNo || '',
-    billNo: initialData?.billNo || `BILL-${Math.floor(1000 + Math.random() * 9000)}`,
-    checkoutDate: initialData?.checkoutDate || new Date().toISOString().split('T')[0],
-    checkoutTime: initialData?.checkoutTime || '',
-    guestName: initialData?.guestName || '',
-    city: initialData?.city || '',
-    companyName: initialData?.companyName || '',
-    date: initialData?.date || new Date().toISOString().split('T')[0],
-    noOfDayStay: initialData?.noOfDayStay || 1,
-    roomNo: initialData?.roomNo || '',
-    checkinDate: initialData?.checkinDate || '2026-06-21',
-    checkinTime: initialData?.checkinTime || '12:00',
-    paymentMode: initialData?.paymentMode || '',
-    companyGstin: initialData?.companyGstin || '',
-    // Tax Summary
-    grossAmount: initialData?.grossAmount || '0.00',
-    discount: initialData?.discount || '0.00',
-    sgst: initialData?.sgst || '0.00',
-    cgst: initialData?.cgst || '0.00',
-    roundOff: initialData?.roundOff || '0.00',
-    netAmount: initialData?.netAmount || '0.00',
-    // Settlement
-    roomSettlement: initialData?.roomSettlement || '0.00',
-    netTotal: initialData?.netTotal || '0.00',
-    advanceSettlement: initialData?.advanceSettlement || '0.00',
-    balance: initialData?.balance || '0.00',
+const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => {
+    const qGrc = initialData?.grcNo || '';
+    const qRoom = initialData?.roomNo || '';
+    const found = OCCUPANT_DB.find(o => (qGrc && o.grcNo === qGrc) || (qRoom && o.roomNo === qRoom));
+    
+    return {
+      grcNo: found?.grcNo || qGrc || '125',
+      billNo: initialData?.billNo || '119',
+      checkoutDate: found?.checkoutDate || initialData?.checkoutDate || '03-07-2026',
+      checkoutTime: found?.checkoutTime || initialData?.checkoutTime || '10:59',
+      guestName: found?.guestName || initialData?.guestName || 'ANSH',
+      city: found?.city || initialData?.city || 'PRAYAGRAJ',
+      companyName: found?.companyName || initialData?.companyName || 'SONY INDIA PVT. LTD',
+      date: initialData?.date || '03-07-2026',
+      noOfDayStay: found?.noOfDayStay || initialData?.noOfDayStay || 1,
+      roomNo: found?.roomNo || qRoom || '114',
+      checkinDate: found?.checkinDate || initialData?.checkinDate || '01-07-2026',
+      checkinTime: found?.checkinTime || initialData?.checkinTime || '18:42',
+      paymentMode: found?.paymentMode || initialData?.paymentMode || 'CASH',
+      companyGstin: found?.companyGstin || initialData?.companyGstin || '09AAAAAAAAAAAAAAAA',
+      grossAmount: found?.grossAmount || initialData?.grossAmount || '1109.00',
+      discount: found?.discount || initialData?.discount || '0.00',
+      sgst: found?.sgst || initialData?.sgst || '27.73',
+      cgst: found?.cgst || initialData?.cgst || '27.73',
+      roundOff: found?.roundOff || initialData?.roundOff || '0.45',
+      netAmount: found?.netAmount || initialData?.netAmount || '1165.00',
+      roomSettlement: found?.roomSettlement || initialData?.roomSettlement || '0.00',
+      netTotal: found?.netTotal || initialData?.netTotal || '1165.00',
+      advanceSettlement: found?.advanceSettlement || initialData?.advanceSettlement || '0.00',
+      balance: found?.balance || initialData?.balance || '1165.00',
+    };
   });
 
-  const [taxSummaryExpanded, setTaxSummaryExpanded] = useState(true);
-  const [settlementSummaryExpanded, setSettlementSummaryExpanded] = useState(true);
-  const [billDetailsExpanded, setBillDetailsExpanded] = useState(true);
-  const [paymentDetailsExpanded, setPaymentDetailsExpanded] = useState(true);
+  const [billItems, setBillItems] = useState(() => {
+    const qGrc = initialData?.grcNo || '';
+    const qRoom = initialData?.roomNo || '';
+    const found = OCCUPANT_DB.find(o => (qGrc && o.grcNo === qGrc) || (qRoom && o.roomNo === qRoom)) || OCCUPANT_DB[3];
+    return [
+      {
+        id: '1',
+        date: found.checkinDate,
+        particular: found.grcNo === '127' ? 'Room Rent EP  STANDARD' : 'Room Rent CP STANDARD',
+        roomNo: found.roomNo,
+        baseAmt: found.grcNo === '127' ? '1000.0' : found.grossAmount,
+        grossAmt: found.grcNo === '127' ? '1000' : found.grossAmount,
+        discPer: '0.00',
+        discount: '0.00',
+        sgst: found.sgst,
+        cgst: found.cgst,
+        vat: '0',
+        recAmt: '0'
+      }
+    ];
+  });
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['grcNo'],
+    currentId: initialData?.id,
+    mode
+  });
 
-  const billData = [
-    {
-      date: '2026-06-20',
-      particular: 'Room Charge',
-      roomNo: '101',
-      baseAmount: '3000',
-      grossAmount: '3540',
-      discountPct: '0',
-      discount: '0',
-      sgst: '270',
-      cgst: '270',
-      vat: '0',
-      receivedAmount: '3540',
-    },
-  ];
+  const liveTotals = useMemo(() => {
+    let gross = 0;
+    let disc = 0;
+    let sgst = 0;
+    let cgst = 0;
+    let vat = 0;
+    let rec = 0;
 
-  const payData = [
-    { receiptNo: 'RCP-001', date: '2026-06-22', payType: 'Cash', amount: '3540' },
-  ];
+    billItems.forEach(item => {
+      gross += parseFloat(item.grossAmt || 0);
+      disc += parseFloat(item.discount || 0);
+      sgst += parseFloat(item.sgst || 0);
+      cgst += parseFloat(item.cgst || 0);
+      vat += parseFloat(item.vat || 0);
+      rec += parseFloat(item.recAmt || 0);
+    });
+
+    const calculatedNet = gross - disc + sgst + cgst + vat;
+    const finalNet = Math.round(calculatedNet);
+    const roundOff = (finalNet - calculatedNet).toFixed(2);
+    
+    const advance = parseFloat(form.advanceSettlement || 0) + parseFloat(form.roomSettlement || 0);
+    const balance = finalNet - advance - rec;
+
+    return {
+      grossAmount: gross.toFixed(2),
+      discount: disc.toFixed(2),
+      sgst: sgst.toFixed(2),
+      cgst: cgst.toFixed(2),
+      roundOff: parseFloat(roundOff) === 0 ? '0.00' : roundOff,
+      netAmount: finalNet.toFixed(2),
+      balance: balance.toFixed(2)
+    };
+  }, [billItems, form.advanceSettlement, form.roomSettlement]);
+
+  const handleCutRow = (itemId) => {
+    setBillItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  // Sync state when initialData changes (dynamic dashboard lookup)
+  React.useEffect(() => {
+    if (initialData) {
+      const qGrc = initialData.grcNo || '';
+      const qRoom = initialData.roomNo || initialData.roomCode || '';
+      const found = OCCUPANT_DB.find(o => (qGrc && o.grcNo === qGrc) || (qRoom && o.roomNo === qRoom));
+      
+      setForm({
+        grcNo: found?.grcNo || qGrc || '125',
+        billNo: initialData.billNo || '119',
+        checkoutDate: found?.checkoutDate || initialData.checkoutDate || '03-07-2026',
+        checkoutTime: found?.checkoutTime || initialData.checkoutTime || '10:59',
+        guestName: found?.guestName || initialData.guestName || 'ANSH',
+        city: found?.city || initialData.city || 'PRAYAGRAJ',
+        companyName: found?.companyName || initialData.companyName || 'SONY INDIA PVT. LTD',
+        date: initialData.date || '03-07-2026',
+        noOfDayStay: found?.noOfDayStay || initialData.noOfDayStay || 1,
+        roomNo: found?.roomNo || qRoom || '114',
+        checkinDate: found?.checkinDate || initialData.checkinDate || '01-07-2026',
+        checkinTime: found?.checkinTime || initialData.checkinTime || '18:42',
+        paymentMode: found?.paymentMode || initialData.paymentMode || 'CASH',
+        companyGstin: found?.companyGstin || initialData.companyGstin || '09AAAAAAAAAAAAAAAA',
+        grossAmount: found?.grossAmount || initialData.grossAmount || '1109.00',
+        discount: found?.discount || initialData.discount || '0.00',
+        sgst: found?.sgst || initialData.sgst || '27.73',
+        cgst: found?.cgst || initialData.cgst || '27.73',
+        roundOff: found?.roundOff || initialData.roundOff || '0.45',
+        netAmount: found?.netAmount || initialData.netAmount || '1165.00',
+        roomSettlement: found?.roomSettlement || initialData.roomSettlement || '0.00',
+        netTotal: found?.netTotal || initialData.netTotal || '1165.00',
+        advanceSettlement: found?.advanceSettlement || initialData.advanceSettlement || '0.00',
+        balance: found?.balance || initialData.balance || '1165.00',
+      });
+
+      if (found) {
+        setBillItems([
+          {
+            id: '1',
+            date: found.checkinDate,
+            particular: found.grcNo === '127' ? 'Room Rent EP  STANDARD' : 'Room Rent CP STANDARD',
+            roomNo: found.roomNo,
+            baseAmt: found.grcNo === '127' ? '1000.0' : found.grossAmount,
+            grossAmt: found.grcNo === '127' ? '1000' : found.grossAmount,
+            discPer: '0.00',
+            discount: '0.00',
+            sgst: found.sgst,
+            cgst: found.cgst,
+            vat: '0',
+            recAmt: '0'
+          }
+        ]);
+      }
+    }
+  }, [initialData]);
+
+  const set = (key) => (e) => {
+    const val = e.target.value;
+    setForm((f) => {
+      const updated = { ...f, [key]: val };
+      if (key === 'grcNo' || key === 'roomNo') {
+        const found = OCCUPANT_DB.find(o => (key === 'grcNo' ? o.grcNo === val : o.roomNo === val));
+        if (found) {
+          setBillItems([
+            {
+              id: '1',
+              date: found.checkinDate,
+              particular: found.grcNo === '127' ? 'Room Rent EP  STANDARD' : 'Room Rent CP STANDARD',
+              roomNo: found.roomNo,
+              baseAmt: found.grcNo === '127' ? '1000.0' : found.grossAmount,
+              grossAmt: found.grcNo === '127' ? '1000' : found.grossAmount,
+              discPer: '0.00',
+              discount: '0.00',
+              sgst: found.sgst,
+              cgst: found.cgst,
+              vat: '0',
+              recAmt: '0'
+            }
+          ]);
+          return {
+            ...updated,
+            grcNo: found.grcNo,
+            roomNo: found.roomNo,
+            guestName: found.guestName,
+            city: found.city,
+            companyName: found.companyName,
+            companyGstin: found.companyGstin,
+            paymentMode: found.paymentMode,
+            noOfDayStay: found.noOfDayStay,
+            checkinDate: found.checkinDate,
+            checkinTime: found.checkinTime,
+            grossAmount: found.grossAmount,
+            discount: found.discount,
+            sgst: found.sgst,
+            cgst: found.cgst,
+            roundOff: found.roundOff,
+            netAmount: found.netAmount,
+            roomSettlement: found.roomSettlement,
+            netTotal: found.netTotal,
+            advanceSettlement: found.advanceSettlement,
+            balance: found.balance,
+          };
+        }
+      }
+      return updated;
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(form);
+    if (!checkBeforeSave()) return;
+    onSave({
+      ...form,
+      grossAmount: liveTotals.grossAmount,
+      discount: liveTotals.discount,
+      sgst: liveTotals.sgst,
+      cgst: liveTotals.cgst,
+      roundOff: liveTotals.roundOff,
+      netAmount: liveTotals.netAmount,
+      balance: liveTotals.balance
+    });
   };
 
-  const sectionTitle = (icon, title) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0 4px', borderBottom: '2px solid var(--primary)', marginBottom: '8px' }}>
-      <span style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', color: 'var(--primary)' }}>{icon}</span>
-      <span style={{ fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>{title}</span>
-    </div>
-  );
-
-  const renderCollapsibleHeader = (icon, title, isExpanded, onToggle) => (
-    <div
-      onClick={onToggle}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        cursor: 'pointer',
-        padding: '4px 6px',
-        margin: '-2px -4px 6px -4px',
-        borderRadius: '4px',
-        borderBottom: '2px solid var(--primary)',
-        transition: 'background-color 0.2s',
-        userSelect: 'none'
-      }}
-      className="collapsible-header-hover"
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <span style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', color: 'var(--primary)' }}>{icon}</span>
-        <span style={{ fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--primary)' }}>{title}</span>
-      </div>
-      <span style={{ display: 'flex', alignItems: 'center', color: 'var(--primary)', fontSize: '0.85rem' }}>
-        {isExpanded ? <FaChevronUp /> : <FaChevronDown />}
-      </span>
-    </div>
-  );
-
   return (
-    <div className="animate-in duration-200" style={{ padding: '0 8px' }}>
-      <style dangerouslySetInnerHTML={{__html: `
-        ::-webkit-scrollbar {
-          display: none !important;
-          width: 0px !important;
-          height: 0px !important;
-        }
-        * {
-          -ms-overflow-style: none !important;
-          scrollbar-width: none !important;
-        }
-        .collapsible-header-hover:hover {
-          background-color: var(--primary-light, rgba(79, 70, 229, 0.08)) !important;
-        }
-      `}} />
-
+    <div className="animate-in duration-200" style={{ padding: '0 8px', width: '100%' }}>
+      
       <PageHeader
-        title={mode === 'add' ? 'Checkout Entry' : 'Edit Checkout'}
-        breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Checkout Entry', mode === 'add' ? 'Add' : 'Edit']}
+        title={mode === 'displayFolio' ? 'Display Folio' : mode === 'add' ? 'Checkout Entry' : 'Edit Checkout'}
+        breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Checkout Entry', mode === 'displayFolio' ? 'Display Folio' : mode === 'add' ? 'Add' : 'Edit']}
         showBack
         onBack={onCancel}
-        style={{ marginBottom: '8px' }}
+        style={{ marginBottom: '12px' }}
       />
 
-      {/* Colorful Top Control Bar */}
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', marginBottom: '12px', borderBottom: '1px solid var(--border)', padding: '0 8px 8px', width: '100%', boxSizing: 'border-box' }}>
-        {/* Bill No - Purple */}
+      <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-          background: 'linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%)',
-          borderRadius: '8px',
-          padding: '8px 14px',
-          boxShadow: '0 4px 12px rgba(109, 40, 217, 0.35)',
-          flex: 1,
-          justifyContent: 'center'
+          display: 'grid',
+          gridTemplateColumns: '1fr 310px',
+          gap: '16px',
+          width: '100%',
+          alignItems: 'start'
         }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bill No</label>
-          <div style={{
-            fontSize: '1.25rem',
-            fontWeight: 800,
-            color: '#fff',
-            lineHeight: 1.2
-          }}>{form.billNo}</div>
-        </div>
-
-        {/* Checkout Date - Cyan */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-          background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-          borderRadius: '8px',
-          padding: '8px 14px',
-          boxShadow: '0 4px 12px rgba(6, 182, 212, 0.35)',
-          flex: 1,
-          justifyContent: 'center'
-        }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Checkout Date</label>
-          <input
-            type="date"
-            value={form.checkoutDate}
-            onChange={set('checkoutDate')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#fff',
-              fontSize: '1.1rem',
-              fontWeight: 800,
-              outline: 'none',
-              height: '30px',
-              width: '100%',
-              cursor: 'pointer'
-            }}
-          />
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} style={{ padding: '0 8px 4px' }}>
-        
-        {/* Top Split Sections: Guest Info & Payments vs Tax/Settlement/Bill Summaries */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.5fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
           
-          {/* Left Column: Guest & Stay Details + Payment Details Stack */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* LEFT & CENTER: Workspace Info panels & Folio Charge details */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
             
-            {/* Guest & Stay Details Card */}
-            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-              {sectionTitle(<FaUser />, 'Guest & Stay Details')}
-              <div className="form-grid-2">
-                <F 
-                  label="GRC No" 
-                  value={form.grcNo} 
-                  onChange={set('grcNo')} 
-                  placeholder="GRC number" 
-                  inputStyle={{ fontWeight: 800, background: 'rgba(79, 70, 229, 0.08)', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                />
-                <F 
-                  label="Room No" 
-                  value={form.roomNo} 
-                  onChange={set('roomNo')} 
-                  placeholder="Room number" 
-                  inputStyle={{ fontWeight: 800, background: 'rgba(6, 182, 212, 0.08)', borderColor: '#0891b2', color: '#0891b2' }}
-                />
-
-                <F label="Guest Name" value={form.guestName} onChange={set('guestName')} placeholder="Guest name" />
-                <F label="City" value={form.city} onChange={set('city')} placeholder="City" />
-
-                <F label="Company Name" value={form.companyName} onChange={set('companyName')} placeholder="Company" />
-                <F label="Company GSTIN" value={form.companyGstin} onChange={set('companyGstin')} placeholder="GST number" />
-
-                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-                  <F label="Check-In Date" type="date" value={form.checkinDate} disabled readOnly />
-                  <F label="Check-In Time" type="time" value={form.checkinTime} disabled readOnly />
-                  <F label="Checkout Time" type="time" value={form.checkoutTime} onChange={set('checkoutTime')} />
+            {/* Split Grid: Guest Info (Left) and Stay Details (Middle) */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px',
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '12px',
+              padding: '20px',
+              boxShadow: '0 2px 10px rgba(36,78,95,0.03)'
+            }}>
+              {/* Left Column: Guest info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>GRC No</span>
+                  {mode === 'displayFolio' ? (
+                    <span style={{ fontSize: '0.85rem', fontWeight: 850, color: 'var(--primary)' }}>{form.grcNo}</span>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.grcNo}
+                      onChange={set('grcNo')}
+                      style={{
+                        width: '60%',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        color: 'var(--primary)',
+                        background: 'rgba(79, 70, 229, 0.04)',
+                        borderColor: 'var(--primary)',
+                        textAlign: 'right'
+                      }}
+                    />
+                  )}
                 </div>
 
-                <F label="No of Day Stay" type="number" value={form.noOfDayStay} disabled readOnly />
-                <F label="Payment Mode">
-                  <select className="form-select" value={form.paymentMode} onChange={set('paymentMode')} style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px' }}>
-                    <option value="">Select Mode</option>
-                    <option value="Cash">Cash</option>
-                    <option value="Card">Card</option>
-                    <option value="UPI">UPI</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Credit">Credit</option>
-                  </select>
-                </F>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Bill No</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.billNo}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Check Out Date</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.checkoutDate}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Check Out Time</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.checkoutTime}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Guest Name</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.guestName}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>City</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.city}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Company Name</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.companyName}</span>
+                </div>
+
               </div>
-            </div>
 
-            {/* Payment Details Grid */}
-            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-              {renderCollapsibleHeader(<FaCreditCard />, 'Payment Details', paymentDetailsExpanded, () => setPaymentDetailsExpanded(!paymentDetailsExpanded))}
-              {paymentDetailsExpanded && (
-                <div className="animate-in fade-in duration-200" style={{ overflowX: 'auto', width: '100%', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', border: '1px solid var(--border)' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--primary-light)' }}>
-                        {PAY_COLS.map((h) => (
-                          <th key={h} style={{
-                            padding: '8px 10px',
-                            textAlign: 'left',
-                            fontWeight: 700,
-                            color: 'var(--primary)',
-                            fontSize: '0.72rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.02em',
-                            border: '1px solid var(--border)'
-                          }}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {payData.map((row, idx) => (
-                        <tr key={idx} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.015)' }}>
-                          <td style={{ padding: '8px 10px', border: '1px solid var(--border)' }}>{row.receiptNo}</td>
-                          <td style={{ padding: '8px 10px', border: '1px solid var(--border)' }}>{row.date}</td>
-                          <td style={{ padding: '8px 10px', border: '1px solid var(--border)' }}>{row.payType}</td>
-                          <td style={{ padding: '8px 10px', border: '1px solid var(--border)', fontWeight: 600 }}>₹{row.amount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {/* Middle Column: Stay details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Date</span>
+                  {mode === 'displayFolio' ? (
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.date}</span>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.date}
+                      onChange={set('date')}
+                      style={{
+                        width: '60%',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.82rem',
+                        color: '#1e293b',
+                        textAlign: 'right'
+                      }}
+                    />
+                  )}
                 </div>
-              )}
-            </div>
 
-          </div>
-
-          {/* Right Column: Tax Summary, Settlement, and Bill Details Stack */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            
-            {/* Tax Summary Card */}
-            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-              {renderCollapsibleHeader(<FaCalculator />, 'Tax Summary', taxSummaryExpanded, () => setTaxSummaryExpanded(!taxSummaryExpanded))}
-              {taxSummaryExpanded && (
-                <div className="animate-in fade-in duration-200">
-                  <SummaryRow label="Gross Amount" value={form.grossAmount} />
-                  <SummaryRow label="Discount" value={form.discount} />
-                  <SummaryRow label="SGST" value={form.sgst} />
-                  <SummaryRow label="CGST" value={form.cgst} />
-                  <SummaryRow label="Round Off" value={form.roundOff} />
-                  <SummaryRow label="Net Amount" value={form.netAmount} bold />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>No of Day Stay</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.noOfDayStay}</span>
                 </div>
-              )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Room No</span>
+                  {mode === 'displayFolio' ? (
+                    <span style={{ fontSize: '0.85rem', fontWeight: 850, color: '#0891b2' }}>{form.roomNo}</span>
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.roomNo}
+                      onChange={set('roomNo')}
+                      style={{
+                        width: '60%',
+                        border: '1px solid var(--border)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        color: '#0891b2',
+                        background: 'rgba(6, 182, 212, 0.04)',
+                        borderColor: '#0891b2',
+                        textAlign: 'right'
+                      }}
+                    />
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>CheckIn Date</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.checkinDate}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Checkin Time</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.checkinTime}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Payment Mode</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b' }}>{form.paymentMode}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Company GSTIN</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', fontFamily: 'monospace' }}>{form.companyGstin}</span>
+                </div>
+
+              </div>
+
             </div>
 
-            {/* Settlement Summary Card */}
-            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-              {renderCollapsibleHeader(<FaCreditCard />, 'Settlement Summary', settlementSummaryExpanded, () => setSettlementSummaryExpanded(!settlementSummaryExpanded))}
-              {settlementSummaryExpanded && (
-                <div className="animate-in fade-in duration-200">
-                  <SummaryRow label="Room Settlement" value={form.roomSettlement} />
-                  <SummaryRow label="Net Total" value={form.netTotal} />
-                  <SummaryRow label="Advance + Settlement" value={form.advanceSettlement} />
-                  
-                  {/* Highlighted Balance Card */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    background: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)',
+            {/* Bottom Section: Billing Ledger Items Table */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              boxShadow: '0 2px 10px rgba(36,78,95,0.03)',
+              overflowX: 'auto'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                <FaRegFileAlt size={12} color="var(--primary)" />
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary)' }}>Folio Charges</span>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569' }}>Date</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#475569' }}>Particular</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: '#475569' }}>Room No</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>Base Amt</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>Gross Amt</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>Disc.Per</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>Discount</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>SGST</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>CGST</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>VAT</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>Rec Amt</th>
+                    {mode !== 'displayFolio' && <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: '#475569' }}>Action</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {billItems.map(item => (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '10px 12px', color: '#334155', whiteSpace: 'nowrap' }}>{item.date}</td>
+                      <td style={{ padding: '10px 12px', color: '#334155', fontWeight: 700 }}>{item.particular}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'center', color: '#334155' }}>{item.roomNo}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155', fontWeight: 600 }}>{item.baseAmt}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155', fontWeight: 600 }}>{item.grossAmt}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', color: '#334155' }}>{item.discPer}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{item.discount}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{item.sgst}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{item.cgst}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{item.vat}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{item.recAmt}</td>
+                      {mode !== 'displayFolio' && (
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCutRow(item.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '4px',
+                              transition: 'background 0.15s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            title="Cut / Delete Row"
+                          >
+                            <FaTrash size={12} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {billItems.length === 0 && (
+                    <tr>
+                      <td colSpan="12" style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                        No bill items found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Save / Cancel Button Row */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              {mode !== 'displayFolio' && (
+                <button
+                  type="submit"
+                  style={{
+                    background: '#0D9488',
+                    color: '#ffffff',
+                    border: 'none',
                     borderRadius: '6px',
-                    padding: '8px 12px',
-                    boxShadow: '0 4px 10px rgba(244, 63, 94, 0.25)',
-                    color: '#fff',
-                    marginTop: '8px'
-                  }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Balance</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 800 }}>₹ {form.balance}</span>
-                  </div>
-                </div>
+                    padding: '10px 24px',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 10px rgba(13, 148, 136, 0.25)',
+                    transition: 'opacity 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  Save
+                </button>
               )}
-            </div>
-
-            {/* Bill Details Grid */}
-            <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px' }}>
-              {renderCollapsibleHeader(<FaRegFileAlt />, 'Bill Details', billDetailsExpanded, () => setBillDetailsExpanded(!billDetailsExpanded))}
-              {billDetailsExpanded && (
-                <div className="animate-in fade-in duration-200" style={{ overflowX: 'auto', width: '100%', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', border: '1px solid var(--border)' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--primary-light)' }}>
-                        {BILL_COLS.map((h) => (
-                          <th key={h} style={{
-                            padding: '4px 6px',
-                            textAlign: 'left',
-                            fontWeight: 700,
-                            color: 'var(--primary)',
-                            fontSize: '0.72rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.02em',
-                            border: '1px solid var(--border)'
-                          }}>
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {billData.map((row, idx) => (
-                        <tr key={idx} style={{ background: idx % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.015)' }}>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>{row.date}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>{row.particular}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)', textAlign: 'center' }}>{row.roomNo}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)', fontWeight: 600 }}>₹{row.baseAmount}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)', fontWeight: 600 }}>₹{row.grossAmount}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)', textAlign: 'center' }}>{row.discountPct}%</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>₹{row.discount}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>₹{row.sgst}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>₹{row.cgst}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)' }}>₹{row.vat}</td>
-                          <td style={{ padding: '4px 6px', border: '1px solid var(--border)', fontWeight: 600 }}>₹{row.receivedAmount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={onCancel}
+                style={{
+                  background: '#0D9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 24px',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 10px rgba(13, 148, 136, 0.25)',
+                  transition: 'opacity 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              >
+                {mode === 'displayFolio' ? 'Close' : 'Cancel'}
+              </button>
             </div>
 
           </div>
+
+          {/* RIGHT PANEL: Stacked Tables (Receipts, POS Outlets, Tax summary, Settlement totals) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            
+            {/* Table 1: Receipts table (Red Header) */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(36,78,95,0.02)'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ background: '#BE123C', color: '#ffffff' }}>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase' }}>Rec. No</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase' }}>Date</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase' }}>PayType</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, textTransform: 'uppercase' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan="4" style={{ padding: '10px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>No receipts posted</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 2: POS Outlet summary (Red Header) */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(36,78,95,0.02)'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ background: '#BE123C', color: '#ffffff' }}>
+                    <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase' }}>Outlet</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, textTransform: 'uppercase' }}>Total Amt</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 800, textTransform: 'uppercase' }}>Count</th>
+                    <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 800, textTransform: 'uppercase' }}>Print</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan="4" style={{ padding: '10px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>No POS charges</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 3: Summary Heads (Orange Header) */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(36,78,95,0.02)'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{ background: '#E05600', color: '#ffffff' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 800, textTransform: 'uppercase' }}>Heads</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 800, textTransform: 'uppercase' }}>%</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, textTransform: 'uppercase' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#334155', fontWeight: 700 }}>GROSS AMOUNT</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#64748b' }}></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#334155', fontWeight: 700 }}>{liveTotals.grossAmount}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#334155' }}>DISCOUNT</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#64748b' }}>0</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{liveTotals.discount}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#334155' }}>SGST</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#64748b' }}></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{liveTotals.sgst}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#334155' }}>CGST</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#64748b' }}></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{liveTotals.cgst}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#334155' }}>ROUND OFF</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#64748b' }}></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#334155' }}>{liveTotals.roundOff}</td>
+                  </tr>
+                  <tr style={{ background: '#fff7ed' }}>
+                    <td style={{ padding: '6px 10px', color: '#c2410c', fontWeight: 800 }}>NET AMOUNT</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#c2410c' }}></td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#c2410c', fontWeight: 800 }}>{liveTotals.netAmount}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 4: Settlement totals (Teal Header) */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid rgba(226,232,240,0.8)',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(36,78,95,0.02)'
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <tbody>
+                  <tr style={{ background: '#0F9690', color: '#ffffff' }}>
+                    <td style={{ padding: '6px 10px', fontWeight: 800 }}>OTHER REF INVOICES:</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800 }}>0</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#0f766e', fontWeight: 700 }}>ROOM SETTLEMENT</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#0f766e', fontWeight: 700 }}>{form.roomSettlement}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f0fdfa' }}>
+                    <td style={{ padding: '6px 10px', color: '#0f766e', fontWeight: 800 }}>NET TOTAL</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#0f766e', fontWeight: 800 }}>{liveTotals.netAmount}</td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 10px', color: '#0f766e' }}>ADVANCE + SETTLEMENT</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#0f766e' }}>{form.advanceSettlement}</td>
+                  </tr>
+                  <tr style={{ background: '#e6fffa' }}>
+                    <td style={{ padding: '6px 10px', color: '#0d9488', fontWeight: 900 }}>BALANCE</td>
+                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', color: '#0d9488', fontWeight: 900 }}>{liveTotals.balance}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+
         </div>
-
-
-        <CommonActionButtons
-          onSave={handleSubmit}
-          onCancel={onCancel}
-          saveText={mode === 'add' ? 'Save' : 'Update'}
-        />
+        <DuplicateModal />
       </form>
     </div>
   );

@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
+const ServiceChargeForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState({
     name: '',
     acName: 'Service Charge Revenue',
@@ -17,6 +18,14 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
     discountAllowed: 'Yes',
     backDateAllow: 'No',
     active: 'Yes'
+  });
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
   });
 
   useEffect(() => {
@@ -55,6 +64,7 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -71,7 +81,7 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
         {/* Card: Service Charge Information - arranged in 2-column layout */}
         <FormCard title="Service Charge Information">
           <div className="form-grid-2">
-            {/* Name */}
+            {/* Service Name */}
             <div className="form-field">
               <label className="form-label">
                 Service Name <span className="text-red-500">*</span>
@@ -223,8 +233,10 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

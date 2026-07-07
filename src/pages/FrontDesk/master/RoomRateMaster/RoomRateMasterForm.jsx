@@ -33,14 +33,14 @@ const CATEGORY_RATES = {
 };
 
 /* ── Field wrapper — defined OUTSIDE parent to prevent remount on every keystroke ── */
-const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
+const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName, error }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
     <label className="form-label" style={{ marginBottom: '2px' }}>
       {label}{required && <span className="text-red-500"> *</span>}
     </label>
     {children || (
       <input
-        className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${inputClassName || ''}`}
+        className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${error ? 'border-red-500' : ''} ${inputClassName || ''}`}
         type={type}
         value={value ?? ''}
         onChange={disabled ? undefined : onChange}
@@ -50,10 +50,11 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
         style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px', minHeight: '34px', ...inputStyle }}
       />
     )}
+    {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
   </div>
 );
 
-const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
+const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState(() => {
     if (initialData) {
       return {
@@ -110,6 +111,14 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
     };
   });
 
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
+  });
+
   // Fetch rates when room category is changed
   const handleCategoryChange = (catName) => {
     const rates = CATEGORY_RATES[catName];
@@ -140,6 +149,7 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!checkBeforeSave()) return;
 
     const payload = {
       ...form,
@@ -349,8 +359,10 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

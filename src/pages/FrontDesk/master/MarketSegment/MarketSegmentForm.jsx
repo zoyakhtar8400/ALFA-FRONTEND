@@ -1,22 +1,27 @@
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
-  const [form, setForm] = useState({ name: '', status: 'Active' });
+const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
+    name: initialData?.name || '',
+    status: initialData?.status || 'Active'
+  }));
 
-  useEffect(() => {
-    if (initialData) {
-      setForm(initialData);
-    } else {
-      setForm({ name: '', status: 'Active' });
-    }
-  }, [initialData, isOpen]);
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -60,7 +65,9 @@ const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
         <CommonActionButtons
           onCancel={onClose}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </CommonModal>
   );

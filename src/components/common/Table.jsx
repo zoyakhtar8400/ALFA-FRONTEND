@@ -14,7 +14,17 @@ import LoadingState from './LoadingState';
 
 const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
   return (
-    <tr>
+    <tr 
+      tabIndex={0}
+      className="focusable-row focus:bg-slate-50 outline-none"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          if (actions && actions.length > 0) {
+            actions[0].onClick(row);
+          }
+        }
+      }}
+    >
       <td style={{ textAlign: 'center', fontWeight: 600 }}>{indexOfFirstEntry + index + 1}</td>
       {columns.map((col) => {
         if (col.key === 'action') {
@@ -67,65 +77,6 @@ const Table = ({
   const [sortDirection, setSortDirection] = useState('asc');
   const [localLoading, setLocalLoading] = useState(true);
 
-  // Simulated loading simulation for 400ms on interaction changes
-  useEffect(() => {
-    setLocalLoading(true);
-    const timer = setTimeout(() => {
-      setLocalLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm, currentPage, entriesPerPage, sortColumn, sortDirection]);
-
-  // Reset page when search or entries count change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, entriesPerPage]);
-
-  // Handle Export to CSV
-  const handleExportCSV = useCallback(() => {
-    if (data.length === 0) {
-      showToast('No data to export.');
-      return;
-    }
-    
-    // Header row (exclude 'action' column)
-    const exportColumns = columns.filter(col => col.key !== 'action');
-    const headersLine = exportColumns.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
-    
-    // Data rows
-    const rowsLines = processedData.map(row => 
-      exportColumns.map(col => {
-        let val = row[col.key];
-        if (val === undefined || val === null) val = '';
-        const valStr = typeof val === 'object' ? '' : String(val);
-        return `"${valStr.replace(/"/g, '""')}"`;
-      }).join(',')
-    );
-    
-    const csvContent = "data:text/csv;charset=utf-8," + [headersLine, ...rowsLines].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${(title || 'table').toLowerCase().replace(/\s+/g, '_')}_export.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Exported CSV file successfully!');
-  }, [data, columns, title, showToast]);
-
-  // Handle Sorting
-  const handleSort = useCallback((key, sortable) => {
-    if (!sortable) return;
-    setSortColumn(prevCol => {
-      if (prevCol === key) {
-        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
-        return key;
-      }
-      setSortDirection('asc');
-      return key;
-    });
-  }, []);
-
   // Process data (Search & Sort)
   const processedData = useMemo(() => {
     let result = [...data];
@@ -172,6 +123,65 @@ const Table = ({
 
     return result;
   }, [data, searchTerm, sortColumn, sortDirection, columns]);
+
+  // Simulated loading simulation for 400ms on interaction changes
+  useEffect(() => {
+    setLocalLoading(true);
+    const timer = setTimeout(() => {
+      setLocalLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, currentPage, entriesPerPage, sortColumn, sortDirection]);
+
+  // Reset page when search or entries count change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, entriesPerPage]);
+
+  // Handle Export to CSV
+  const handleExportCSV = useCallback(() => {
+    if (data.length === 0) {
+      showToast('No data to export.');
+      return;
+    }
+    
+    // Header row (exclude 'action' column)
+    const exportColumns = columns.filter(col => col.key !== 'action');
+    const headersLine = exportColumns.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
+    
+    // Data rows
+    const rowsLines = processedData.map(row => 
+      exportColumns.map(col => {
+        let val = row[col.key];
+        if (val === undefined || val === null) val = '';
+        const valStr = typeof val === 'object' ? '' : String(val);
+        return `"${valStr.replace(/"/g, '""')}"`;
+      }).join(',')
+    );
+    
+    const csvContent = "data:text/csv;charset=utf-8," + [headersLine, ...rowsLines].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${(title || 'table').toLowerCase().replace(/\s+/g, '_')}_export.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Exported CSV file successfully!');
+  }, [data, columns, title, showToast, processedData]);
+
+  // Handle Sorting
+  const handleSort = useCallback((key, sortable) => {
+    if (!sortable) return;
+    setSortColumn(prevCol => {
+      if (prevCol === key) {
+        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
+        return key;
+      }
+      setSortDirection('asc');
+      return key;
+    });
+  }, []);
 
   // Pagination Slice
   const totalEntries = processedData.length;

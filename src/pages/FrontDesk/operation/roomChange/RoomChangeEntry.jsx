@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RoomChangeEntryForm from './RoomChangeEntryForm';
@@ -6,6 +7,8 @@ import RoomChangeEntryForm from './RoomChangeEntryForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const RoomChangeEntry = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, voucherNo: 'RCH-1001', date: '2026-06-22', grcNo: 'GRC-1001', roomNo: '101', guestName: 'Rajan Mehta', adult: 1, child: 0, plan: 'EP', rate: '2500', taxInclusive: 'No', newRoom: '202', changeDate: '2026-06-22', changeTime: '14:30', newPlan: 'EP', newAdult: 1, newChild: 0, newRate: '2500', newTaxInclusive: 'No', discountPercent: '', reason: 'AC not cooling properly in 101.', active: 'Yes' },
     { id: 2, voucherNo: 'RCH-1002', date: '2026-06-22', grcNo: 'GRC-1002', roomNo: '104', guestName: 'Maria Sharapova', adult: 2, child: 1, plan: 'CP', rate: '4500', taxInclusive: 'Yes', newRoom: '105', changeDate: '2026-06-22', changeTime: '15:10', newPlan: 'CP', newAdult: 2, newChild: 1, newRate: '4500', newTaxInclusive: 'Yes', discountPercent: '', reason: 'Guest upgraded to larger room.', active: 'Yes' },
@@ -13,6 +16,20 @@ const RoomChangeEntry = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'voucherNo', label: 'Voucher No' },
@@ -43,6 +60,14 @@ const RoomChangeEntry = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -50,7 +75,8 @@ const RoomChangeEntry = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

@@ -10,6 +10,7 @@ const PageHeader = ({
   onBack,
   onPrint,
   style = {},
+  children,
 }) => {
   return (
     <div className="no-print" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px', ...style }}>
@@ -32,7 +33,8 @@ const PageHeader = ({
         <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--dark)', letterSpacing: '-0.5px' }}>
           {title}
         </h2>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {children}
           {showBack && <BackButton onClick={onBack} label="Back" />}
           {showPrint && <PrintButton onClick={onPrint} label="Print" />}
         </div>

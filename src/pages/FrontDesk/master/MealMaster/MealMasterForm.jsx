@@ -1,45 +1,36 @@
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const MealMasterForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    name: '',
-    acName: 'Food Revenue',
-    taxStructure: 'NO TAX',
-    active: 'Yes',
-    singleRate: '',
-    doubleRate: '',
-    extraAdult: '',
-    tripleRate: '',
-    quadrantRate: '',
-    extraChild: ''
+const MealMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
+    name: initialData?.name || '',
+    acName: initialData?.acName || 'Food Revenue',
+    taxStructure: initialData?.taxStructure || 'NO TAX',
+    active: initialData?.active || 'Yes',
+    singleRate: initialData?.singleRate || '',
+    doubleRate: initialData?.doubleRate || '',
+    extraAdult: initialData?.extraAdult || '',
+    tripleRate: initialData?.tripleRate || '',
+    quadrantRate: initialData?.quadrantRate || '',
+    extraChild: initialData?.extraChild || ''
+  }));
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
   });
-
-  useEffect(() => {
-    if (initialData) {
-      setForm({ ...initialData });
-    } else {
-      setForm({
-        name: '',
-        acName: 'Food Revenue',
-        taxStructure: 'NO TAX',
-        active: 'Yes',
-        singleRate: '',
-        doubleRate: '',
-        extraAdult: '',
-        tripleRate: '',
-        quadrantRate: '',
-        extraChild: ''
-      });
-    }
-  }, [initialData]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -145,8 +136,10 @@ const MealMasterForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

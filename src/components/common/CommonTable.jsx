@@ -12,7 +12,17 @@ import { PrintHeader, PrintFooter } from './PrintComponent';
  */
 const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
   return (
-    <tr>
+    <tr 
+      tabIndex={0}
+      className="focusable-row focus:bg-slate-50 outline-none"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          if (actions && actions.length > 0) {
+            actions[0].onClick(row);
+          }
+        }
+      }}
+    >
       <td style={{ textAlign: 'center', fontWeight: 600 }}>
         {indexOfFirstEntry + index + 1}
       </td>
@@ -88,75 +98,10 @@ const CommonTable = ({
   const [refreshKey, setRefreshKey] = useState(0);
   const [localLoading, setLocalLoading] = useState(true);
 
-  // Simulated loading simulation for 400ms on interaction changes
-  useEffect(() => {
-    setLocalLoading(true);
-    const timer = setTimeout(() => {
-      setLocalLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchTerm, statusFilter, currentPage, entriesPerPage, sortColumn, sortDirection, refreshKey]);
-
-  // Reset page when search or filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, entriesPerPage, refreshKey]);
-
-  // Handle Export to CSV
-  const handleExportCSV = useCallback(() => {
-    if (data.length === 0) {
-      showToast('No data to export.');
-      return;
-    }
-    const exportColumns = columns.filter(col => col.key !== 'action');
-    const headersLine = exportColumns.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
-    const rowsLines = processedData.map(row =>
-      exportColumns.map(col => {
-        let val = row[col.key];
-        if (val === undefined || val === null) val = '';
-        const valStr = typeof val === 'object' ? '' : String(val);
-        return `"${valStr.replace(/"/g, '""')}"`;
-      }).join(',')
-    );
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headersLine, ...rowsLines].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${(title || 'report').toLowerCase().replace(/\s+/g, '_')}_export.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Exported CSV file successfully!');
-  }, [data, columns, title, showToast]);
-
-  // Handle Print
-  const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
-
-  // Handle Refresh
-  const handleRefresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-    showToast('Data refreshed.');
-  }, [showToast]);
-
-  // Handle Sorting
-  const handleSort = useCallback((key, sortable) => {
-    if (!sortable) return;
-    setSortColumn(prevCol => {
-      if (prevCol === key) {
-        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
-        return key;
-      }
-      setSortDirection('asc');
-      return key;
-    });
-  }, []);
-
   // Process data (Search, Status Filter, Sort)
   const processedData = useMemo(() => {
     let result = [...data];
+    const _force = refreshKey;
 
     // 1. Status Filter
     if (statusFilter !== 'All') {
@@ -203,6 +148,72 @@ const CommonTable = ({
 
     return result;
   }, [data, searchTerm, statusFilter, sortColumn, sortDirection, columns, refreshKey, statusFilterKey]);
+
+  // Simulated loading simulation for 400ms on interaction changes
+  useEffect(() => {
+    setLocalLoading(true);
+    const timer = setTimeout(() => {
+      setLocalLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm, statusFilter, currentPage, entriesPerPage, sortColumn, sortDirection, refreshKey]);
+
+  // Reset page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, entriesPerPage, refreshKey]);
+
+  // Handle Export to CSV
+  const handleExportCSV = useCallback(() => {
+    if (data.length === 0) {
+      showToast('No data to export.');
+      return;
+    }
+    const exportColumns = columns.filter(col => col.key !== 'action');
+    const headersLine = exportColumns.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
+    const rowsLines = processedData.map(row =>
+      exportColumns.map(col => {
+        let val = row[col.key];
+        if (val === undefined || val === null) val = '';
+        const valStr = typeof val === 'object' ? '' : String(val);
+        return `"${valStr.replace(/"/g, '""')}"`;
+      }).join(',')
+    );
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headersLine, ...rowsLines].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${(title || 'report').toLowerCase().replace(/\s+/g, '_')}_export.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Exported CSV file successfully!');
+  }, [data, columns, title, showToast, processedData]);
+
+  // Handle Print
+  const handlePrint = useCallback(() => {
+    window.print();
+  }, []);
+
+  // Handle Refresh
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+    showToast('Data refreshed.');
+  }, [showToast]);
+
+  // Handle Sorting
+  const handleSort = useCallback((key, sortable) => {
+    if (!sortable) return;
+    setSortColumn(prevCol => {
+      if (prevCol === key) {
+        setSortDirection(prevDir => (prevDir === 'asc' ? 'desc' : 'asc'));
+        return key;
+      }
+      setSortDirection('asc');
+      return key;
+    });
+  }, []);
 
   // Pagination Slice
   const totalEntries = processedData.length;
@@ -312,8 +323,10 @@ const CommonTable = ({
               <tr>
                 <td colSpan={columns.length + 1} className="p-0 border-none">
                   <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-white w-full rounded-b-2xl" style={{ minHeight: '300px' }}>
-                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-100 border-t-[#418a8b] mb-4"></div>
-                    <p className="text-sm font-bold text-slate-500">Loading records...</p>
+                    <div className="spinner-container mb-4">
+                      <div className="spinner-circle"></div>
+                    </div>
+                    <p className="text-sm font-bold text-[#244e5f]">Loading...</p>
                   </div>
                 </td>
               </tr>

@@ -9,6 +9,7 @@ const CommonActionButtons = ({
   loading = false,
   showSaveAndNew = false,
   onSaveAndNew,
+  saveDisabled = false,
 }) => {
   const [localLoading, setLocalLoading] = useState(false);
 
@@ -74,7 +75,7 @@ const CommonActionButtons = ({
         <button
           type="button"
           onClick={onSaveAndNew}
-          disabled={isSaveLoading}
+          disabled={isSaveLoading || saveDisabled}
           className="btn-secondary"
           style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}
         >
@@ -86,8 +87,8 @@ const CommonActionButtons = ({
       <button
         type="submit"
         onClick={handleSaveClick}
-        disabled={isSaveLoading}
-        className="btn-primary flex items-center justify-center gap-2"
+        disabled={isSaveLoading || saveDisabled}
+        className={`btn-primary flex items-center justify-center gap-2 ${saveDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
       >
         {isSaveLoading && (

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import CommonModal from '../../../../components/common/CommonModal';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const EMPTY_MODAL = { open: false, mode: 'add', row: null };
 const EMPTY_DELETE = { open: false, row: null };
@@ -16,6 +17,15 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
   const [modal, setModal] = useState(EMPTY_MODAL);
   const [deleteModal, setDeleteModal] = useState(EMPTY_DELETE);
   const [form, setForm] = useState({});
+
+  const uniqueFields = formFields ? formFields.filter(f => ['name', 'code', 'roomNo', 'regNo'].includes(f.key)).map(f => f.key) : [];
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords: data,
+    currentFormData: form,
+    uniqueFields: uniqueFields.length > 0 ? uniqueFields : (formFields && formFields.length > 0 ? [formFields[0].key] : []),
+    currentId: modal.row?.id,
+    mode: modal.mode
+  });
 
   const openAdd = () => {
     if (FormComponent) {
@@ -43,6 +53,7 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
     if (!FormComponent) {
       const missing = formFields.filter(f => f.type !== 'select' && f.type !== 'date').find(f => !finalData[f.key]?.trim());
       if (missing) { showToast(`Please fill in: ${missing.label}`); return; }
+      if (!checkBeforeSave()) return;
     }
 
     if (modal.mode === 'add') {
@@ -82,12 +93,14 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
 
       {FormComponent && modal.open && (
         <FormComponent
+          key={modal.row?.id || 'new'}
           isOpen={modal.open}
           mode={modal.mode}
           initialData={modal.row}
           onSave={handleSave}
           onClose={closeModal}
           showToast={showToast}
+          existingRecords={data}
         />
       )}
 
@@ -140,7 +153,9 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
             onCancel={closeModal}
             onSave={() => handleSave()}
             saveText={modal.mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
+          <DuplicateModal />
         </CommonModal>
       )}
 

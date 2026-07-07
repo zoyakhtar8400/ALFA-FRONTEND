@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import GuestProfileForm from './GuestProfileForm';
@@ -6,6 +7,8 @@ import GuestProfileForm from './GuestProfileForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const GuestProfile = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, name: 'Sanjay Dutt', dob: '1980-05-15', idType: 'Aadhaar Card', idNo: '8877-6655-4433', mobile: '+91 9876541234', email: 'sanjay@dutt.com', address: 'Bandra West', city: 'Mumbai', state: 'Maharashtra', country: 'India', nationality: 'Indian', active: 'Yes' },
     { id: 2, name: 'Emma Watson', dob: '1990-04-15', idType: 'Passport', idNo: 'G1234568', mobile: '+44 7700 900077', email: 'emma@watson.co.uk', address: 'Oxford Street', city: 'London', state: 'London', country: 'United Kingdom', nationality: 'British', active: 'Yes' },
@@ -13,6 +16,20 @@ const GuestProfile = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'name', label: 'Guest Name' },
@@ -43,6 +60,14 @@ const GuestProfile = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -50,7 +75,8 @@ const GuestProfile = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

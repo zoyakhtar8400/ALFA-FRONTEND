@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import CommonTable from '../../components/common/CommonTable';
 import CommonModal from '../../components/common/CommonModal';
+import useDuplicateValidation from '../../hooks/useDuplicateValidation';
 
 const INITIAL_TAXES = [
   { id: 1, name: 'GST', type: 'Percentage', rate: '18%', appliedOn: 'Room Charges', status: 'Active' },
@@ -32,6 +33,14 @@ const TaxStructure = ({ showToast = () => {} }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
 
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords: taxes,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: modal.data?.id,
+    mode: modal.mode
+  });
+
   const openAdd = () => { setForm(EMPTY_FORM); setModal({ open: true, mode: 'add', data: null }); };
   const openEdit = (row) => { setForm({ ...row }); setModal({ open: true, mode: 'edit', data: row }); };
   const closeModal = () => setModal({ open: false, mode: 'add', data: null });
@@ -40,6 +49,7 @@ const TaxStructure = ({ showToast = () => {} }) => {
     if (!form.name.trim() || !form.rate.trim() || !form.appliedOn.trim()) {
       showToast('Please fill all fields.'); return;
     }
+    if (!checkBeforeSave()) return;
     if (modal.mode === 'add') {
       setTaxes(prev => [...prev, { ...form, id: Date.now() }]);
       showToast('Tax added successfully!');
@@ -124,11 +134,17 @@ const TaxStructure = ({ showToast = () => {} }) => {
               onClick={closeModal}
             >Cancel</button>
             <button
-              className="px-5 py-2 rounded-full text-sm font-bold bg-[#418a8b] hover:bg-[#357273] text-white transition-colors cursor-pointer"
+              className="px-5 py-2 rounded-full text-sm font-bold bg-[#418a8b] hover:bg-[#357273] text-white transition-colors"
               onClick={handleSave}
+              disabled={isDuplicate}
+              style={{
+                cursor: isDuplicate ? 'not-allowed' : 'pointer',
+                opacity: isDuplicate ? 0.6 : 1
+              }}
             >Save</button>
           </div>
         </div>
+        <DuplicateModal />
       </CommonModal>
 
       {/* Delete Confirm Modal */}

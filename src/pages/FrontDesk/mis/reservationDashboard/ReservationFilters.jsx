@@ -1,15 +1,14 @@
-import React from 'react';
+const Field = ({ label, children }) => (
+  <div className="form-field">
+    <label className="form-label">{label}</label>
+    {children}
+  </div>
+);
 
 const ReservationFilters = ({
   filters = {}, onFilterChange, onResetFilters,
   roomTypes = [], floors = [], segments = [], sources = [], bookingSources = []
 }) => {
-  const Field = ({ label, children }) => (
-    <div className="form-field">
-      <label className="form-label">{label}</label>
-      {children}
-    </div>
-  );
 
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>

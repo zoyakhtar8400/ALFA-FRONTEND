@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import RefundEntryForm from './RefundEntryForm';
@@ -6,6 +7,8 @@ import RefundEntryForm from './RefundEntryForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const RefundEntry = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-9011', guestName: 'Karan Mehra', roomNo: '104', refundAmount: 1500, reason: 'Advance booking cancellation.', paymentMode: 'UPI', active: 'Yes' },
     { id: 2, folioNo: 'FL-9012', guestName: 'Samantha Ruth', roomNo: '202', refundAmount: 2000, reason: 'Charged double for extra bed.', paymentMode: 'Cash', active: 'Yes' },
@@ -13,6 +16,20 @@ const RefundEntry = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'folioNo', label: 'Folio No' },
@@ -42,6 +59,14 @@ const RefundEntry = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -49,7 +74,8 @@ const RefundEntry = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

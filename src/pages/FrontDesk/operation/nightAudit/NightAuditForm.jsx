@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
@@ -21,13 +22,22 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const NightAuditForm = ({ mode, initialData, onSave, onCancel }) => {
+const NightAuditForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [auditDate, setAuditDate] = useState(
     initialData?.auditDate || new Date().toISOString().split('T')[0]
   );
   const [running, setRunning] = useState(false);
 
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: { auditDate },
+    uniqueFields: ['auditDate'],
+    currentId: initialData?.id,
+    mode
+  });
+
   const handleNightAudit = () => {
+    if (!checkBeforeSave()) return;
     setRunning(true);
     setTimeout(() => {
       setRunning(false);
@@ -72,7 +82,9 @@ const NightAuditForm = ({ mode, initialData, onSave, onCancel }) => {
         saveText={running ? 'Running...' : 'Run Audit'}
         cancelText="Exit"
         loading={running}
+        saveDisabled={isDuplicate}
       />
+      <DuplicateModal />
     </div>
   );
 };

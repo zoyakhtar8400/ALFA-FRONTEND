@@ -13,6 +13,7 @@ import GuestProfile from './guestProfile/GuestProfile';
 import MultiRoomCheckout from './multiRoomCheckout/MultiRoomCheckout';
 import RoomEnquiry from './roomEnquiry/RoomEnquiry';
 import ExpenseEntry from './expenseEntry/ExpenseEntry';
+import AmendStayEntry from './amendStay/AmendStayEntry';
 
 const OperationPage = ({ operationName, showToast }) => {
   const components = {
@@ -31,6 +32,7 @@ const OperationPage = ({ operationName, showToast }) => {
     'Multi Room Checkout': MultiRoomCheckout,
     'Room Enquiry Entry': RoomEnquiry,
     'Expense Entry': ExpenseEntry,
+    'Amend Stay Entry': AmendStayEntry,
   };
 
   const Component = components[operationName];

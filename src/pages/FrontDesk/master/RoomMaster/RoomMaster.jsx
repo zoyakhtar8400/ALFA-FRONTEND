@@ -51,6 +51,7 @@ const RoomMaster = ({ showToast }) => {
           initialData={editMode.row}
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

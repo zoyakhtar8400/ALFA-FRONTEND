@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
-import { FaBed, FaCoins, FaCheckSquare } from 'react-icons/fa';
+import { FaBed, FaCoins } from 'react-icons/fa';
 
 const MultiRoomCheckout = ({ showToast }) => {
   const [checkoutDate, setCheckoutDate] = useState(new Date().toISOString().split('T')[0]);

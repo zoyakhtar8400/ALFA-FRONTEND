@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import MasterPage from './master/MasterPage';
 import OperationPage from './operation/OperationPage';
 import MisPage from './mis/MisPage';
+import ReportsDashboard from './report/ReportsDashboard';
 import PageHeader from '../../components/common/PageHeader';
 
 const FrontDesk = ({ showToast }) => {
@@ -44,9 +45,7 @@ const FrontDesk = ({ showToast }) => {
             title="Reports"
             breadcrumbs={['Dashboard', 'Front Desk', 'Reports']}
           />
-          <div className="dashboard-panel">
-            <p className="text-secondary">Reports section coming soon.</p>
-          </div>
+          <ReportsDashboard />
         </div>
       );
     }

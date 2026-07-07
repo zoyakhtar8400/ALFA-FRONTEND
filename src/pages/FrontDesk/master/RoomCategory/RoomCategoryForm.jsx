@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const RoomCategoryForm = ({ mode, initialData, onSave, onCancel }) => {
+const RoomCategoryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState({
     name: '',
     shortName: '',
@@ -19,6 +20,14 @@ const RoomCategoryForm = ({ mode, initialData, onSave, onCancel }) => {
     tripleRate: '',
     quadrantRate: '',
     extraChild: ''
+  });
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
   });
 
   useEffect(() => {
@@ -46,6 +55,7 @@ const RoomCategoryForm = ({ mode, initialData, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim() || !form.shortName.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -242,8 +252,10 @@ const RoomCategoryForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

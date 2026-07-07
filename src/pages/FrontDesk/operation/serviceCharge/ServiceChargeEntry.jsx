@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ServiceChargeEntryForm from './ServiceChargeEntryForm';
@@ -6,6 +7,8 @@ import ServiceChargeEntryForm from './ServiceChargeEntryForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const ServiceChargeEntry = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-3011', roomNo: '103', serviceName: 'Airport Transfer', date: '2026-06-22', adultQty: 2, childQty: 0, rate: 1200, amount: 2400, active: 'Yes' },
     { id: 2, folioNo: 'FL-3012', roomNo: '204', serviceName: 'Extra Bed', date: '2026-06-22', adultQty: 1, childQty: 0, rate: 800, amount: 800, active: 'Yes' },
@@ -14,6 +17,20 @@ const ServiceChargeEntry = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'folioNo', label: 'Folio No' },
@@ -43,6 +60,14 @@ const ServiceChargeEntry = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -50,7 +75,8 @@ const ServiceChargeEntry = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

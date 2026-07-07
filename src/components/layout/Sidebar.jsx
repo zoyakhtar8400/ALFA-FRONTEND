@@ -19,12 +19,22 @@ import {
   FaBars
 } from 'react-icons/fa';
 
+// Import split modules
+import { 
+  masters, operations, misItems,
+  restaurantItems
+} from './components/SidebarConfig';
+import SidebarFlyoutL1 from './components/SidebarFlyoutL1';
+import SidebarFlyoutL2 from './components/SidebarFlyoutL2';
+
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout }) => {
   const location = useLocation();
   const [frontDeskOpen, setFrontDeskOpen] = useState(true); // default open to show submenus
   const [masterOpen, setMasterOpen] = useState(() => location.pathname.startsWith('/front-desk/master'));
   const [operationOpen, setOperationOpen] = useState(() => location.pathname.startsWith('/front-desk/operation'));
   const [misOpen, setMisOpen] = useState(() => location.pathname.startsWith('/front-desk/mis'));
+
+  const [restaurantOpen, setRestaurantOpen] = useState(() => location.pathname.startsWith('/restaurant'));
 
   // ERP Sidebar Flyout state
   const [activeFlyout, setActiveFlyout] = useState(null); // { menu: string, top: number }
@@ -66,6 +76,22 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   };
 
   const handleFrontDeskMouseLeave = () => {
+    if (!isCollapsed) return;
+    startCloseTimer();
+  };
+
+  const handleRestaurantMouseEnter = (e) => {
+    if (!isCollapsed) return;
+    clearCloseTimer();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setActiveFlyout({
+      menu: 'restaurant',
+      top: rect.top
+    });
+    setActiveSubFlyout(null);
+  };
+
+  const handleRestaurantMouseLeave = () => {
     if (!isCollapsed) return;
     startCloseTimer();
   };
@@ -146,47 +172,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       onLogout();
     }
   };
-
-  const masters = [
-    { name: 'Tax Structure', path: '/front-desk/master/tax-structure' },
-    { name: 'Floor Master', path: '/front-desk/master/floor-master' },
-    { name: 'Room Feature', path: '/front-desk/master/room-feature' },
-    { name: 'Room Category', path: '/front-desk/master/room-category' },
-    { name: 'Room Master', path: '/front-desk/master/room-master' },
-    { name: 'Meal Master', path: '/front-desk/master/meal-master' },
-    { name: 'Room Rate Master', path: '/front-desk/master/room-rate-master' },
-    { name: 'Service Charge Master', path: '/front-desk/master/service-charge-master' },
-    { name: 'Company Master', path: '/front-desk/master/company-master' },
-    { name: 'Market Segment', path: '/front-desk/master/market-segment' },
-    { name: 'Business Master', path: '/front-desk/master/business-master' },
-    { name: 'Vehicle Master', path: '/front-desk/master/vehicle-master' },
-    { name: 'Expense Master', path: '/front-desk/master/expense-master' },
-    { name: 'City Master', path: '/front-desk/master/city-master' },
-    { name: 'State Master', path: '/front-desk/master/state-master' },
-  ];
-
-  const operations = [
-    { name: 'Booking', path: '/front-desk/operation/booking' },
-    { name: 'Walkin Checkin Entry', path: '/front-desk/operation/walkin-checkin-entry' },
-    { name: 'Payment Recieve Entry', path: '/front-desk/operation/payment-recieve-entry' },
-    { name: 'Service Charge Entry', path: '/front-desk/operation/service-charge-entry' },
-    { name: 'Room Change Entry', path: '/front-desk/operation/room-change-entry' },
-    { name: 'Room Checkout Entry', path: '/front-desk/operation/room-checkout-entry' },
-    { name: 'Checkout Entry', path: '/front-desk/operation/checkout-entry' },
-    { name: 'Refund Entry', path: '/front-desk/operation/refund-entry' },
-    { name: 'Add Guest in Room Entry', path: '/front-desk/operation/add-guest-in-room-entry' },
-    { name: 'Night Audit Entry', path: '/front-desk/operation/night-audit-entry' },
-    { name: 'Guest Profile', path: '/front-desk/operation/guest-profile' },
-    { name: 'Multi Room Checkout', path: '/front-desk/operation/multi-room-checkout' },
-    { name: 'Room Enquiry Entry', path: '/front-desk/operation/room-enquiry-entry' },
-    { name: 'Expense Entry', path: '/front-desk/operation/expense-entry' },
-  ];
-
-  const misItems = [
-        { name: 'Reservation Dashboard', path: '/front-desk/mis/reservation-dashboard' },
-
-    { name: 'Front Office Dashboard', path: '/front-desk/mis/front-office-dashboard' },
-  ];
 
   const handleMobileNav = () => {
     if (window.innerWidth <= 768) {
@@ -370,11 +355,52 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             <span>Room Services</span>
           </NavLink>
 
-          {/* Restaurant */}
-          <NavLink to="/restaurant" className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Restaurant" : ""}>
-            <FaUtensils className="sidebar-icon" />
-            <span>Restaurant</span>
-          </NavLink>
+          {/* Restaurant Accordion Container */}
+          <div>
+            <div
+              className={`sidebar-item ${location.pathname.startsWith('/restaurant') ? 'active' : ''}`}
+              onClick={() => {
+                if (isCollapsed) {
+                  setActiveFlyout(prev => prev ? null : { menu: 'restaurant', top: 320 });
+                  setActiveSubFlyout(null);
+                } else {
+                  setRestaurantOpen(!restaurantOpen);
+                }
+              }}
+              onMouseEnter={handleRestaurantMouseEnter}
+              onMouseLeave={handleRestaurantMouseLeave}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              title={isCollapsed ? "Restaurant" : ""}
+            >
+              <FaUtensils className="sidebar-icon" />
+              <span>Restaurant</span>
+              <FaChevronRight className={`chevron-icon ${restaurantOpen ? 'open' : ''}`} />
+            </div>
+
+            {/* Restaurant Submenu (only when NOT collapsed) */}
+            {restaurantOpen && !isCollapsed && (
+              <div className="sidebar-submenu">
+                {restaurantItems.map((item) => {
+                  let SubIcon = FaFileAlt;
+                  if (item.name === 'Display Table') SubIcon = FaUtensils;
+                  else if (item.name === 'View KOT') SubIcon = FaConciergeBell;
+                  else if (item.name === 'Order Details') SubIcon = FaFolder;
+
+                  return (
+                    <NavLink
+                      key={item.name}
+                      to={item.path}
+                      className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
+                      onClick={handleMobileNav}
+                    >
+                      <SubIcon style={{ fontSize: '0.85rem' }} />
+                      <span>{item.name}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Banquet */}
           <NavLink to="/banquet" className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Banquet" : ""}>
@@ -409,125 +435,35 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
         </div>
       </aside>
 
-      {/* Level 1 Flyout */}
-      {isCollapsed && activeFlyout && activeFlyout.menu === 'front-desk' && (
-        <div
-          className="sidebar-flyout-l1"
-          style={{ top: `${activeFlyout.top}px` }}
-          onMouseEnter={handleFlyoutL1MouseEnter}
-          onMouseLeave={handleFlyoutL1MouseLeave}
-        >
-          <div className="flyout-header">Front Desk</div>
-          <div className="flyout-menu-items">
-            <div
-              className={`flyout-menu-item ${location.pathname.startsWith('/front-desk/master') ? 'active' : ''} ${activeSubFlyout?.submenu === 'master' ? 'hovered' : ''}`}
-              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'master')}
-              onMouseLeave={handleSubmenuMouseLeave}
-              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'master' ? null : { submenu: 'master', top: activeFlyout.top })}
-            >
-              <FaCogs className="flyout-item-icon" />
-              <span>Master</span>
-              <FaChevronRight className="flyout-chevron" />
-            </div>
+      {/* Render modular Level 1 Flyout */}
+      <SidebarFlyoutL1
+        isCollapsed={isCollapsed}
+        activeFlyout={activeFlyout}
+        location={location}
+        activeSubFlyout={activeSubFlyout}
+        handleFlyoutL1MouseEnter={handleFlyoutL1MouseEnter}
+        handleFlyoutL1MouseLeave={handleFlyoutL1MouseLeave}
+        handleSubmenuMouseEnter={handleSubmenuMouseEnter}
+        handleSubmenuMouseLeave={handleSubmenuMouseLeave}
+        setActiveSubFlyout={setActiveSubFlyout}
+        handleMobileNav={handleMobileNav}
+        setActiveFlyout={setActiveFlyout}
+      />
 
-            <div
-              className={`flyout-menu-item ${location.pathname.startsWith('/front-desk/operation') ? 'active' : ''} ${activeSubFlyout?.submenu === 'operation' ? 'hovered' : ''}`}
-              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'operation')}
-              onMouseLeave={handleSubmenuMouseLeave}
-              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'operation' ? null : { submenu: 'operation', top: activeFlyout.top })}
-            >
-              <FaFolder className="flyout-item-icon" />
-              <span>Operation</span>
-              <FaChevronRight className="flyout-chevron" />
-            </div>
-
-            <div
-              className={`flyout-menu-item ${location.pathname.startsWith('/front-desk/mis') ? 'active' : ''} ${activeSubFlyout?.submenu === 'mis' ? 'hovered' : ''}`}
-              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'mis')}
-              onMouseLeave={handleSubmenuMouseLeave}
-              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'mis' ? null : { submenu: 'mis', top: activeFlyout.top })}
-            >
-              <FaChartBar className="flyout-item-icon" />
-              <span>MIS</span>
-              <FaChevronRight className="flyout-chevron" />
-            </div>
-
-            <NavLink
-              to="/front-desk/report"
-              className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActiveFlyout(null);
-                setActiveSubFlyout(null);
-                handleMobileNav();
-              }}
-              onMouseEnter={() => setActiveSubFlyout(null)}
-            >
-              <FaFileAlt className="flyout-item-icon" />
-              <span>Report</span>
-            </NavLink>
-          </div>
-        </div>
-      )}
-
-      {/* Level 2 Flyout */}
-      {isCollapsed && activeFlyout && activeSubFlyout && (
-        <div
-          className="sidebar-flyout-l2"
-          style={{ top: `${activeSubFlyout.top}px` }}
-          onMouseEnter={handleFlyoutL2MouseEnter}
-          onMouseLeave={handleFlyoutL2MouseLeave}
-        >
-          <div className="flyout-header">
-            {activeSubFlyout.submenu === 'mis' ? 'MIS' : activeSubFlyout.submenu.charAt(0).toUpperCase() + activeSubFlyout.submenu.slice(1)}
-          </div>
-          <div className="flyout-menu-items scrollable-submenu">
-            {activeSubFlyout.submenu === 'master' && masters.map((m) => (
-              <NavLink
-                key={m.name}
-                to={m.path}
-                className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveFlyout(null);
-                  setActiveSubFlyout(null);
-                  handleMobileNav();
-                }}
-              >
-                {m.name}
-              </NavLink>
-            ))}
-
-            {activeSubFlyout.submenu === 'operation' && operations.map((o) => (
-              <NavLink
-                key={o.name}
-                to={o.path}
-                className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveFlyout(null);
-                  setActiveSubFlyout(null);
-                  handleMobileNav();
-                }}
-              >
-                {o.name}
-              </NavLink>
-            ))}
-
-            {activeSubFlyout.submenu === 'mis' && misItems.map((mis) => (
-              <NavLink
-                key={mis.name}
-                to={mis.path}
-                className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveFlyout(null);
-                  setActiveSubFlyout(null);
-                  handleMobileNav();
-                }}
-              >
-                {mis.name}
-              </NavLink>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Render modular Level 2 Flyout */}
+      <SidebarFlyoutL2
+        isCollapsed={isCollapsed}
+        activeFlyout={activeFlyout}
+        activeSubFlyout={activeSubFlyout}
+        handleFlyoutL2MouseEnter={handleFlyoutL2MouseEnter}
+        handleFlyoutL2MouseLeave={handleFlyoutL2MouseLeave}
+        masters={activeFlyout?.menu === 'restaurant' ? restaurantMasters : masters}
+        operations={activeFlyout?.menu === 'restaurant' ? restaurantOperations : operations}
+        misItems={activeFlyout?.menu === 'restaurant' ? restaurantMisItems : misItems}
+        setActiveFlyout={setActiveFlyout}
+        setActiveSubFlyout={setActiveSubFlyout}
+        handleMobileNav={handleMobileNav}
+      />
     </>
   );
 };

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaCreditCard, FaCoins } from 'react-icons/fa';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
@@ -24,7 +25,7 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
+const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState(() => ({
     receiptNo: initialData?.receiptNo || `RCP-${Math.floor(1000 + Math.random() * 9000)}`,
     date: initialData?.date || new Date().toISOString().split('T')[0],
@@ -40,10 +41,19 @@ const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
     billBalance: initialData?.billBalance || '0.00',
   }));
 
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['receiptNo'],
+    currentId: initialData?.id,
+    mode
+  });
+
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -56,7 +66,8 @@ const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
 
   return (
     <div className="animate-in duration-200" style={{ padding: '0 8px' }}>
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         ::-webkit-scrollbar {
           display: none !important;
           width: 0px !important;
@@ -139,7 +150,7 @@ const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
 
       <form onKeyDown={handleEnterNavigation} onSubmit={handleSubmit} style={{ padding: '0 8px 4px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px', alignItems: 'start', marginBottom: '12px' }}>
-          
+
           {/* Left Column: Payment Details Block */}
           <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
             {sectionTitle(<FaCreditCard />, 'Payment Details')}
@@ -156,7 +167,7 @@ const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
 
               <F label="Booking No" value={form.bookingNo} onChange={set('bookingNo')} placeholder="Booking reference" />
               <F label="Bill No" value={form.billNo} onChange={set('billNo')} placeholder="Bill number" />
-              
+
               <F label="Room No" value={form.roomNo} onChange={set('roomNo')} placeholder="Room number" />
 
               <F label="Pay Type" required>
@@ -247,7 +258,9 @@ const PaymentReceiveForm = ({ mode, initialData, onSave, onCancel }) => {
           onSave={handleSubmit}
           onCancel={onCancel}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </div>
   );

@@ -34,30 +34,30 @@ const BUSINESS_SOURCES = ['Direct', 'OTA', 'Agent'];
 const BOOKING_SOURCES = ['Website', 'Walk-in', 'Booking.com', 'Expedia', 'Agoda', 'MakeMyTrip'];
 
 const INITIAL_BOOKINGS = [
-    { id: 1001, roomNo: '101', guestName: 'John Smith',    phone: '+91 98765 43210', start: '2026-06-26', end: '2026-06-29', status: 'Checked-In',  segment: 'Leisure',   source: 'Direct', bookingSource: 'Website',    isVip: false },
-    { id: 1002, roomNo: '102', guestName: 'Emma Johnson',  phone: '+1 555-0199',     start: '2026-06-27', end: '2026-07-01', status: 'Confirmed',   segment: 'FIT',       source: 'OTA',    bookingSource: 'Booking.com', isVip: false },
-    { id: 1003, roomNo: '104', guestName: 'Michael Brown', phone: '+1 202-555-0143', start: '2026-06-28', end: '2026-07-02', status: 'Reserved',    segment: 'Corporate', source: 'Agent',  bookingSource: 'Expedia',    isVip: false },
-    { id: 1004, roomNo: '201', guestName: 'Sarah Wilson',  phone: '+91 91234 56789', start: '2026-06-26', end: '2026-06-28', status: 'Checked-In',  segment: 'Leisure',   source: 'Direct', bookingSource: 'Walk-in',    isVip: false },
-    { id: 1005, roomNo: '202', guestName: 'David Miller',  phone: '+1 570-555-0156', start: '2026-06-27', end: '2026-06-30', status: 'Reserved',    segment: 'Corporate', source: 'Direct', bookingSource: 'Website',    isVip: true  },
-    { id: 1006, roomNo: '203', guestName: 'Lisa Anderson', phone: '+1 312-555-0188', start: '2026-06-29', end: '2026-07-03', status: 'Confirmed',   segment: 'FIT',       source: 'OTA',    bookingSource: 'Agoda',      isVip: false },
-    { id: 1007, roomNo: '301', guestName: 'Robert Taylor', phone: '+91 99999 88888', start: '2026-06-26', end: '2026-07-05', status: 'Checked-In',  segment: 'Corporate', source: 'Agent',  bookingSource: 'Expedia',    isVip: false },
-    { id: 1008, roomNo: '302', guestName: 'James Wilson',  phone: '+1 312-555-0199', start: '2026-06-26', end: '2026-06-28', status: 'Checked-Out', segment: 'Leisure',   source: 'Agent',  bookingSource: 'MakeMyTrip', isVip: false },
-    { id: 1009, roomNo: '401', guestName: 'William Davis', phone: '+1 202-555-9999', start: '2026-06-27', end: '2026-07-05', status: 'Confirmed',   segment: 'Corporate', source: 'Direct', bookingSource: 'Walk-in',    isVip: true  },
+    { id: 1001, roomNo: '101', guestName: 'John Smith', phone: '+91 98765 43210', start: '2026-06-26', end: '2026-06-29', status: 'Checked-In', segment: 'Leisure', source: 'Direct', bookingSource: 'Website', isVip: false },
+    { id: 1002, roomNo: '102', guestName: 'Emma Johnson', phone: '+1 555-0199', start: '2026-06-27', end: '2026-07-01', status: 'Confirmed', segment: 'FIT', source: 'OTA', bookingSource: 'Booking.com', isVip: false },
+    { id: 1003, roomNo: '104', guestName: 'Michael Brown', phone: '+1 202-555-0143', start: '2026-06-28', end: '2026-07-02', status: 'Reserved', segment: 'Corporate', source: 'Agent', bookingSource: 'Expedia', isVip: false },
+    { id: 1004, roomNo: '201', guestName: 'Sarah Wilson', phone: '+91 91234 56789', start: '2026-06-26', end: '2026-06-28', status: 'Checked-In', segment: 'Leisure', source: 'Direct', bookingSource: 'Walk-in', isVip: false },
+    { id: 1005, roomNo: '202', guestName: 'David Miller', phone: '+1 570-555-0156', start: '2026-06-27', end: '2026-06-30', status: 'Reserved', segment: 'Corporate', source: 'Direct', bookingSource: 'Website', isVip: true },
+    { id: 1006, roomNo: '203', guestName: 'Lisa Anderson', phone: '+1 312-555-0188', start: '2026-06-29', end: '2026-07-03', status: 'Confirmed', segment: 'FIT', source: 'OTA', bookingSource: 'Agoda', isVip: false },
+    { id: 1007, roomNo: '301', guestName: 'Robert Taylor', phone: '+91 99999 88888', start: '2026-06-26', end: '2026-07-05', status: 'Checked-In', segment: 'Corporate', source: 'Agent', bookingSource: 'Expedia', isVip: false },
+    { id: 1008, roomNo: '302', guestName: 'James Wilson', phone: '+1 312-555-0199', start: '2026-06-26', end: '2026-06-28', status: 'Checked-Out', segment: 'Leisure', source: 'Agent', bookingSource: 'MakeMyTrip', isVip: false },
+    { id: 1009, roomNo: '401', guestName: 'William Davis', phone: '+1 202-555-9999', start: '2026-06-27', end: '2026-07-05', status: 'Confirmed', segment: 'Corporate', source: 'Direct', bookingSource: 'Walk-in', isVip: true },
 ];
 
 const ROOM_STATUS = [
-    { label: 'Clean',        count: 68, dotColor: 'var(--success)', textColor: 'var(--success)' },
-    { label: 'Dirty',        count: 24, dotColor: 'var(--warning)', textColor: 'var(--warning)' },
-    { label: 'Out of Order', count: 6,  dotColor: 'var(--danger)',  textColor: 'var(--danger)'  },
-    { label: 'Housekeeping', count: 22, dotColor: 'var(--info)',    textColor: 'var(--info)'    },
+    { label: 'Clean', count: 68, dotColor: 'var(--success)', textColor: 'var(--success)' },
+    { label: 'Dirty', count: 24, dotColor: 'var(--warning)', textColor: 'var(--warning)' },
+    { label: 'Out of Order', count: 6, dotColor: 'var(--danger)', textColor: 'var(--danger)' },
+    { label: 'Housekeeping', count: 22, dotColor: 'var(--info)', textColor: 'var(--info)' },
 ];
 
 const STATUS_COLORS = {
-    'Checked-In':  { bg: '#d1fae5', color: '#10B981' },
-    'Confirmed':   { bg: '#dbeafe', color: '#3B82F6' },
-    'Reserved':    { bg: '#fef3c7', color: '#F59E0B' },
+    'Checked-In': { bg: '#d1fae5', color: '#10B981' },
+    'Confirmed': { bg: '#dbeafe', color: '#3B82F6' },
+    'Reserved': { bg: '#fef3c7', color: '#F59E0B' },
     'Checked-Out': { bg: '#f1f5f9', color: '#64748b' },
-    'Cancelled':   { bg: '#fee2e2', color: '#EF4444' },
+    'Cancelled': { bg: '#fee2e2', color: '#EF4444' },
 };
 
 const BookingRow = ({ b }) => {
@@ -79,7 +79,7 @@ const BookingRow = ({ b }) => {
     );
 };
 
-const ReservationDashboard = ({ showToast = () => {} }) => {
+const ReservationDashboard = ({ showToast = () => { } }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
@@ -120,6 +120,7 @@ const ReservationDashboard = ({ showToast = () => {} }) => {
             phone: data.phone, start: data.dateStr, end: endStr,
             status: 'Confirmed', segment: 'FIT', source: 'Direct',
             bookingSource: 'Website', isVip: false,
+            remark: data.remark || '',
         }]);
         notify(`Reservation saved for Room ${data.roomNo}!`);
         setQuickBookModal({ open: false, roomNo: '', dateStr: '' });
@@ -170,9 +171,15 @@ const ReservationDashboard = ({ showToast = () => {} }) => {
         setBookingDetailModal({ open: false, booking: null });
     };
 
-    const todaysArrivals   = useMemo(() => bookings.filter(b => b.start === focusDateStr && b.status !== 'Cancelled').slice(0, 5), [bookings, focusDateStr]);
-    const todaysDepartures  = useMemo(() => bookings.filter(b => b.end   === focusDateStr && b.status !== 'Cancelled').slice(0, 5), [bookings, focusDateStr]);
-    const expectedCheckins  = useMemo(() => bookings.filter(b => b.status === 'Confirmed'  && b.start === focusDateStr).slice(0, 5), [bookings, focusDateStr]);
+    const handleUpdateRemark = (id, remark) => {
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, remark } : b));
+        notify('Reservation remark updated.');
+        setBookingDetailModal(prev => prev.booking?.id === id ? { ...prev, booking: { ...prev.booking, remark } } : prev);
+    };
+
+    const todaysArrivals = useMemo(() => bookings.filter(b => b.start === focusDateStr && b.status !== 'Cancelled').slice(0, 5), [bookings, focusDateStr]);
+    const todaysDepartures = useMemo(() => bookings.filter(b => b.end === focusDateStr && b.status !== 'Cancelled').slice(0, 5), [bookings, focusDateStr]);
+    const expectedCheckins = useMemo(() => bookings.filter(b => b.status === 'Confirmed' && b.start === focusDateStr).slice(0, 5), [bookings, focusDateStr]);
 
     return (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -212,10 +219,10 @@ const ReservationDashboard = ({ showToast = () => {} }) => {
                     <button onClick={() => setQuickBookModal({ open: true, roomNo: ROOMS[0].no, dateStr: focusDateStr })} className="btn-primary" style={{ borderRadius: '20px', padding: '8px 16px', fontSize: '0.82rem' }}>
                         <FaPlus size={11} /> New Reservation
                     </button>
-                    <PrintButton label="Print" />
+                    {/* <PrintButton label="Print" />
                     <button onClick={() => notify('Exporting...')} className="btn-secondary" style={{ borderRadius: '20px', padding: '8px 14px', fontSize: '0.82rem' }}>
                         <FaFileExport size={11} /> Export
-                    </button>
+                    </button> */}
                 </div>
             </div>
 
@@ -325,6 +332,7 @@ const ReservationDashboard = ({ showToast = () => {} }) => {
                 dateStr={quickBookModal.dateStr}
                 onClose={() => setQuickBookModal({ open: false, roomNo: '', dateStr: '' })}
                 onSave={handleSaveQuickBook}
+                existingRecords={bookings}
             />
             <ReservationDetailsModal
                 isOpen={bookingDetailModal.open}
@@ -335,6 +343,7 @@ const ReservationDashboard = ({ showToast = () => {} }) => {
                 onRoomChange={handleRoomChange}
                 onExtendStay={handleExtendStay}
                 onSplitStay={handleSplitStay}
+                onUpdateRemark={handleUpdateRemark}
                 rooms={ROOMS}
             />
         </div>

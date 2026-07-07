@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ExpenseEntryForm from './ExpenseEntryForm';
@@ -6,6 +7,8 @@ import ExpenseEntryForm from './ExpenseEntryForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const ExpenseEntry = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, expenseNo: 'EXP-1001', date: '2026-06-20', expenseDate: '2026-06-20', expenseCharge: 'Office Supplies', expenseMaster: 'Office Supplies', amount: 1500, payType: 'Cash', paymentMode: 'Cash', reference: 'REF-001', remark: 'Pens and notebooks.', remarks: 'Pens and notebooks.', active: 'Yes' },
     { id: 2, expenseNo: 'EXP-1002', date: '2026-06-21', expenseDate: '2026-06-21', expenseCharge: 'Maintenance', expenseMaster: 'Maintenance', amount: 8500, payType: 'Bank Transfer', paymentMode: 'Bank Transfer', reference: 'REF-002', remark: 'AC servicing for room 201.', remarks: 'AC servicing for room 201.', active: 'Yes' },
@@ -13,6 +16,20 @@ const ExpenseEntry = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'expenseNo', label: 'Expense No' },
@@ -51,6 +68,14 @@ const ExpenseEntry = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -58,7 +83,8 @@ const ExpenseEntry = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

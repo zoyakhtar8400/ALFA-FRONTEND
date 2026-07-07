@@ -1,8 +1,9 @@
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaConciergeBell, FaHistory } from 'react-icons/fa';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const TABLE_COLS = ['Voucher No', 'Date', 'Room No', 'Service Name', 'CGST Amount'];
 
@@ -26,8 +27,8 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const ServiceChargeEntryForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
+const ServiceChargeEntryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
     voucherNo: initialData?.voucherNo || `SVC-${Math.floor(1000 + Math.random() * 9000)}`,
     date: initialData?.date || new Date().toISOString().split('T')[0],
     roomNo: initialData?.roomNo || '',
@@ -38,6 +39,14 @@ const ServiceChargeEntryForm = ({ mode, initialData, onSave, onCancel }) => {
     amount: initialData?.amount || '',
     taxInclusive: initialData?.taxInclusive || 'No',
     remark: initialData?.remark || '',
+  }));
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['voucherNo'],
+    currentId: initialData?.id,
+    mode
   });
 
   const [charges] = useState([
@@ -51,6 +60,7 @@ const ServiceChargeEntryForm = ({ mode, initialData, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -262,7 +272,9 @@ const ServiceChargeEntryForm = ({ mode, initialData, onSave, onCancel }) => {
           onSave={handleSubmit}
           onCancel={onCancel}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </div>
   );

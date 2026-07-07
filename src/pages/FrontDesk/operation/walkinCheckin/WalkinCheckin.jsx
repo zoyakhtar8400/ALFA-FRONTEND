@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import WalkinCheckinForm from './WalkinCheckinForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const WalkinCheckin = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, guestName: 'Karan Johar', idType: 'Aadhaar Card', idNo: '1234-5678-9012', roomNo: '101', category: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-24', ratePlan: 'Standard Rate', adults: 2, children: 0, active: 'Yes' },
     { id: 2, guestName: 'Sara Khan', idType: 'Passport', idNo: 'Z9876543', roomNo: '205', category: 'Super Deluxe', checkIn: '2026-06-22', checkOut: '2026-06-26', ratePlan: 'Seasonal Offer', adults: 2, children: 1, active: 'Yes' },
@@ -12,6 +15,20 @@ const WalkinCheckin = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      setEditMode({ mode: 'add', row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'guestName', label: 'Guest Name' },
@@ -42,14 +59,24 @@ const WalkinCheckin = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
         <WalkinCheckinForm
+          key={editMode.row?.id || 'new'}
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

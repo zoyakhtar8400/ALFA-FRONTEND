@@ -1,19 +1,31 @@
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
-  const [form, setForm] = useState({ regNo: '', type: 'Sedan', driver: '', mobile: '', model: '', status: 'Active' });
+const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
+    regNo: initialData?.regNo || '',
+    type: initialData?.type || 'Sedan',
+    driver: initialData?.driver || '',
+    mobile: initialData?.mobile || '',
+    model: initialData?.model || '',
+    status: initialData?.status || 'Active'
+  }));
 
-  useEffect(() => {
-    if (initialData) setForm(initialData);
-    else setForm({ regNo: '', type: 'Sedan', driver: '', mobile: '', model: '', status: 'Active' });
-  }, [initialData, isOpen]);
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['regNo'],
+    currentId: initialData?.id,
+    mode
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.regNo.trim() || !form.driver.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -111,7 +123,9 @@ const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose }) => {
         <CommonActionButtons
           onCancel={onClose}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </CommonModal>
   );

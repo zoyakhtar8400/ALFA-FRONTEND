@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaCoins, FaCreditCard } from 'react-icons/fa';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
@@ -23,8 +24,8 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const RefundEntryForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
+const RefundEntryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
     receiptNo: initialData?.receiptNo || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
     bookingNo: initialData?.bookingNo || '',
     roomNo: initialData?.roomNo || '',
@@ -34,6 +35,14 @@ const RefundEntryForm = ({ mode, initialData, onSave, onCancel }) => {
     billNo: initialData?.billNo || '',
     refundAmount: initialData?.refundAmount || '',
     balance: initialData?.balance || '3500.00',
+  }));
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['receiptNo'],
+    currentId: initialData?.id,
+    mode
   });
 
   const set = (key) => (e) => setForm(f => {
@@ -49,6 +58,7 @@ const RefundEntryForm = ({ mode, initialData, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -231,7 +241,9 @@ const RefundEntryForm = ({ mode, initialData, onSave, onCancel }) => {
           onSave={handleSubmit}
           onCancel={onCancel}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </div>
   );

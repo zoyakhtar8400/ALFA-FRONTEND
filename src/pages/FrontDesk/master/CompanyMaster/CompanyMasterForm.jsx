@@ -1,8 +1,9 @@
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import FormCard from '../../../../components/common/FormCard';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const CITIES = [
   'Mumbai',
@@ -18,60 +19,34 @@ const CITIES = [
   'Singapore'
 ];
 
-const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    name: '',
-    underGroup: 'Sundry Debtors',
-    shortName: '',
-    nature: 'Corporate',
-    gstNumber: '',
-    contractPerson: '',
-    address: '',
-    city: 'Mumbai',
-    phone: '',
-    mobile: '',
-    email: '',
-    active: 'Yes'
-  });
+const CompanyMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
+    name: initialData?.name || '',
+    underGroup: initialData?.underGroup || 'Sundry Debtors',
+    shortName: initialData?.shortName || initialData?.code || '',
+    nature: initialData?.nature || 'Corporate',
+    gstNumber: initialData?.gstNumber || initialData?.gstNo || '',
+    contractPerson: initialData?.contractPerson || '',
+    address: initialData?.address || '',
+    city: initialData?.city || 'Mumbai',
+    phone: initialData?.phone || '',
+    mobile: initialData?.mobile || '',
+    email: initialData?.email || '',
+    active: initialData?.active || initialData?.status || 'Yes'
+  }));
 
-  useEffect(() => {
-    if (initialData) {
-      setForm({
-        ...initialData,
-        name: initialData.name || '',
-        underGroup: initialData.underGroup || 'Sundry Debtors',
-        shortName: initialData.shortName || initialData.code || '',
-        nature: initialData.nature || 'Corporate',
-        gstNumber: initialData.gstNumber || initialData.gstNo || '',
-        contractPerson: initialData.contractPerson || '',
-        address: initialData.address || '',
-        city: initialData.city || 'Mumbai',
-        phone: initialData.phone || '',
-        mobile: initialData.mobile || '',
-        email: initialData.email || '',
-        active: initialData.active || initialData.status || 'Yes'
-      });
-    } else {
-      setForm({
-        name: '',
-        underGroup: 'Sundry Debtors',
-        shortName: '',
-        nature: 'Corporate',
-        gstNumber: '',
-        contractPerson: '',
-        address: '',
-        city: 'Mumbai',
-        phone: '',
-        mobile: '',
-        email: '',
-        active: 'Yes'
-      });
-    }
-  }, [initialData]);
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['name'],
+    currentId: initialData?.id,
+    mode
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -244,8 +219,10 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel }) => {
           <CommonActionButtons
             onCancel={onCancel}
             saveText={mode === 'add' ? 'Save' : 'Update'}
+            saveDisabled={isDuplicate}
           />
         </div>
+        <DuplicateModal />
       </form>
     </div>
   );

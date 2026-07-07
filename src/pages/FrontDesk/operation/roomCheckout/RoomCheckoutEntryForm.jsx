@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const RoomCheckoutEntryForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
+const RoomCheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const [form, setForm] = useState(() => ({
     voucherNo: initialData?.voucherNo || `RCO-${Math.floor(1000 + Math.random() * 9000)}`,
     date: initialData?.date || new Date().toISOString().split('T')[0],
     grcNo: initialData?.grcNo || '',
@@ -11,12 +12,21 @@ const RoomCheckoutEntryForm = ({ mode, initialData, onSave, onCancel }) => {
     city: initialData?.city || '',
     checkoutDate: initialData?.checkoutDate || new Date().toISOString().split('T')[0],
     checkoutTime: initialData?.checkoutTime || '',
+  }));
+
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['grcNo'],
+    currentId: initialData?.id,
+    mode
   });
 
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -65,10 +75,19 @@ const RoomCheckoutEntryForm = ({ mode, initialData, onSave, onCancel }) => {
         <button type="button" onClick={onCancel} className="btn-secondary" style={{ cursor: 'pointer' }}>
           Cancel
         </button>
-        <button type="submit" className="btn-primary" style={{ cursor: 'pointer' }}>
+        <button 
+          type="submit" 
+          className="btn-primary" 
+          disabled={isDuplicate}
+          style={{ 
+            cursor: isDuplicate ? 'not-allowed' : 'pointer',
+            opacity: isDuplicate ? 0.6 : 1
+          }}
+        >
           {mode === 'add' ? 'Save' : 'Update'}
         </button>
       </div>
+      <DuplicateModal />
     </form>
   );
 };

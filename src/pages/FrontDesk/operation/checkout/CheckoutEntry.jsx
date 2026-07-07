@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CheckoutEntryForm from './CheckoutEntryForm';
@@ -6,6 +7,8 @@ import CheckoutEntryForm from './CheckoutEntryForm';
 import FormLoadingWrapper from '../../../../components/common/FormLoadingWrapper';
 
 const CheckoutEntry = ({ showToast }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([
     { id: 1, folioNo: 'FL-8001', guestName: 'Harish Mehta', roomNo: '102', checkoutDate: '2026-06-22', totalAmount: 18500, discount: 1000, netAmount: 17500, paymentMode: 'Card', active: 'Yes' },
     { id: 2, folioNo: 'FL-8002', guestName: 'Alia Bhatt', roomNo: '301', checkoutDate: '2026-06-22', totalAmount: 32000, discount: 2000, netAmount: 30000, paymentMode: 'UPI', active: 'Yes' },
@@ -13,6 +16,21 @@ const CheckoutEntry = ({ showToast }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('add') === 'true') {
+      const rowData = {};
+      params.forEach((value, key) => {
+        if (key !== 'add') {
+          rowData[key] = value;
+        }
+      });
+      const modeVal = params.get('displayFolio') === 'true' ? 'displayFolio' : 'add';
+      setEditMode({ mode: modeVal, row: Object.keys(rowData).length ? rowData : null });
+      setShowForm(true);
+    }
+  }, [location]);
 
   const columns = [
     { key: 'folioNo', label: 'Folio No' },
@@ -44,6 +62,14 @@ const CheckoutEntry = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleCancel = () => {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else {
+      setShowForm(false);
+    }
+  };
+
   if (showForm) {
     return (
       <FormLoadingWrapper>
@@ -51,7 +77,8 @@ const CheckoutEntry = ({ showToast }) => {
           mode={editMode.mode}
           initialData={editMode.row}
           onSave={handleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={handleCancel}
+          existingRecords={data}
         />
       </FormLoadingWrapper>
     );

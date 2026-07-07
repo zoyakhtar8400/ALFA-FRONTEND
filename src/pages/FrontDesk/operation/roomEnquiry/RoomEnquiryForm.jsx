@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaSearch, FaBed } from 'react-icons/fa';
@@ -24,7 +24,7 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
 );
 
 const RoomEnquiryForm = ({ mode, initialData, onSave, onCancel }) => {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     guestName: initialData?.guestName || '',
     mobile: initialData?.mobile || '',
     email: initialData?.email || '',
@@ -36,7 +36,7 @@ const RoomEnquiryForm = ({ mode, initialData, onSave, onCancel }) => {
     source: initialData?.source || '',
     remarks: initialData?.remarks || '',
     active: initialData?.active || 'Yes',
-  });
+  }));
 
   // Mock list of room availability matching categories
   const roomsAvailability = [

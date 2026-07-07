@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaUser, FaBed } from 'react-icons/fa';
+import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
 const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
@@ -23,7 +24,7 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const AddGuestForm = ({ mode, initialData, onSave, onCancel }) => {
+const AddGuestForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState({
     roomNo: initialData?.roomNo || '',
     grcNo: initialData?.grcNo || '',
@@ -50,10 +51,19 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel }) => {
     remark: initialData?.remark || '',
   });
 
+  const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
+    existingRecords,
+    currentFormData: form,
+    uniqueFields: ['idProofNo'],
+    currentId: initialData?.id,
+    mode
+  });
+
   const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!checkBeforeSave()) return;
     onSave(form);
   };
 
@@ -180,7 +190,9 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel }) => {
           onSave={handleSubmit}
           onCancel={onCancel}
           saveText={mode === 'add' ? 'Save' : 'Update'}
+          saveDisabled={isDuplicate}
         />
+        <DuplicateModal />
       </form>
     </div>
   );

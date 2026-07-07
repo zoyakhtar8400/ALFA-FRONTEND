@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 const STATUS_COLORS = {
@@ -17,14 +17,22 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
-const ReservationDetailsModal = ({ isOpen, booking, onClose, onStatusChange, onCancel, onRoomChange, onExtendStay, onSplitStay, rooms = [] }) => {
+const ReservationDetailsModal = ({ isOpen, booking, onClose, onStatusChange, onCancel, onRoomChange, onExtendStay, onSplitStay, onUpdateRemark, rooms = [] }) => {
   const [newRoom, setNewRoom] = useState('');
   const [extendNights, setExtendNights] = useState(1);
   const [splitNight, setSplitNight] = useState(1);
+  const [remarkInput, setRemarkInput] = useState('');
+
+  useEffect(() => {
+    if (booking) {
+      setRemarkInput(booking.remark || '');
+    }
+  }, [booking]);
 
   if (!isOpen || !booking) return null;
 
   const col = STATUS_COLORS[booking.status] || STATUS_COLORS['Confirmed'];
+  const roomObj = rooms.find(r => String(r.no) === String(booking.roomNo));
 
   return (
     <div className="modal-overlay">
@@ -48,10 +56,12 @@ const ReservationDetailsModal = ({ isOpen, booking, onClose, onStatusChange, onC
           <InfoRow label="Guest"      value={booking.guestName} />
           <InfoRow label="Phone"      value={booking.phone || '—'} />
           <InfoRow label="Room"       value={`Room ${booking.roomNo}`} />
+          <InfoRow label="Category"   value={roomObj ? roomObj.type : '—'} />
           <InfoRow label="Check-In"   value={booking.start} />
           <InfoRow label="Check-Out"  value={booking.end} />
           <InfoRow label="Segment"    value={booking.segment || '—'} />
           <InfoRow label="Source"     value={booking.bookingSource || '—'} />
+          <InfoRow label="Remark"     value={booking.remark || '—'} />
         </div>
 
         {/* Quick Actions */}
@@ -111,6 +121,29 @@ const ReservationDetailsModal = ({ isOpen, booking, onClose, onStatusChange, onC
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input className="form-input" type="number" min={1} value={splitNight} onChange={e => setSplitNight(Math.max(1, Number(e.target.value)))} style={{ width: '80px' }} />
               <button className="btn-secondary" style={{ borderRadius: '10px' }} onClick={() => onSplitStay(booking.id, splitNight)}>Split</button>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Remark */}
+        {booking.status !== 'Cancelled' && booking.status !== 'Checked-Out' && (
+          <div className="form-field">
+            <label className="form-label">Update Remark</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                className="form-input"
+                type="text"
+                value={remarkInput}
+                onChange={e => setRemarkInput(e.target.value)}
+                placeholder="Update reservation remarks..."
+              />
+              <button 
+                className="btn-primary" 
+                style={{ borderRadius: '10px', padding: '8px 16px', flexShrink: 0 }}
+                onClick={() => onUpdateRemark(booking.id, remarkInput)}
+              >
+                Save
+              </button>
             </div>
           </div>
         )}
