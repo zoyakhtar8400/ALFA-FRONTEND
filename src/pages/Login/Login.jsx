@@ -1,8 +1,10 @@
 import { handleEnterNavigation } from '../../utils/keyboardNavigation';
 import React, { useState } from 'react';
 import { FaUser, FaLock, FaSignInAlt, FaInfoCircle } from 'react-icons/fa';
+import { useAuth } from '../../context/AuthContext';
 
-const Login = ({ onLogin, showToast }) => {
+const Login = ({ showToast }) => {
+  const { login } = useAuth();
   const [email, setEmail] = useState('admin@alfahms.com');
   const [password, setPassword] = useState('password');
   const [loading, setLoading] = useState(false);
@@ -15,8 +17,7 @@ const Login = ({ onLogin, showToast }) => {
     setTimeout(() => {
       setLoading(false);
       if (email === 'admin@alfahms.com' && password === 'password') {
-        onLogin();
-        showToast("Welcome back, Zoya! Logged in successfully. 🎉");
+        login(email, password, showToast);
       } else {
         alert("Invalid email or password (Try admin@alfahms.com / password)!");
       }
@@ -37,12 +38,12 @@ const Login = ({ onLogin, showToast }) => {
             <label className="login-label">Email Address</label>
             <div className="login-input-wrapper">
               <FaUser className="login-input-icon" />
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@alfahms.com" 
-                required 
+                placeholder="admin@alfahms.com"
+                required
               />
             </div>
           </div>
@@ -51,12 +52,12 @@ const Login = ({ onLogin, showToast }) => {
             <label className="login-label">Password</label>
             <div className="login-input-wrapper">
               <FaLock className="login-input-icon" />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••" 
-                required 
+                placeholder="••••••••"
+                required
               />
             </div>
           </div>

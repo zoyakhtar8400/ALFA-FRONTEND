@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaBars, FaBell, FaSearch, FaUserCircle, FaFlask, FaTimes } from 'react-icons/fa';
+import { FaBars, FaBell, FaSearch, FaUserCircle, FaFlask, FaTimes, FaHistory, FaCheckCircle, FaTrash } from 'react-icons/fa';
+import { useFrontDesk } from '../../context/FrontDeskContext';
 
 // Enterprise Global Search Mock Data (Guests, Rooms, Bookings, Companies, Bills, GRC records)
 const SEARCH_DATA = [
@@ -23,11 +24,20 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
 
-  // Close search results dropdown on outside clicks
+  // Notifications and Audit states
+  const { notifications, auditLogs, markAllNotificationsRead, clearNotification } = useFrontDesk();
+  const [showNotif, setShowNotif] = useState(false);
+  const [showAudit, setShowAudit] = useState(false);
+  const notifRef = useRef(null);
+
+  // Close dropdowns on outside clicks
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowResults(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotif(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -74,7 +84,6 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
     }
   };
 
-  // Perform search memoization for efficiency
   const filteredResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
@@ -92,8 +101,12 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
     navigate(item.link);
   };
 
+  const unreadCount = useMemo(() => {
+    return notifications.filter(n => !n.read).length;
+  }, [notifications]);
+
   return (
-    <header className="navbar relative">
+    <header className="navbar relative" style={{ position: 'relative' }}>
       <div className="navbar-left">
         <button
           className="menu-toggle-btn"
@@ -173,22 +186,65 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
         )}
       </div>
 
-      <div className="navbar-right">
-        {/* Top bar indicators */}
+      <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Audit Trail Button */}
         <button
           className="navbar-dummy-btn"
-          onClick={() => showToast("Sandbox Dummy Action Triggered! 🎉")}
-          title="Sandbox Dummy Action"
+          onClick={() => setShowAudit(true)}
+          title="Audit Trail Logs"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', color: '#475569' }}
         >
-          <FaFlask />
-          <span>Dummy</span>
+          <FaHistory size={12} color="#0e7490" />
+          <span>Audit Log</span>
         </button>
 
-        <button className="navbar-action-btn" aria-label="Notifications" onClick={() => showToast("No new notifications.")}>
-          <FaBell />
-          <span className="badge"></span>
-        </button>
+        {/* Notification Bell Dropdown */}
+        <div className="relative" ref={notifRef} style={{ position: 'relative' }}>
+          <button className="navbar-action-btn" aria-label="Notifications" onClick={() => setShowNotif(!showNotif)}
+            style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <FaBell size={18} color="#475569" />
+            {unreadCount > 0 && (
+              <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', borderRadius: '50%', width: '15px', height: '15px', fontSize: '9px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {unreadCount}
+              </span>
+            )}
+          </button>
 
+          {showNotif && (
+            <div style={{ position: 'absolute', right: 0, marginTop: '8px', width: '320px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 1000, padding: '12px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px 8px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: '#0f172a' }}>Notifications</span>
+                {unreadCount > 0 && (
+                  <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: '#0e7490', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
+                    No notifications available
+                  </div>
+                ) : (
+                  notifications.map(n => (
+                    <div key={n.id} style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid #f8fafc', background: n.read ? 'transparent' : '#f0f9ff', position: 'relative' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#1e293b' }}>{n.title}</div>
+                        <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>{n.message}</div>
+                        <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>{n.time}</div>
+                      </div>
+                      <button onClick={() => clearNotification(n.id)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', alignSelf: 'flex-start', fontSize: '12px', padding: 0 }}>
+                        <FaTimes size={10} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User Profile */}
         <div className="user-profile" onClick={() => showToast("Active session details: Admin User")}>
           <div className="user-avatar">
             <FaUserCircle size={22} />
@@ -199,6 +255,45 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
           </div>
         </div>
       </div>
+
+      {/* Audit Trail Modal */}
+      {showAudit && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '640px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', overflow: 'hidden', fontFamily: 'system-ui' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: '#244E5F', color: '#fff' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaHistory /> PMS Security Audit Trail Logs
+              </h3>
+              <button onClick={() => setShowAudit(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}><FaTimes /></button>
+            </div>
+            <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#475569', fontWeight: '800' }}>
+                    <th style={{ padding: '10px 8px', textAlign: 'left' }}>User</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'left' }}>Action</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'left' }}>Target</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'right' }}>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map(log => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
+                      <td style={{ padding: '10px 8px', fontWeight: '700' }}>{log.user}</td>
+                      <td style={{ padding: '10px 8px' }}>{log.action}</td>
+                      <td style={{ padding: '10px 8px', color: '#0e7490', fontWeight: '600' }}>{log.target}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', color: '#64748b' }}>{log.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: '12px 20px', background: '#f8fafc', borderTop: '1px solid #cbd5e1', textAlign: 'right' }}>
+              <button onClick={() => setShowAudit(false)} style={{ padding: '8px 16px', background: '#244E5F', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>Close Log</button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

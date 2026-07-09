@@ -5,6 +5,8 @@ import AppRoutes from './routes/AppRoutes';
 import Login from './pages/Login/Login';
 import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa';
 import { initKeyboardNavigation } from './utils/keyboardNavigation';
+import { useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 const TOAST_THEMES = {
   success: {
@@ -26,7 +28,7 @@ const TOAST_THEMES = {
 };
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -72,13 +74,8 @@ function App() {
     };
   }, []);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-  };
-
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    showToast("Logged out successfully.", "success");
+    logout(showToast);
   };
 
   const activeToastTheme = TOAST_THEMES[toast.type] || TOAST_THEMES.info;
@@ -94,7 +91,7 @@ function App() {
             <span className="text-xs font-bold">{toast.message}</span>
           </div>
         )}
-        <Login onLogin={handleLogin} showToast={showToast} />
+        <Login showToast={showToast} />
       </div>
     );
   }
@@ -127,7 +124,9 @@ function App() {
           showToast={showToast}
         />
         <main className="content-area relative" style={{ position: 'relative' }}>
-          <AppRoutes showToast={showToast} />
+          <ProtectedRoute>
+            <AppRoutes showToast={showToast} />
+          </ProtectedRoute>
         </main>
       </div>
     </div>
