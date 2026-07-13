@@ -9,36 +9,75 @@ import { useRestaurant } from '../../../context/RestaurantContext';
 import { INITIAL_TABLES } from '../constants/mockData';
 
 const ALL_FOOD_ITEMS = [
-  { name: 'CHICKEN TANDOORI', price: 520, category: 'FOOD', hasVariants: true, variants: { Half: 280, Full: 520 } },
-  { name: 'PANEER TIKKA', price: 320, category: 'FOOD', hasVariants: true, variants: { Half: 180, Full: 320 } },
-  { name: 'DAL MAKHANI', price: 280, category: 'FOOD', hasVariants: true, variants: { Half: 160, Full: 280 } },
-  { name: 'BUTTER NAAN', price: 40, category: 'FOOD' },
-  { name: 'COLD DRINK', price: 40, category: 'FOOD' },
-  { name: 'ALOO GOBHI(DRY)', price: 180, category: 'FOOD' },
-  { name: 'BANANA SHAKE', price: 120, category: 'FOOD' },
-  { name: 'BLUE LAGOON', price: 150, category: 'FOOD' },
-  { name: 'BREAKFAST(BUFFET)', price: 350, category: 'FOOD' },
-  { name: 'BUTTER SCOTCH SHAKE', price: 140, category: 'FOOD' },
-  { name: 'COLD COFFEE', price: 110, category: 'FOOD' },
-  { name: 'CORN CHAT', price: 90, category: 'FOOD' },
-  { name: 'DOHRA SEEK KABAB', price: 280, category: 'FOOD' },
-  { name: 'EGG BIRYANI', price: 220, category: 'FOOD' },
-  { name: 'FRESH LIME WATER', price: 60, category: 'FOOD' },
-  { name: 'FRESH PANEER', price: 250, category: 'FOOD' },
-  { name: 'KIT KAT SHAKE', price: 150, category: 'FOOD' },
-  { name: 'MACARONI', price: 130, category: 'FOOD' },
-  { name: 'MASALA COKE', price: 70, category: 'FOOD' },
-  { name: 'MIX PAKORA', price: 120, category: 'FOOD' },
+  {
+    id: 101,
+    name: 'CHICKEN TANDOORI',
+    category: 'FOOD',
+    variants: [
+      { id: 'half', name: 'Half', price: 280 },
+      { id: 'full', name: 'Full', price: 520 }
+    ]
+  },
+  {
+    id: 102,
+    name: 'PANEER TIKKA',
+    category: 'FOOD',
+    variants: [
+      { id: 'half', name: 'Half', price: 180 },
+      { id: 'full', name: 'Full', price: 320 }
+    ]
+  },
+  {
+    id: 107,
+    name: 'DAL MAKHANI',
+    category: 'FOOD',
+    variants: [
+      { id: 'half', name: 'Half', price: 160 },
+      { id: 'full', name: 'Full', price: 280 }
+    ]
+  },
+  { id: 118, name: 'BUTTER NAAN', price: 40, category: 'FOOD', variants: [] },
+  {
+    id: 106,
+    name: 'COLD DRINK',
+    category: 'FOOD',
+    variants: [
+      { id: '250ml', name: '250 ML', price: 40 },
+      { id: '500ml', name: '500 ML', price: 70 },
+      { id: '1l', name: '1 Litre', price: 120 }
+    ]
+  },
+  { id: 104, name: 'GARLIC NAAN', price: 100, category: 'FOOD', variants: [] },
+  { id: 105, name: 'JEERA RICE', price: 200, category: 'FOOD', variants: [] },
+  { id: 108, name: 'TANDOORI ROTI', price: 30, category: 'FOOD', variants: [] },
+  { id: 109, name: 'MOCKTAILS', price: 150, category: 'FOOD', variants: [] },
+  { id: 110, name: 'VEG BIRYANI', price: 380, category: 'FOOD', variants: [] },
+  { id: 111, name: 'CHICKEN BIRYANI', price: 400, category: 'FOOD', variants: [] },
+  { id: 112, name: 'CHICKEN TIKKA ROLL', price: 250, category: 'FOOD', variants: [] },
+  { id: 113, name: 'MASALA PAPAD', price: 40, category: 'FOOD', variants: [] },
+  { id: 114, name: 'CHILLI PANEER DRY', price: 320, category: 'FOOD', variants: [] },
+  { id: 115, name: 'FRIED RICE', price: 220, category: 'FOOD', variants: [] },
+  { id: 116, name: 'SPRING ROLLS', price: 180, category: 'FOOD', variants: [] },
+  { id: 117, name: 'FAMILY PLATTER (VEG)', price: 1800, category: 'FOOD', variants: [] },
+  { id: 121, name: 'CLUB SANDWICH', price: 180, category: 'FOOD', variants: [] },
+  { id: 122, name: 'FRENCH FRIES', price: 140, category: 'FOOD', variants: [] },
+  { id: 123, name: 'COLD COFFEE', price: 120, category: 'FOOD', variants: [] },
+  {
+    id: 103, name: 'VEG NOODLES', price: 240, category: 'FOOD', variants: [
+      { id: 'half', name: 'Half', price: 140 },
+      { id: 'full', name: 'Full', price: 240 }
+    ]
+  },
 
   // BANQUET items
-  { name: 'BANQUET BUFFET STANDARD', price: 600, category: 'BANQUET' },
-  { name: 'BANQUET BUFFET PREMIUM', price: 950, category: 'BANQUET' },
-  { name: 'BANQUET HALL CHARGE', price: 15000, category: 'BANQUET' },
-  { name: 'DECORATION STANDARD', price: 4500, category: 'BANQUET' },
+  { id: 201, name: 'BANQUET BUFFET STANDARD', price: 600, category: 'BANQUET', variants: [] },
+  { id: 202, name: 'BANQUET BUFFET PREMIUM', price: 950, category: 'BANQUET', variants: [] },
+  { id: 203, name: 'BANQUET HALL CHARGE', price: 15000, category: 'BANQUET', variants: [] },
+  { id: 204, name: 'DECORATION STANDARD', price: 4500, category: 'BANQUET', variants: [] }
 ];
 
 const INITIAL_ROWS = [
-  { name: '', variant: '', remark: '', qty: 1, price: 0 }
+  { lineId: 'initial-row-1', itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }
 ];
 
 const POSBillingPage = () => {
@@ -46,7 +85,9 @@ const POSBillingPage = () => {
   const navigate = useNavigate();
 
   // Check if opened from "Book Table" button in new booking flow
-  const isNewBooking = location.state?.newBooking || false;
+  const isNewBooking = location.state?.isNewBooking || location.state?.newBooking || false;
+  const preselectedTableId = location.state?.tableId || null;
+  const preselectedTableNumber = location.state?.tableNumber || null;
 
   // Retrieve routed parameters
   const routedTable = location.state?.table || { id: 1, no: '01', status: 'Blank', waiter: null, customer: 'Walk-in' };
@@ -61,11 +102,11 @@ const POSBillingPage = () => {
   const [serviceType, setServiceType] = useState('Dine in');
 
   // Customer Information inputs
-  const [customerName, setCustomerName] = useState(isNewBooking ? 'Rahul Sharma' : (routedTable.customer || ''));
-  const [mobileNumber, setMobileNumber] = useState(isNewBooking ? '9876543210' : (routedTable.mobile || ''));
-  const [paxCount, setPaxCount] = useState(isNewBooking ? 4 : (routedTable.seats || 1));
-  const [waiter, setWaiter] = useState(isNewBooking ? 'Rakesh' : (routedTable.waiter || ''));
-  const [captain, setCaptain] = useState(isNewBooking ? 'Amit' : (routedTable.captain || ''));
+  const [customerName, setCustomerName] = useState(isNewBooking ? '' : (routedTable.customer || ''));
+  const [mobileNumber, setMobileNumber] = useState(isNewBooking ? '' : (routedTable.mobile || ''));
+  const [paxCount, setPaxCount] = useState(isNewBooking ? 1 : (routedTable.seats || 1));
+  const [waiter, setWaiter] = useState(isNewBooking ? '' : (routedTable.waiter || ''));
+  const [captain, setCaptain] = useState(isNewBooking ? '' : (routedTable.captain || ''));
   const [remarks, setRemarks] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
 
@@ -73,11 +114,15 @@ const POSBillingPage = () => {
   const [kotCreated, setKotCreated] = useState(false);
   const [generatedKotNo, setGeneratedKotNo] = useState('');
   const [showKotAlert, setShowKotAlert] = useState(false);
-  const [assignedTableId, setAssignedTableId] = useState('');
+  const [assignedTableId, setAssignedTableId] = useState(preselectedTableId || routedTable?.id || '');
 
   // Table rows for right-side billing
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [isSettling, setIsSettling] = useState(false);
+
+  // Variant selection modal states
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [variantModalItem, setVariantModalItem] = useState(null);
 
   // Load existing items if editing
   useEffect(() => {
@@ -86,14 +131,14 @@ const POSBillingPage = () => {
         setRows(location.state.orderRows);
       } else if (routedTable.id === 2) {
         setRows([
-          { name: 'ALOO GOBHI(DRY)', variant: '', remark: 'Medium Spicy', qty: 1, price: 180 },
-          { name: 'BANANA SHAKE', variant: '', remark: 'With Ice Cream', qty: 2, price: 120 },
-          { name: 'CORN CHAT', variant: '', remark: '', qty: 1, price: 90 }
+          { lineId: 'row-2-1', itemId: 121, itemName: 'CLUB SANDWICH', name: 'CLUB SANDWICH', variantId: '', variantName: '', variant: '', remark: 'Medium Spicy', qty: 1, unitPrice: 180, price: 180, rate: 180, total: 180 },
+          { lineId: 'row-2-2', itemId: 123, itemName: 'COLD COFFEE', name: 'COLD COFFEE', variantId: '', variantName: '', variant: '', remark: 'With Ice Cream', qty: 2, unitPrice: 120, price: 120, rate: 120, total: 240 },
+          { lineId: 'row-2-3', itemId: 104, itemName: 'GARLIC NAAN', name: 'GARLIC NAAN', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 100, price: 100, rate: 100, total: 100 }
         ]);
       } else if (routedTable.id === 3) {
         setRows([
-          { name: 'BLUE LAGOON', variant: '', remark: '', qty: 3, price: 150 },
-          { name: 'MIX PAKORA', variant: '', remark: 'Crispy', qty: 2, price: 120 }
+          { lineId: 'row-3-1', itemId: 109, itemName: 'MOCKTAILS', name: 'MOCKTAILS', variantId: '', variantName: '', variant: '', remark: '', qty: 3, unitPrice: 150, price: 150, rate: 150, total: 450 },
+          { lineId: 'row-3-2', itemId: 116, itemName: 'SPRING ROLLS', name: 'SPRING ROLLS', variantId: '', variantName: '', variant: '', remark: 'Crispy', qty: 2, unitPrice: 180, price: 180, rate: 180, total: 360 }
         ]);
       }
     }
@@ -132,65 +177,161 @@ const POSBillingPage = () => {
 
   // Click handler to select an item from food grid
   const handleGridItemClick = (foodItem) => {
-    const emptyIndex = rows.findIndex(r => r.name === '');
-    const defaultVariant = foodItem.hasVariants ? 'Full' : '';
-    const defaultPrice = foodItem.hasVariants ? foodItem.variants.Full : foodItem.price;
-
-    if (emptyIndex !== -1) {
-      setRows(prev => prev.map((r, i) => {
-        if (i === emptyIndex) {
-          return { ...r, name: foodItem.name, variant: defaultVariant, price: defaultPrice, qty: 1 };
-        }
-        return r;
-      }));
+    if (!foodItem.variants || foodItem.variants.length === 0) {
+      // Smart Variant Logic: 0 variants -> Add directly
+      addOrUpdateItemRow(foodItem, null);
+    } else if (foodItem.variants.length === 1) {
+      // Smart Variant Logic: 1 variant -> Add directly with default variant
+      addOrUpdateItemRow(foodItem, foodItem.variants[0]);
     } else {
-      const existingIndex = rows.findIndex(r => r.name === foodItem.name && r.variant === defaultVariant);
+      // Smart Variant Logic: >1 variants -> Open variant modal
+      setVariantModalItem(foodItem);
+      setShowVariantModal(true);
+    }
+  };
+
+  // Helper to add or update row
+  const addOrUpdateItemRow = (foodItem, variant) => {
+    const variantId = variant ? variant.id : '';
+    const variantName = variant ? variant.name : '';
+    const price = variant ? variant.price : (foodItem.price || 0);
+    const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
+
+    setRows(prev => {
+      const emptyIndex = prev.findIndex(r => !r.itemName && !r.name);
+      const existingIndex = prev.findIndex(r =>
+        (r.itemId === foodItem.id || r.itemName === foodItem.name || r.name === foodItem.name) &&
+        (r.variantId === variantId)
+      );
+
       if (existingIndex !== -1) {
-        setRows(prev => prev.map((r, i) => {
+        return prev.map((r, i) => {
           if (i === existingIndex) {
-            return { ...r, qty: r.qty + 1 };
+            const nextQty = r.qty + 1;
+            return { ...r, qty: nextQty, total: nextQty * r.unitPrice };
           }
           return r;
-        }));
+        });
+      } else if (emptyIndex !== -1) {
+        return prev.map((r, i) => {
+          if (i === emptyIndex) {
+            return {
+              ...r,
+              lineId,
+              itemId: foodItem.id,
+              itemName: foodItem.name,
+              name: foodItem.name, // compatibility
+              variantId,
+              variantName,
+              variant: variantName, // compatibility
+              qty: 1,
+              unitPrice: price,
+              price: price, // compatibility
+              rate: price, // compatibility
+              total: price,
+              remark: ''
+            };
+          }
+          return r;
+        });
       } else {
-        setRows(prev => [...prev, { name: foodItem.name, variant: defaultVariant, remark: '', qty: 1, price: defaultPrice }]);
+        return [
+          ...prev,
+          {
+            lineId,
+            itemId: foodItem.id,
+            itemName: foodItem.name,
+            name: foodItem.name, // compatibility
+            variantId,
+            variantName,
+            variant: variantName, // compatibility
+            qty: 1,
+            unitPrice: price,
+            price: price, // compatibility
+            rate: price, // compatibility
+            total: price,
+            remark: ''
+          }
+        ];
       }
-    }
+    });
   };
 
   const updateRowField = (index, field, value) => {
     setRows(prev => prev.map((row, i) => {
       if (i === index) {
         const updated = { ...row, [field]: value };
-        if (field === 'name') {
+        if (field === 'name' || field === 'itemName') {
           const match = ALL_FOOD_ITEMS.find(f => f.name === value);
           if (match) {
-            updated.variant = match.hasVariants ? 'Full' : '';
-            updated.price = match.hasVariants ? match.variants.Full : match.price;
+            updated.itemId = match.id;
+            updated.itemName = match.name;
+            updated.name = match.name; // compatibility
+
+            if (!match.variants || match.variants.length === 0) {
+              updated.variantId = '';
+              updated.variantName = '';
+              updated.variant = '';
+              updated.unitPrice = match.price || 0;
+              updated.price = match.price || 0;
+              updated.rate = match.price || 0;
+            } else {
+              const firstVar = match.variants[0];
+              updated.variantId = firstVar.id;
+              updated.variantName = firstVar.name;
+              updated.variant = firstVar.name;
+              updated.unitPrice = firstVar.price;
+              updated.price = firstVar.price;
+              updated.rate = firstVar.price;
+            }
           } else {
-            updated.price = 0;
+            updated.itemId = '';
+            updated.itemName = '';
+            updated.name = '';
+            updated.variantId = '';
+            updated.variantName = '';
             updated.variant = '';
+            updated.unitPrice = 0;
+            updated.price = 0;
+            updated.rate = 0;
           }
         }
+
+        const qty = updated.qty || 1;
+        const priceVal = updated.unitPrice || updated.price || 0;
+        updated.total = qty * priceVal;
         return updated;
       }
       return row;
     }));
   };
 
-  const handleVariantChange = (index, variant) => {
+  const handleVariantChange = (index, variantId) => {
     setRows(prev => prev.map((row, i) => {
       if (i === index) {
-        const item = ALL_FOOD_ITEMS.find(f => f.name === row.name);
-        const newPrice = item?.variants?.[variant] || row.price;
-        return { ...row, variant, price: newPrice };
+        const item = ALL_FOOD_ITEMS.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
+        const variantObj = item?.variants?.find(v => v.id === variantId);
+        if (variantObj) {
+          const price = variantObj.price;
+          return {
+            ...row,
+            variantId: variantObj.id,
+            variantName: variantObj.name,
+            variant: variantObj.name, // compatibility
+            unitPrice: price,
+            price: price, // compatibility
+            rate: price, // compatibility
+            total: row.qty * price
+          };
+        }
       }
       return row;
     }));
   };
 
   const handleAddEmptyRow = () => {
-    setRows(prev => [...prev, { name: '', variant: '', remark: '', qty: 1, price: 0 }]);
+    const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
+    setRows(prev => [...prev, { lineId, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }]);
   };
 
   const handleRemoveRow = (index) => {
@@ -202,7 +343,7 @@ const POSBillingPage = () => {
   };
 
   const totalBill = useMemo(() => {
-    return rows.reduce((sum, row) => sum + (row.qty * row.price), 0);
+    return rows.reduce((sum, row) => sum + (row.qty * (row.unitPrice || row.price || 0)), 0);
   }, [rows]);
 
   const handleAddKOT = () => {
@@ -314,7 +455,7 @@ const POSBillingPage = () => {
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
       display: 'flex', background: '#f8fafc', overflow: 'hidden'
     }}>
-      
+
       {/* LEFT SECTION (Categories, Grid & Searches) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #cbd5e1', background: '#fff' }}>
@@ -366,7 +507,7 @@ const POSBillingPage = () => {
 
       {/* RIGHT SECTION (Billing ledger details panel) */}
       <div style={{ width: '540px', height: '100%', background: '#f8fafc', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #cbd5e1' }}>
-        
+
         {/* Service switcher tabs bar */}
         <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderBottom: '1px solid #cbd5e1' }}>
           {['Dine in', 'Delivery', 'Pickup'].map(type => {
@@ -382,16 +523,41 @@ const POSBillingPage = () => {
           })}
         </div>
 
-        {/* Table / Order Info Banner */}
-        {!isNewBooking && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', background: '#fff', borderBottom: '1px solid #cbd5e1' }}>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <FaUtensils size={12} color="#0e7490" /> Table {routedTable.no}
-            </span>
-            <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', background: '#e0f2fe', color: '#0369a1' }}>
-              {serviceType}
-            </span>
-          </div>
+        {/* Table Info Banner (For Dine in) */}
+        {serviceType === 'Dine in' && (
+          preselectedTableNumber ? (
+            <div style={{ padding: '16px', background: '#e0f2fe', borderBottom: '1.5px solid #cbd5e1', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FaUtensils size={14} color="#0369a1" />
+              <span style={{ fontSize: '13px', fontWeight: '800', color: '#0369a1' }}>
+                Selected Table : {preselectedTableNumber}
+              </span>
+            </div>
+          ) : isNewBooking ? (
+            <div style={{ padding: '16px', background: '#fff', borderBottom: '1.5px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '11px', fontWeight: '800', color: '#0e7490', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Select Table to Book
+              </label>
+              <select
+                value={assignedTableId}
+                onChange={e => setAssignedTableId(parseInt(e.target.value))}
+                style={{ padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #0e7490', fontSize: '13px', fontWeight: '700', outline: 'none', width: '100%', color: '#0f172a', background: '#fff' }}
+              >
+                <option value="">-- SELECT AVAILABLE TABLE --</option>
+                {availableTables.map(t => (
+                  <option key={t.id} value={t.id}>Table T{t.no} ({t.seats} Pax - {t.status})</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', background: '#fff', borderBottom: '1px solid #cbd5e1' }}>
+              <span style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <FaUtensils size={12} color="#0e7490" /> Table {routedTable.no}
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px', background: '#e0f2fe', color: '#0369a1' }}>
+                {serviceType}
+              </span>
+            </div>
+          )
         )}
 
         {/* Customer Information Toggleable Header */}
@@ -453,36 +619,40 @@ const POSBillingPage = () => {
             </thead>
             <tbody>
               {rows.map((row, index) => {
-                const matchItem = ALL_FOOD_ITEMS.find(f => f.name === row.name);
+                const matchItem = ALL_FOOD_ITEMS.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
                 return (
-                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+                  <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                     <td style={{ padding: '6px 4px', textAlign: 'center' }}>
                       <button onClick={() => handleRemoveRow(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
                         <FaTimes size={13} />
                       </button>
                     </td>
                     <td style={{ padding: '6px' }}>
-                      <select value={row.name} onChange={e => updateRowField(index, 'name', e.target.value)}
+                      <select value={row.itemName || row.name || ''} onChange={e => updateRowField(index, 'itemName', e.target.value)}
                         style={{ width: '100%', padding: '6px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}>
                         <option value="">SELECT ITEM...</option>
                         {ALL_FOOD_ITEMS.map(item => (
-                          <option key={item.name} value={item.name}>{item.name}</option>
+                          <option key={item.id} value={item.name}>{item.name}</option>
                         ))}
                       </select>
-                      
-                      {matchItem?.hasVariants && (
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px', fontSize: '0.7rem' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer', fontWeight: '700' }}>
-                            <input type="radio" name={`variant-${index}`} checked={row.variant === 'Half'} onChange={() => handleVariantChange(index, 'Half')} /> Half
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer', fontWeight: '700' }}>
-                            <input type="radio" name={`variant-${index}`} checked={row.variant === 'Full'} onChange={() => handleVariantChange(index, 'Full')} /> Full
-                          </label>
+
+                      {matchItem?.variants && matchItem.variants.length > 0 && (
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px', fontSize: '0.7rem', flexWrap: 'wrap' }}>
+                          {matchItem.variants.map(variant => (
+                            <label key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer', fontWeight: '700' }}>
+                              <input
+                                type="radio"
+                                name={`variant-${index}-${row.lineId || index}`}
+                                checked={row.variantId === variant.id}
+                                onChange={() => handleVariantChange(index, variant.id)}
+                              /> {variant.name}
+                            </label>
+                          ))}
                         </div>
                       )}
                     </td>
                     <td style={{ padding: '6px' }}>
-                      <input type="text" value={row.remark} onChange={e => updateRowField(index, 'remark', e.target.value)} placeholder="REMARKS"
+                      <input type="text" value={row.remark || ''} onChange={e => updateRowField(index, 'remark', e.target.value)} placeholder="REMARKS"
                         style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem' }} />
                     </td>
                     <td style={{ padding: '6px', textAlign: 'center' }}>
@@ -490,11 +660,11 @@ const POSBillingPage = () => {
                         style={{ width: '42px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }} />
                     </td>
                     <td style={{ padding: '6px', textAlign: 'center' }}>
-                      <input type="number" min="0" value={row.price} onChange={e => updateRowField(index, 'price', parseFloat(e.target.value) || 0)}
+                      <input type="number" min="0" value={row.unitPrice || row.price || 0} onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                         style={{ width: '52px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }} />
                     </td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 700 }}>
-                      {(row.qty * row.price).toFixed(2)}
+                      {(row.qty * (row.unitPrice || row.price || 0)).toFixed(2)}
                     </td>
                   </tr>
                 );
@@ -518,64 +688,86 @@ const POSBillingPage = () => {
 
           <div style={{ padding: '16px 24px', background: '#e2e8f0', borderTop: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {isNewBooking ? (
-              <>
-                {!kotCreated ? (
-                  <button onClick={handleAddKOT}
-                    style={{ width: '100%', padding: '14px', borderRadius: '8px', border: 'none', background: '#e67e22', color: '#fff', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
-                  >
-                    Add KOT
-                  </button>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#fff', padding: '12px', borderRadius: '8px', border: '1.5px solid #0e7490' }}>
-                    {serviceType === 'Dine in' ? (
-                      <>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                          <label style={{ fontSize: '11px', fontWeight: '800', color: '#244E5F', textTransform: 'uppercase' }}>Assign Table</label>
-                          <select value={assignedTableId} onChange={e => setAssignedTableId(parseInt(e.target.value))}
-                            style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700' }}>
-                            <option value="">-- SELECT AVAILABLE TABLE --</option>
-                            {availableTables.map(t => (
-                              <option key={t.id} value={t.id}>T{t.no} ({t.seats} Pax - {t.status})</option>
-                            ))}
-                          </select>
-                        </div>
-                        <button onClick={handleConfirmBooking}
-                          style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
-                        >
-                          Confirm Booking
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {serviceType === 'Delivery' && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '800', color: '#244E5F', textTransform: 'uppercase' }}>Assign Driver</label>
-                            <select value={remarks} onChange={e => setRemarks(e.target.value)}
-                              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700' }}>
-                              <option value="">-- SELECT DELIVERY DRIVER --</option>
-                              <option value="Driver: Rahul S.">Rahul S.</option>
-                              <option value="Driver: Vikas P.">Vikas P.</option>
-                              <option value="Driver: Ravi K.">Ravi K.</option>
-                            </select>
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                          <button onClick={handleDirectComplete}
-                            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
-                          >
-                            Settle & Checkout
-                          </button>
-                          <button onClick={handleDirectComplete}
-                            style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: '800', cursor: 'pointer' }}
-                          >
-                            Save Order
-                          </button>
-                        </div>
-                      </>
-                    )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                {serviceType === 'Dine in' && !assignedTableId && (
+                  <div style={{ color: '#dc2626', fontSize: '0.78rem', fontWeight: '700', textAlign: 'center', background: '#fee2e2', padding: '6px', borderRadius: '6px', border: '1px solid #fca5a5' }}>
+                    * PLEASE SELECT A TABLE AT THE TOP TO BOOK
                   </div>
                 )}
-              </>
+
+                {serviceType === 'Delivery' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', marginBottom: '4px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '800', color: '#244E5F', textTransform: 'uppercase' }}>Assign Driver</label>
+                    <select value={remarks} onChange={e => setRemarks(e.target.value)}
+                      style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', width: '100%' }}>
+                      <option value="">-- SELECT DELIVERY DRIVER --</option>
+                      <option value="Driver: Rahul S.">Rahul S.</option>
+                      <option value="Driver: Vikas P.">Vikas P.</option>
+                      <option value="Driver: Ravi K.">Ravi K.</option>
+                    </select>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                  <button
+                    onClick={() => {
+                      if (serviceType === 'Dine in' && !assignedTableId) {
+                        toast("Please select an available table from the dropdown at the top first!");
+                        return;
+                      }
+                      const activeRows = rows.filter(r => r.itemName || r.name);
+                      if (activeRows.length === 0) {
+                        toast("Please add at least one item first!");
+                        return;
+                      }
+
+                      // Generate new KOT code
+                      const newKot = 'KOT-' + Math.floor(1000 + Math.random() * 9000);
+                      setGeneratedKotNo(newKot);
+                      setKotCreated(true);
+
+                      if (serviceType === 'Dine in') {
+                        const targetTable = tablesList.find(t => t.id === assignedTableId);
+                        const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
+                        const updatedTable = {
+                          ...targetTable,
+                          status: 'Running',
+                          customer: customerName || 'Rahul Sharma',
+                          mobile: mobileNumber || '9876543210',
+                          waiter: waiter || 'Rakesh',
+                          captain: captain || 'Amit',
+                          remarks: remarks || '',
+                          amount: finalAmt,
+                          openedAt: Date.now(),
+                          kots: [{ id: newKot, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), items: activeRows }],
+                          kotCount: 1
+                        };
+
+                        setTablesList(prev => prev.map(t => t.id === assignedTableId ? updatedTable : t));
+                        toast(`Table T${targetTable.no} booked & KOT generated: ${newKot}`);
+                        navigate('/restaurant/display-table', {
+                          state: {
+                            updatedTable,
+                            updatedRows: activeRows
+                          }
+                        });
+                      } else {
+                        // Settle order directly for Delivery / Pickup
+                        handleDirectComplete();
+                      }
+                    }}
+                    style={{ flex: 1.5, padding: '14px', borderRadius: '8px', border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Generate KOT & Save
+                  </button>
+                  <button
+                    onClick={() => navigate('/restaurant/display-table')}
+                    style={{ flex: 1, padding: '14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '0.85rem', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                 <button onClick={handleSaveAndPrint}
@@ -619,11 +811,19 @@ const POSBillingPage = () => {
               <div><strong>Mobile Number:</strong> {mobileNumber || '9876543210'}</div>
               <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '4px' }}>
                 <strong>Ordered Items:</strong>
-                <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontWeight: '600' }}>
-                  {rows.filter(r => r.name !== '').map((r, i) => (
-                    <li key={i}>{r.name} {r.variant ? `(${r.variant})` : ''} &times; {r.qty}</li>
-                  ))}
-                </ul>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                  {rows.filter(r => r.itemName || r.name).map((r, i) => {
+                    const displayName = (r.itemName || r.name) + (r.variantName || r.variant ? ` (${r.variantName || r.variant})` : '');
+                    return (
+                      <div key={i} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '700', fontSize: '13px' }}>
+                          <span>{displayName} &times; {r.qty}</span>
+                          <span>₹{(r.qty * (r.unitPrice || r.price || 0)).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div style={{ borderTop: '2px dashed #cbd5e1', paddingTop: '8px', marginTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
                 <span>Total Amount:</span>
@@ -639,6 +839,68 @@ const POSBillingPage = () => {
             >
               Close & Assign Table
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Variant Selection Modal */}
+      {showVariantModal && variantModalItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)',
+          zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '24px', width: '400px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', fontFamily: 'system-ui'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0e7490', margin: 0, textTransform: 'uppercase' }}>
+                Select Variant
+              </h3>
+              <button
+                onClick={() => { setShowVariantModal(false); setVariantModalItem(null); }}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.1rem' }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px', fontSize: '0.88rem', color: '#475569' }}>
+              <span>Item: <strong>{variantModalItem.name}</strong></span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {variantModalItem.variants.map((variant) => (
+                <button
+                  key={variant.id}
+                  onClick={() => {
+                    addOrUpdateItemRow(variantModalItem, variant);
+                    setShowVariantModal(false);
+                    setVariantModalItem(null);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #0e7490',
+                    background: '#fff',
+                    color: '#0e7490',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 120ms ease-in-out'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; }}
+                >
+                  <span>{variant.name}</span>
+                  <span>₹{variant.price}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

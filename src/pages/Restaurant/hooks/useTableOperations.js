@@ -179,16 +179,27 @@ export const useTableOperations = (location, navigate) => {
     // Add items to target
     const targetItems = [...(orderItemsMap[targetTableId] || [])];
     kotToMove.items.forEach(kotIt => {
-      const idx = targetItems.findIndex(t => t.name === kotIt.name);
-      const rate = MOCK_MENU_ITEMS.find(m => m.name === kotIt.name)?.rate || 100;
+      const idx = targetItems.findIndex(t => 
+        (t.itemId === kotIt.itemId || t.itemName === kotIt.itemName || t.name === kotIt.name) &&
+        (t.variantId === kotIt.variantId || t.variantName === kotIt.variantName || t.variant === kotIt.variant)
+      );
       if (idx !== -1) {
+        const nextQty = targetItems[idx].qty + kotIt.qty;
         targetItems[idx] = {
           ...targetItems[idx],
-          qty: targetItems[idx].qty + kotIt.qty,
-          total: (targetItems[idx].qty + kotIt.qty) * targetItems[idx].rate
+          qty: nextQty,
+          total: nextQty * targetItems[idx].unitPrice
         };
       } else {
-        targetItems.push({ name: kotIt.name, qty: kotIt.qty, rate, total: kotIt.qty * rate });
+        const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
+        targetItems.push({ 
+          ...kotIt,
+          lineId: kotIt.lineId || lineId,
+          name: kotIt.name || kotIt.itemName,
+          price: kotIt.price || kotIt.unitPrice,
+          rate: kotIt.rate || kotIt.unitPrice,
+          total: kotIt.qty * (kotIt.unitPrice || kotIt.price || 0)
+        });
       }
     });
 
@@ -196,9 +207,12 @@ export const useTableOperations = (location, navigate) => {
     let sourceItems = [...(orderItemsMap[srcId] || [])];
     kotToMove.items.forEach(kotIt => {
       sourceItems = sourceItems.map(srcIt => {
-        if (srcIt.name === kotIt.name) {
+        if (
+          (srcIt.itemId === kotIt.itemId || srcIt.itemName === kotIt.itemName || srcIt.name === kotIt.name) &&
+          (srcIt.variantId === kotIt.variantId || srcIt.variantName === kotIt.variantName || srcIt.variant === kotIt.variant)
+        ) {
           const nextQty = srcIt.qty - kotIt.qty;
-          return { ...srcIt, qty: nextQty, total: nextQty * srcIt.rate };
+          return { ...srcIt, qty: nextQty, total: nextQty * (srcIt.unitPrice || srcIt.price || 0) };
         }
         return srcIt;
       }).filter(srcIt => srcIt.qty > 0);
@@ -249,12 +263,13 @@ export const useTableOperations = (location, navigate) => {
     const itemsToTransfer = [];
 
     sourceItems.forEach(item => {
-      const moveQty = selectedTransferItems[item.name] || 0;
+      const key = item.lineId || item.name || item.itemName;
+      const moveQty = selectedTransferItems[key] || 0;
       if (moveQty > 0) {
         const remaining = item.qty - moveQty;
-        itemsToTransfer.push({ ...item, qty: moveQty, total: moveQty * item.rate });
+        itemsToTransfer.push({ ...item, qty: moveQty, total: moveQty * (item.unitPrice || item.price || 0) });
         if (remaining > 0) {
-          updatedSource.push({ ...item, qty: remaining, total: remaining * item.rate });
+          updatedSource.push({ ...item, qty: remaining, total: remaining * (item.unitPrice || item.price || 0) });
         }
       } else {
         updatedSource.push(item);
@@ -263,12 +278,16 @@ export const useTableOperations = (location, navigate) => {
 
     const targetItems = [...(orderItemsMap[dstId] || [])];
     itemsToTransfer.forEach(transferItem => {
-      const idx = targetItems.findIndex(t => t.name === transferItem.name);
+      const idx = targetItems.findIndex(t => 
+        (t.itemId === transferItem.itemId || t.itemName === transferItem.itemName || t.name === transferItem.name) &&
+        (t.variantId === transferItem.variantId || t.variantName === transferItem.variantName || t.variant === transferItem.variant)
+      );
       if (idx !== -1) {
+        const nextQty = targetItems[idx].qty + transferItem.qty;
         targetItems[idx] = {
           ...targetItems[idx],
-          qty: targetItems[idx].qty + transferItem.qty,
-          total: (targetItems[idx].qty + transferItem.qty) * transferItem.rate
+          qty: nextQty,
+          total: nextQty * targetItems[idx].unitPrice
         };
       } else {
         targetItems.push(transferItem);
@@ -292,28 +311,50 @@ export const useTableOperations = (location, navigate) => {
   };
 
   // Add Item to active order
-  const handleAddItemToOps = () => {
+  const handleAddItemToOps = (variantId = '') => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
     const menuObj = MOCK_MENU_ITEMS.find(m => m.name === newItemName);
     if (!menuObj) return;
 
+    let price = menuObj.price || menuObj.rate || 0;
+    let variantName = '';
+    if (menuObj.variants && menuObj.variants.length > 0) {
+      const selectedVar = menuObj.variants.find(v => v.id === variantId) || menuObj.variants[0];
+      price = selectedVar.price;
+      variantName = selectedVar.name;
+      variantId = selectedVar.id;
+    }
+
+    const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
     const newRow = {
-      name: newItemName,
+      lineId,
+      itemId: menuObj.id,
+      itemName: menuObj.name,
+      name: menuObj.name, // compatibility
+      variantId,
+      variantName,
+      variant: variantName, // compatibility
       qty: newItemQty,
-      rate: menuObj.rate,
-      total: newItemQty * menuObj.rate,
+      unitPrice: price,
+      price: price, // compatibility
+      rate: price, // compatibility
+      total: newItemQty * price,
       remarks: newItemRemarks || ''
     };
 
     setOrderItemsMap(prev => {
       const list = [...(prev[srcId] || [])];
-      const idx = list.findIndex(l => l.name === newItemName);
+      const idx = list.findIndex(l => 
+        (l.itemId === menuObj.id || l.itemName === menuObj.name || l.name === menuObj.name) && 
+        l.variantId === variantId
+      );
       if (idx !== -1) {
+        const nextQty = list[idx].qty + newItemQty;
         list[idx] = {
           ...list[idx],
-          qty: list[idx].qty + newItemQty,
-          total: (list[idx].qty + newItemQty) * list[idx].rate
+          qty: nextQty,
+          total: nextQty * (list[idx].unitPrice || list[idx].price || 0)
         };
         if (newItemRemarks) list[idx].remarks = newItemRemarks;
       } else {
@@ -325,19 +366,19 @@ export const useTableOperations = (location, navigate) => {
       return { ...prev, [srcId]: list };
     });
 
-    toast(`Added ${newItemQty}x ${newItemName} to Table order.`);
+    toast(`Added ${newItemQty}x ${newItemName}${variantName ? ` (${variantName})` : ''} to Table order.`);
     setNewItemRemarks('');
     setNewItemQty(1);
   };
 
-  const handleUpdateItemQty = (itemName, change) => {
+  const handleUpdateItemQty = (lineIdOrName, change) => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
     setOrderItemsMap(prev => {
       const list = prev[srcId].map(item => {
-        if (item.name === itemName) {
+        if (item.lineId === lineIdOrName || item.name === lineIdOrName || item.itemName === lineIdOrName) {
           const nextQty = Math.max(1, item.qty + change);
-          return { ...item, qty: nextQty, total: nextQty * item.rate };
+          return { ...item, qty: nextQty, total: nextQty * (item.unitPrice || item.price || item.rate || 0) };
         }
         return item;
       });
@@ -347,18 +388,27 @@ export const useTableOperations = (location, navigate) => {
     });
   };
 
-  const handleToggleItemComplimentary = (itemName) => {
+  const handleToggleItemComplimentary = (lineIdOrName) => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
     setOrderItemsMap(prev => {
       const list = prev[srcId].map(item => {
-        if (item.name === itemName) {
+        if (item.lineId === lineIdOrName || item.name === lineIdOrName || item.itemName === lineIdOrName) {
           const isComp = !item.isComplimentary;
+          const menuObj = MOCK_MENU_ITEMS.find(m => m.id === item.itemId || m.name === item.itemName || m.name === item.name);
+          let origPrice = menuObj?.price || menuObj?.rate || item.unitPrice || item.price || 0;
+          if (menuObj?.variants && item.variantId) {
+            const vObj = menuObj.variants.find(v => v.id === item.variantId);
+            if (vObj) origPrice = vObj.price;
+          }
+          const price = isComp ? 0 : origPrice;
           return {
             ...item,
             isComplimentary: isComp,
-            rate: isComp ? 0 : (MOCK_MENU_ITEMS.find(m => m.name === itemName)?.rate || item.rate),
-            total: isComp ? 0 : (item.qty * (MOCK_MENU_ITEMS.find(m => m.name === itemName)?.rate || item.rate))
+            unitPrice: price,
+            price: price,
+            rate: price,
+            total: item.qty * price
           };
         }
         return item;
@@ -369,11 +419,11 @@ export const useTableOperations = (location, navigate) => {
     });
   };
 
-  const handleDeleteItem = (itemName) => {
+  const handleDeleteItem = (lineIdOrName) => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
     setOrderItemsMap(prev => {
-      const list = prev[srcId].filter(item => item.name !== itemName);
+      const list = prev[srcId].filter(item => item.lineId !== lineIdOrName && item.name !== lineIdOrName && item.itemName !== lineIdOrName);
       const sum = list.reduce((s, r) => s + r.total, 0);
       updateTableAmount(srcId, sum);
       return { ...prev, [srcId]: list };
@@ -391,7 +441,21 @@ export const useTableOperations = (location, navigate) => {
     const newKot = {
       id: newKotId,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      items: items.map(it => ({ name: it.name, qty: it.qty }))
+      status: 'Sent to Kitchen',
+      items: items.map(it => ({ 
+        lineId: it.lineId || (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5))),
+        itemId: it.itemId,
+        itemName: it.itemName || it.name,
+        name: it.name || it.itemName,
+        variantId: it.variantId || '',
+        variantName: it.variantName || '',
+        variant: it.variant || '',
+        qty: it.qty,
+        unitPrice: it.unitPrice || it.price || 0,
+        price: it.price || it.unitPrice || 0,
+        rate: it.rate || it.unitPrice || 0,
+        total: it.total
+      }))
     };
 
     setTables(prev => prev.map(t => {
@@ -423,9 +487,12 @@ export const useTableOperations = (location, navigate) => {
       let sourceItems = [...(orderItemsMap[srcId] || [])];
       kotToCancel.items.forEach(kotIt => {
         sourceItems = sourceItems.map(srcIt => {
-          if (srcIt.name === kotIt.name) {
+          if (
+            (srcIt.itemId === kotIt.itemId || srcIt.itemName === kotIt.itemName || srcIt.name === kotIt.name) &&
+            (srcIt.variantId === kotIt.variantId || srcIt.variantName === kotIt.variantName || srcIt.variant === kotIt.variant)
+          ) {
             const nextQty = srcIt.qty - kotIt.qty;
-            return { ...srcIt, qty: nextQty, total: nextQty * srcIt.rate };
+            return { ...srcIt, qty: nextQty, total: nextQty * (srcIt.unitPrice || srcIt.price || 0) };
           }
           return srcIt;
         }).filter(srcIt => srcIt.qty > 0);

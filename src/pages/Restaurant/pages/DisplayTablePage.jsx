@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  FaSearch, 
-  FaUndo, 
+import {
+  FaSearch,
+  FaUndo,
   FaExchangeAlt,
   FaCalendarAlt
 } from 'react-icons/fa';
@@ -11,6 +11,7 @@ import TableCard from '../components/TableCard';
 import TableOperationsModal from '../components/TableOperationsModal';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 import BookTableModal from '../components/BookTableModal';
+import CommonModal from '../../../components/common/CommonModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
@@ -95,9 +96,31 @@ const DisplayTablePage = () => {
   // Book Table modal state and handlers
   const [bookModalOpen, setBookModalOpen] = useState(false);
 
+  // Booking flow states
+  const [showSelectTableDialog, setShowSelectTableDialog] = useState(false);
+  const [isBookingMode, setIsBookingMode] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsBookingMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Add Table modal state
+  const [addTableModalOpen, setAddTableModalOpen] = useState(false);
+  const [newTableNo, setNewTableNo] = useState('');
+  const [newTableSeats, setNewTableSeats] = useState(4);
+  const [newTableFloor, setNewTableFloor] = useState('Ground');
+  const [newTableSection, setNewTableSection] = useState('Main Area');
+  const [newTableError, setNewTableError] = useState('');
+
   const handleBookTable = (bookingData) => {
     const { tableId, customerName, guestsCount, waiter, captain } = bookingData;
-    
+
     setTables(prev => prev.map(t => {
       if (t.id === tableId) {
         return {
@@ -119,8 +142,23 @@ const DisplayTablePage = () => {
 
   // Card triggers & routing
   const handleTableCardClick = (table) => {
-    const rows = orderItemsMap[table.id] || [];
-    navigate('/restaurant/pos-billing', { state: { table, orderRows: rows } });
+    if (isBookingMode) {
+      if (table.status !== 'Blank') {
+        toast("Please select a Blank table for booking!");
+        return;
+      }
+      setIsBookingMode(false);
+      navigate('/restaurant/pos-billing', {
+        state: {
+          tableId: table.id,
+          tableNumber: `T${table.no}`,
+          isNewBooking: true
+        }
+      });
+    } else {
+      const rows = orderItemsMap[table.id] || [];
+      navigate('/restaurant/pos-billing', { state: { table, orderRows: rows } });
+    }
   };
 
   const handleView = (table) => {
@@ -156,30 +194,44 @@ const DisplayTablePage = () => {
   };
 
   const handleAddNewTable = () => {
-    const tableNo = prompt("Enter Table Number (e.g. 13):");
-    if (!tableNo) return;
-    
-    // Check if table number already exists
-    const exists = tables.some(t => parseInt(t.no) === parseInt(tableNo));
-    if (exists) {
-      alert(`Table T${tableNo} already exists!`);
+    setNewTableNo('');
+    setNewTableSeats(4);
+    setNewTableFloor('Ground');
+    setNewTableSection('Main Area');
+    setNewTableError('');
+    setAddTableModalOpen(true);
+  };
+
+  const handleSaveNewTable = (e) => {
+    e.preventDefault();
+    if (!newTableNo.trim()) {
+      setNewTableError("Table number is required!");
       return;
     }
 
-    const seats = parseInt(prompt("Enter Seat Capacity (Pax):", "4")) || 4;
-    const floor = prompt("Enter Floor (Ground / First):", "Ground") || "Ground";
-    const section = prompt("Enter Section (Main Area / Balcony / Garden):", "Main Area") || "Main Area";
+    const tableNum = parseInt(newTableNo);
+    if (isNaN(tableNum) || tableNum <= 0) {
+      setNewTableError("Please enter a valid positive table number!");
+      return;
+    }
+
+    // Check if table number already exists
+    const exists = tables.some(t => parseInt(t.no) === tableNum);
+    if (exists) {
+      setNewTableError(`Table T${String(tableNum).padStart(2, '0')} already exists!`);
+      return;
+    }
 
     const newTable = {
       id: tables.length + 1,
-      no: String(tableNo).padStart(2, '0'),
-      seats,
+      no: String(tableNum).padStart(2, '0'),
+      seats: parseInt(newTableSeats) || 4,
       status: 'Blank',
       amount: 0,
       waiter: null,
       customer: 'Walk-in',
-      floor,
-      section,
+      floor: newTableFloor,
+      section: newTableSection,
       kots: [],
       kotCount: 0
     };
@@ -189,7 +241,9 @@ const DisplayTablePage = () => {
       ...prev,
       [newTable.id]: []
     }));
-    toast(`Table T${tableNo} added successfully!`);
+
+    toast(`Table T${newTable.no} added successfully!`);
+    setAddTableModalOpen(false);
   };
 
   // Sections and filters
@@ -199,7 +253,7 @@ const DisplayTablePage = () => {
   const filteredData = tables.filter(t => {
     const matchesSearch = t.no.includes(search) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
     const matchesSection = filter === 'All' || t.floor === filter || t.section === filter;
-    
+
     // Status category filters
     let matchesStatus = true;
     if (service === 'All') {
@@ -217,6 +271,26 @@ const DisplayTablePage = () => {
 
   return (
     <div style={{ fontFamily: 'var(--font-family, system-ui)', background: '#fff', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+
+      {/* Booking Mode Instruction Banner */}
+      {isBookingMode && (
+        <div style={{
+          background: '#ea580c', color: '#fff', padding: '14px 24px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '0.9rem',
+          boxShadow: '0 4px 12px rgba(234, 88, 12, 0.2)', borderBottom: '2px solid #c2410c', zIndex: 99
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'pulse 1.5s infinite', display: 'inline-block' }} />
+            Select a Blank Table to Start Booking
+          </span>
+          <button 
+            onClick={() => setIsBookingMode(false)}
+            style={{ background: '#fff', color: '#ea580c', border: 'none', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 800, fontSize: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+          >
+            Cancel (ESC)
+          </button>
+        </div>
+      )}
 
       {/* 1. Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
@@ -252,7 +326,7 @@ const DisplayTablePage = () => {
 
           {/* Book Table Button */}
           <button
-            onClick={() => navigate('/restaurant/pos-billing', { state: { newBooking: true } })}
+            onClick={() => setShowSelectTableDialog(true)}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -400,61 +474,76 @@ const DisplayTablePage = () => {
 
       {/* 3. Main Tables grid */}
       <div className="pos-table-grid" style={{ flex: 1, padding: '24px' }}>
-        {filteredData.map(table => (
-          <TableCard
-            key={table.id}
-            table={table}
-            onClick={() => handleTableCardClick(table)}
-            onView={(e) => {
-              e.stopPropagation();
-              handleView(table);
-            }}
-            onDelete={(e) => {
-              e.stopPropagation();
-              handleDeleteClick(table);
-            }}
-            onSave={(e) => {
-              e.stopPropagation();
-              const items = orderItemsMap[table.id] || [];
-              if (items.length === 0) return toast("No items to generate KOT.");
-              const newKotId = `KOT-${Math.floor(100 + Math.random() * 900)}`;
-              const newKot = {
-                id: newKotId,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                items: items.map(it => ({ name: it.name, qty: it.qty }))
-              };
-              setTables(prev => prev.map(t => {
-                if (t.id === table.id) {
-                  const nextKots = [...(t.kots || []), newKot];
-                  return { ...t, kots: nextKots, kotCount: nextKots.length, status: 'KOT Generated' };
-                }
-                return t;
-              }));
-              toast(`KOT generated: ${newKotId}`);
-            }}
-            onDownload={(e) => {
-              e.stopPropagation();
-              handleDownload(table);
-            }}
-            onOpenOps={(e) => {
-              e.stopPropagation();
-              setFromTableId(String(table.id));
-              setToTableId('');
-              setSelectedGuests(table.seats || 4);
-              setSelectedWaiter(table.waiter || '');
-              setSelectedCaptain(table.captain || '');
-              setModalTab('status');
-              setDiscountPercent(0);
-              setPaymentMethod('Cash');
-              setSplitCash('');
-              setSplitCard('');
-              setSplitUPI('');
-              setSelectedTransferItems({});
-              setSelectedTransferKots({});
-              setShowQuickSwitch(true);
-            }}
-          />
-        ))}
+        {filteredData.map(table => {
+          const isBlank = table.status === 'Blank';
+          const isHighlighted = isBookingMode && isBlank;
+          const isFaded = isBookingMode && !isBlank;
+          return (
+            <div key={table.id} style={{
+              position: 'relative',
+              borderRadius: '8px',
+              border: isHighlighted ? '3px solid #ea580c' : 'none',
+              boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
+              transform: isHighlighted ? 'scale(1.02)' : 'none',
+              opacity: isFaded ? 0.4 : 1,
+              pointerEvents: isFaded ? 'none' : 'auto',
+              transition: 'all 0.2s ease-in-out'
+            }}>
+              <TableCard
+                table={table}
+                onClick={() => handleTableCardClick(table)}
+                onView={(e) => {
+                  e.stopPropagation();
+                  handleView(table);
+                }}
+                onDelete={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(table);
+                }}
+                onSave={(e) => {
+                  e.stopPropagation();
+                  const items = orderItemsMap[table.id] || [];
+                  if (items.length === 0) return toast("No items to generate KOT.");
+                  const newKotId = `KOT-${Math.floor(100 + Math.random() * 900)}`;
+                  const newKot = {
+                    id: newKotId,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    items: items.map(it => ({ name: it.name, qty: it.qty }))
+                  };
+                  setTables(prev => prev.map(t => {
+                    if (t.id === table.id) {
+                      const nextKots = [...(t.kots || []), newKot];
+                      return { ...t, kots: nextKots, kotCount: nextKots.length, status: 'KOT Generated' };
+                    }
+                    return t;
+                  }));
+                  toast(`KOT generated: ${newKotId}`);
+                }}
+                onDownload={(e) => {
+                  e.stopPropagation();
+                  handleDownload(table);
+                }}
+                onOpenOps={(e) => {
+                  e.stopPropagation();
+                  setFromTableId(String(table.id));
+                  setToTableId('');
+                  setSelectedGuests(table.seats || 4);
+                  setSelectedWaiter(table.waiter || '');
+                  setSelectedCaptain(table.captain || '');
+                  setModalTab('status');
+                  setDiscountPercent(0);
+                  setPaymentMethod('Cash');
+                  setSplitCash('');
+                  setSplitCard('');
+                  setSplitUPI('');
+                  setSelectedTransferItems({});
+                  setSelectedTransferKots({});
+                  setShowQuickSwitch(true);
+                }}
+              />
+            </div>
+          );
+        })}
 
         {filteredData.length === 0 && (
           <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.85rem' }}>
@@ -540,6 +629,127 @@ const DisplayTablePage = () => {
         tables={tables}
         onBook={handleBookTable}
       />
+
+      {/* Select Table First Dialog */}
+      {showSelectTableDialog && (
+        <>
+          <div onClick={() => setShowSelectTableDialog(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(2px)', zIndex: 9999 }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            background: '#fff', padding: '28px 24px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+            width: '380px', zIndex: 10000, textAlign: 'center', fontFamily: 'system-ui', border: '1px solid #e2e8f0'
+          }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ea580c', margin: '0 0 8px 0' }}>Select a Table First</h3>
+            <p style={{ fontSize: '0.88rem', color: '#475569', margin: '0 0 24px 0', lineHeight: '1.5' }}>
+              Please select an available table to continue booking.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                onClick={() => {
+                  setShowSelectTableDialog(false);
+                  setIsBookingMode(true);
+                }}
+                style={{ padding: '10px 22px', borderRadius: '8px', border: 'none', background: '#ea580c', color: '#fff', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(234, 88, 12, 0.2)' }}
+              >
+                Select Table
+              </button>
+              <button 
+                onClick={() => setShowSelectTableDialog(false)}
+                style={{ padding: '10px 22px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      <CommonModal
+        isOpen={addTableModalOpen}
+        onClose={() => setAddTableModalOpen(false)}
+        title="Add New Dining Table"
+        maxWidth="480px"
+      >
+        <form onSubmit={handleSaveNewTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '8px 4px' }}>
+          {newTableError && (
+            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
+              {newTableError}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Table Number</label>
+            <input
+              type="text"
+              placeholder="e.g. 13"
+              value={newTableNo}
+              onChange={e => {
+                setNewTableNo(e.target.value);
+                setNewTableError('');
+              }}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Seat Capacity (Pax)</label>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              value={newTableSeats}
+              onChange={e => setNewTableSeats(parseInt(e.target.value) || 4)}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Floor Location</label>
+            <select
+              value={newTableFloor}
+              onChange={e => setNewTableFloor(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+            >
+              <option value="Ground">Ground Floor</option>
+              <option value="First">First Floor</option>
+              <option value="Second">Second Floor</option>
+              <option value="Rooftop">Rooftop Area</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Dining Section</label>
+            <select
+              value={newTableSection}
+              onChange={e => setNewTableSection(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
+            >
+              <option value="Main Area">Main Dining Area</option>
+              <option value="Balcony">Balcony View</option>
+              <option value="Garden">Garden Cafe</option>
+              <option value="Poolside">Poolside Deck</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setAddTableModalOpen(false)}
+              style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}
+            >
+              Save Table
+            </button>
+          </div>
+        </form>
+      </CommonModal>
 
       {/* Global CSS Layout styles */}
       <style>{`

@@ -1,322 +1,370 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { 
-  FaPlus, 
-  FaFileInvoiceDollar, 
-  FaArrowRight 
-} from 'react-icons/fa';
-import PageHeader from '../../../components/common/PageHeader';
+import React, { useState } from 'react';
+import { FaPrint, FaFileInvoiceDollar } from 'react-icons/fa';
+import CommonTable from '../../../components/common/CommonTable';
+import CommonModal from '../../../components/common/CommonModal';
+import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 
-const INITIAL_TABLES = [
-  { id: 1, number: 'Table 1', capacity: '4 Seater', status: 'Blank', price: 0 },
-  { id: 2, number: 'Table 2', capacity: '2 Seater', status: 'Running', price: 1070 },
-  { id: 3, number: 'Table 3', capacity: '6 Seater', status: 'Running', price: 2490 },
-  { id: 4, number: 'Table 4', capacity: '4 Seater', status: 'Paid', price: 1460 },
-  { id: 5, number: 'Table 5', capacity: '2 Seater', status: 'Blank', price: 0 },
-  { id: 6, number: 'Table 6', capacity: '4 Seater', status: 'Running', price: 1700 },
-  { id: 7, number: 'Table 7', capacity: '8 Seater', status: 'Paid', price: 3800 },
-  { id: 8, number: 'Table 8', capacity: '4 Seater', status: 'Blank', price: 0 },
-  { id: 9, number: 'Table 9', capacity: '2 Seater', status: 'Running', price: 740 }
+const MOCK_BILLS = [
+  {
+    id: 1,
+    billNo: '1',
+    tableNo: 'T1',
+    billType: 'DINE_IN',
+    billDate: '05-05-2026',
+    orderNo: '1',
+    amount: 140.0,
+    customerName: 'Walk-in',
+    mobileNo: '—',
+    items: [
+      { itemId: 106, itemName: 'Cold Drink', name: 'Cold Drink', variantId: '500ml', variantName: '500 ML', variant: '500 ML', qty: 2, unitPrice: 70, rate: 70, price: 70, total: 140.0 }
+    ]
+  },
+  {
+    id: 2,
+    billNo: '2',
+    tableNo: 'T2',
+    billType: 'DINE_IN',
+    billDate: '08-06-2026',
+    orderNo: '1',
+    amount: 360.0,
+    customerName: 'Walk-in',
+    mobileNo: '—',
+    items: [
+      { itemId: 102, itemName: 'Paneer Tikka', name: 'Paneer Tikka', variantId: 'half', variantName: 'Half', variant: 'Half', qty: 1, unitPrice: 180, rate: 180, price: 180, total: 180 },
+      { itemId: 108, itemName: 'Tandoori Roti', name: 'Tandoori Roti', variantId: '', variantName: '', variant: '', qty: 6, unitPrice: 30, rate: 30, price: 30, total: 180 }
+    ]
+  },
+  {
+    id: 3,
+    billNo: '3',
+    tableNo: 'T3',
+    billType: 'DINE_IN',
+    billDate: '11-06-2026',
+    orderNo: '2',
+    amount: 560.0,
+    customerName: 'Rahul Sharma',
+    mobileNo: '9876543210',
+    items: [
+      { itemId: 101, itemName: 'Chicken Tandoori', name: 'Chicken Tandoori', variantId: 'full', variantName: 'Full', variant: 'Full', qty: 1, unitPrice: 520, rate: 520, price: 520, total: 520 },
+      { itemId: 106, itemName: 'Cold Drink', name: 'Cold Drink', variantId: '250ml', variantName: '250 ML', variant: '250 ML', qty: 1, unitPrice: 40, rate: 40, price: 40, total: 40 }
+    ]
+  },
+  {
+    id: 4,
+    billNo: '4',
+    tableNo: 'T4',
+    billType: 'DINE_IN',
+    billDate: '27-06-2026',
+    orderNo: '3,4',
+    amount: 400.0,
+    customerName: 'Walk-in',
+    mobileNo: '—',
+    items: [
+      { itemId: 118, itemName: 'Butter Naan', name: 'Butter Naan', variantId: '', variantName: '', variant: '', qty: 3, unitPrice: 80, rate: 80, price: 80, total: 240 },
+      { itemId: 107, itemName: 'Dal Makhani', name: 'Dal Makhani', variantId: 'half', variantName: 'Half', variant: 'Half', qty: 1, unitPrice: 160, rate: 160, price: 160, total: 160 }
+    ]
+  },
+  {
+    id: 5,
+    billNo: '5',
+    tableNo: '103',
+    billType: 'DINE_IN',
+    billDate: '07-07-2026',
+    orderNo: '10',
+    amount: 1200.0,
+    customerName: 'Jane Doe',
+    mobileNo: '9888877777',
+    items: [
+      { itemId: 101, itemName: 'Butter Chicken', name: 'Butter Chicken', variantId: 'full', variantName: 'Full', variant: 'Full', qty: 2, unitPrice: 450, rate: 450, price: 450, total: 900 },
+      { itemId: 104, itemName: 'Garlic Naan', name: 'Garlic Naan', variantId: '', variantName: '', variant: '', qty: 3, unitPrice: 100, rate: 100, price: 100, total: 300 }
+    ]
+  },
+  {
+    id: 6,
+    billNo: '6',
+    tableNo: 'T9',
+    billType: 'DINE_IN',
+    billDate: '08-07-2026',
+    orderNo: '11',
+    amount: 140.0,
+    customerName: 'Walk-in',
+    mobileNo: '—',
+    items: [
+      { itemId: 122, itemName: 'French Fries', name: 'French Fries', variantId: '', variantName: '', variant: '', qty: 1, unitPrice: 140, rate: 140, price: 140, total: 140 }
+    ]
+  }
 ];
 
-const MOCK_ORDER_DETAILS = {
-  1: [],
-  2: [
-    { name: 'Butter Chicken', qty: 1, rate: 450, total: 450 },
-    { name: 'Garlic Naan', qty: 3, rate: 100, total: 300 },
-    { name: 'Jeera Rice', qty: 1, rate: 200, total: 200 },
-    { name: 'Soft Drink', qty: 2, rate: 60, total: 120 }
-  ],
-  3: [
-    { name: 'Paneer Tikka', qty: 2, rate: 300, total: 600 },
-    { name: 'Dal Makhani', qty: 1, rate: 350, total: 350 },
-    { name: 'Tandoori Roti', qty: 6, rate: 30, total: 180 },
-    { name: 'Mocktails', qty: 4, rate: 150, total: 600 },
-    { name: 'Veg Biryani', qty: 2, rate: 380, total: 760 }
-  ],
-  4: [
-    { name: 'Chicken Biryani', qty: 2, rate: 400, total: 800 },
-    { name: 'Chicken Tikka Roll', qty: 2, rate: 250, total: 500 },
-    { name: 'Masala Papad', qty: 4, rate: 40, total: 160 }
-  ],
-  5: [],
-  6: [
-    { name: 'Veg Noodles', qty: 2, rate: 240, total: 480 },
-    { name: 'Chilli Paneer Dry', qty: 2, rate: 320, total: 640 },
-    { name: 'Fried Rice', qty: 1, rate: 220, total: 220 },
-    { name: 'Spring Rolls', qty: 2, rate: 180, total: 360 }
-  ],
-  7: [
-    { name: 'Family Platter (Veg)', qty: 1, rate: 1800, total: 1800 },
-    { name: 'Butter Naan', qty: 8, rate: 80, total: 640 },
-    { name: 'Dal Tadka Large', qty: 2, rate: 300, total: 600 },
-    { name: 'Paneer Butter Masala', qty: 2, rate: 380, total: 760 }
-  ],
-  8: [],
-  9: [
-    { name: 'Club Sandwich', qty: 2, rate: 180, total: 360 },
-    { name: 'French Fries', qty: 1, rate: 140, total: 140 },
-    { name: 'Cold Coffee', qty: 2, rate: 120, total: 240 }
-  ]
-};
+const OrderDetailsPage = ({ showToast }) => {
+  const [data, setData] = useState(MOCK_BILLS);
+  const [selectedBill, setSelectedBill] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
 
-const OrderDetailsPage = () => {
-  const location = useLocation();
-  const [tables, setTables] = useState(INITIAL_TABLES);
-  const [selectedTableId, setSelectedTableId] = useState(2);
-
-  // Form inputs
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemQty, setNewItemQty] = useState(1);
-  const [newItemRate, setNewItemRate] = useState(100);
-
-  // Set selected table if navigated from seating cards
-  useEffect(() => {
-    if (location.state?.tableId) {
-      setSelectedTableId(location.state.tableId);
-    }
-  }, [location.state]);
-
-  const activeTable = useMemo(() => {
-    return tables.find(t => t.id === selectedTableId) || tables[0];
-  }, [tables, selectedTableId]);
-
-  const activeOrderDetails = useMemo(() => {
-    return MOCK_ORDER_DETAILS[selectedTableId] || [];
-  }, [selectedTableId]);
-
-  const orderCalculations = useMemo(() => {
-    const subtotal = activeOrderDetails.reduce((sum, item) => sum + item.total, 0);
-    const gst = Math.round(subtotal * 0.05);
-    const serviceCharge = subtotal > 0 ? 50 : 0;
-    const total = subtotal + gst + serviceCharge;
-    return { subtotal, gst, serviceCharge, total };
-  }, [activeOrderDetails]);
-
-  const handleToggleState = (tableId, newStatus) => {
-    setTables(prev => prev.map(t => {
-      if (t.id === tableId) {
-        let newPrice = t.price;
-        if (newStatus === 'Blank') newPrice = 0;
-        else if (newStatus === 'Running' && t.price === 0) newPrice = 850;
-        else if (newStatus === 'Paid' && t.price === 0) newPrice = 1100;
-        return { ...t, status: newStatus, price: newPrice };
-      }
-      return t;
-    }));
-
-    if (window.showToast) {
-      window.showToast(`Table ${tableId} status updated to ${newStatus}.`, 'success');
-    }
+  const handleMenuClick = (bill) => {
+    setSelectedBill(bill);
+    setIsModalOpen(true);
   };
 
-  const handleAddItem = (e) => {
-    e.preventDefault();
-    if (!newItemName.trim()) return;
-
-    if (!MOCK_ORDER_DETAILS[selectedTableId]) {
-      MOCK_ORDER_DETAILS[selectedTableId] = [];
-    }
-
-    const newItem = {
-      name: newItemName.trim(),
-      qty: parseInt(newItemQty),
-      rate: parseFloat(newItemRate),
-      total: parseInt(newItemQty) * parseFloat(newItemRate)
-    };
-
-    MOCK_ORDER_DETAILS[selectedTableId].push(newItem);
-
-    const orderSum = MOCK_ORDER_DETAILS[selectedTableId].reduce((sum, item) => sum + item.total, 0);
-    setTables(prev => prev.map(t => {
-      if (t.id === selectedTableId) {
-        return { 
-          ...t, 
-          status: t.status === 'Blank' ? 'Running' : t.status, 
-          price: orderSum 
-        };
-      }
-      return t;
-    }));
-
-    setNewItemName('');
-    setNewItemQty(1);
-    setNewItemRate(100);
-
-    if (window.showToast) {
-      window.showToast(`Added ${newItem.name} to active order.`, 'success');
-    }
+  const handleDelete = () => {
+    setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
+    if (showToast) showToast('Order entry deleted successfully.');
+    setDeleteModal({ open: false, row: null });
   };
+
+  const handlePrintInvoice = (bill) => {
+    const targetBill = bill || selectedBill;
+    if (!targetBill) return;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice - Bill No: ${targetBill.billNo}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; padding: 20px; color: #000; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .header h2 { margin: 0; }
+            .meta { margin-bottom: 20px; font-size: 0.9rem; }
+            .meta table { width: 100%; }
+            .items { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9rem; }
+            .items th, .items td { padding: 8px 0; text-align: left; }
+            .items th { border-bottom: 1px solid #000; }
+            .items td { border-bottom: 1px dashed #ddd; }
+            .total { text-align: right; font-size: 1.1rem; font-weight: bold; border-top: 1px solid #000; padding-top: 10px; }
+            @media print {
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>ALFA HOTEL & RESTAURANT</h2>
+            <p>123 Luxury Road, City Centre<br>Phone: +91 98765 43210</p>
+            <h3>RESTAURANT INVOICE</h3>
+          </div>
+          <hr/>
+          <div class="meta">
+            <table>
+              <tr>
+                <td><strong>Bill No:</strong> ${targetBill.billNo}</td>
+                <td style="text-align: right;"><strong>Date:</strong> ${targetBill.billDate}</td>
+              </tr>
+              <tr>
+                <td><strong>Table No:</strong> ${targetBill.tableNo}</td>
+                <td style="text-align: right;"><strong>Type:</strong> ${targetBill.billType}</td>
+              </tr>
+              <tr>
+                <td><strong>Customer:</strong> ${targetBill.customerName}</td>
+                <td style="text-align: right;"><strong>Mobile:</strong> ${targetBill.mobileNo}</td>
+              </tr>
+            </table>
+          </div>
+          <hr/>
+          <table class="items">
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Price</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${targetBill.items.map(item => {
+                const displayName = (item.itemName || item.name) + (item.variantName ? ` (${item.variantName})` : '');
+                const rate = item.unitPrice || item.rate || 0;
+                const total = item.total || (item.qty * rate);
+                return `
+                  <tr>
+                    <td>${displayName}</td>
+                    <td style="text-align: center;">${item.qty}</td>
+                    <td style="text-align: right;">₹${rate.toFixed(2)}</td>
+                    <td style="text-align: right;">₹${total.toFixed(2)}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <div class="total">
+            Grand Total: ₹${targetBill.amount.toFixed(2)}
+          </div>
+          <hr/>
+          <p style="text-align: center; font-size: 0.8rem; margin-top: 30px;">Thank you for dining with us!<br/>Have a wonderful day!</p>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const columns = [
+    { 
+      key: 'billNo', 
+      label: 'Bill No', 
+      render: (val, row) => (
+        <button 
+          onClick={(e) => { e.stopPropagation(); handleMenuClick(row); }}
+          style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline', padding: 0, outline: 'none' }}
+        >
+          {val}
+        </button>
+      )
+    },
+    { key: 'tableNo', label: 'Table No/Token No' },
+    { key: 'billType', label: 'Bill Type', renderStatus: true, activeValue: 'DINE_IN' },
+    { key: 'billDate', label: 'Bill Date' },
+    { key: 'orderNo', label: 'Order No' },
+    { key: 'amount', label: 'Amount', render: (val) => `₹${Number(val).toFixed(2)}` },
+    { key: 'customerName', label: 'Customer Name' },
+    { key: 'mobileNo', label: 'Mobile No' },
+    { key: 'action', label: 'Action', sortable: false }
+  ];
+
+  const actions = [
+    {
+      label: 'Invoice',
+      onClick: (row) => handlePrintInvoice(row),
+      icon: <FaFileInvoiceDollar size={13} />
+    },
+    {
+      label: 'Edit',
+      onClick: (row) => {
+        if (showToast) showToast(`Editing order for Bill No: ${row.billNo} (Dummy action)`, 'success');
+      }
+    },
+    {
+      label: 'Delete',
+      isDanger: true,
+      onClick: (row) => setDeleteModal({ open: true, row })
+    }
+  ];
 
   return (
-    <div style={{ padding: '24px', fontFamily: 'system-ui' }}>
-      <PageHeader title="Order Details" description="Original table order items list view" />
+    <div style={{ fontFamily: 'var(--font-family, system-ui)', background: '#fff', minHeight: '100%' }}>
+      <CommonTable
+        title="Order Details"
+        columns={columns}
+        data={data}
+        actions={actions}
+        onAddEntry={null}
+        searchPlaceholder="Search orders by table, customer, type..."
+        showToast={showToast}
+        breadcrumbs={['Dashboard', 'Restaurant', 'Order Details']}
+      />
 
-      <div style={{ display: 'flex', gap: '24px', marginTop: '20px' }}>
-        
-        {/* Table Selector List */}
-        <div style={{ width: '280px', border: '1px solid #cbd5e1', borderRadius: '8px', background: '#fff', padding: '12px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: '#475569' }}>Active Tables</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {tables.map(t => {
-              const isSelected = selectedTableId === t.id;
-              return (
-                <div 
-                  key={t.id}
-                  onClick={() => setSelectedTableId(t.id)}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    background: isSelected ? '#f1f5f9' : 'transparent',
-                    border: '1px solid #e2e8f0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{t.number}</div>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{t.capacity}</span>
-                  </div>
-                  <span style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: t.status === 'Running' ? '#dcfce7' : t.status === 'Paid' ? '#cbd5e1' : '#f1f5f9',
-                    color: t.status === 'Running' ? '#15803d' : '#475569'
-                  }}>{t.status}</span>
+      {/* Ordered Items List Modal */}
+      {selectedBill && (
+        <CommonModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedBill(null);
+          }}
+          title={`Order Dishes List — Bill No: ${selectedBill.billNo} (Table ${selectedBill.tableNo})`}
+          maxWidth="460px"
+        >
+          <div style={{ padding: '12px 4px' }}>
+            <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>Bill Metadata</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Customer Name:</span>
+                  <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedBill.customerName}</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Selected Table details */}
-        <div style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: '8px', background: '#fff', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '16px' }}>
-            <div>
-              <h3 style={{ margin: 0 }}>{activeTable.number} Details</h3>
-              <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Status: {activeTable.status} · Capacity: {activeTable.capacity}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Mobile Number:</span>
+                  <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedBill.mobileNo}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Settlement Date:</span>
+                  <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedBill.billDate}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Bill Type:</span>
+                  <span style={{ fontWeight: 800, color: '#0369a1' }}>{selectedBill.billType}</span>
+                </div>
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {['Blank', 'Running', 'Paid'].map(s => (
-                <button
-                  key={s}
-                  onClick={() => handleToggleState(activeTable.id, s)}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    border: '1px solid #cbd5e1',
-                    background: activeTable.status === s ? '#0f172a' : '#fff',
-                    color: activeTable.status === s ? '#fff' : '#475569',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Items listing */}
-          <div style={{ marginBottom: '24px' }}>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#475569' }}>Ordered Items</h4>
-            {activeOrderDetails.length > 0 ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '10px', paddingLeft: '4px' }}>Items List</div>
+            <div style={{ border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1' }}>
-                    <th style={{ padding: '8px', textAlign: 'left' }}>Item Name</th>
-                    <th style={{ padding: '8px', textAlign: 'center' }}>Qty</th>
-                    <th style={{ padding: '8px', textAlign: 'right' }}>Price</th>
-                    <th style={{ padding: '8px', textAlign: 'right' }}>Total</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', color: '#475569', fontWeight: 800 }}>
+                    <th style={{ padding: '10px 12px' }}>Item Name</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center' }}>Qty</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Price</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {activeOrderDetails.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '8px' }}>{item.name}</td>
-                      <td style={{ padding: '8px', textAlign: 'center' }}>{item.qty}</td>
-                      <td style={{ padding: '8px', textAlign: 'right' }}>₹{item.rate}</td>
-                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>₹{item.total}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ borderTop: '1px dashed #cbd5e1', fontWeight: 700 }}>
-                    <td colSpan={3} style={{ padding: '8px', textAlign: 'right' }}>Subtotal:</td>
-                    <td style={{ padding: '8px', textAlign: 'right' }}>₹{orderCalculations.subtotal}</td>
-                  </tr>
-                  <tr style={{ fontWeight: 700 }}>
-                    <td colSpan={3} style={{ padding: '8px', textAlign: 'right' }}>GST (5%):</td>
-                    <td style={{ padding: '8px', textAlign: 'right' }}>₹{orderCalculations.gst}</td>
-                  </tr>
-                  <tr style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>
-                    <td colSpan={3} style={{ padding: '8px', textAlign: 'right' }}>Grand Total:</td>
-                    <td style={{ padding: '8px', textAlign: 'right' }}>₹{orderCalculations.total}</td>
-                  </tr>
+                  {selectedBill.items.map((item, idx) => {
+                    const displayName = (item.itemName || item.name) + (item.variantName ? ` (${item.variantName})` : '');
+                    const rate = item.unitPrice || item.rate || 0;
+                    const total = item.total || (item.qty * rate);
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: '#0f172a' }}>{displayName}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 800, color: '#4f46e5' }}>{item.qty}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#475569' }}>₹{rate.toFixed(2)}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>₹{total.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            ) : (
-              <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed #e2e8f0', borderRadius: '6px', fontSize: '0.8rem', color: '#64748b' }}>
-                No active items on this table.
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* Form to add item */}
-          <form onSubmit={handleAddItem} style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', color: '#475569' }}>Add Mock KOT Item</h4>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <input
-                type="text"
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                placeholder="Item Name"
-                style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.8rem' }}
-              />
-              <input
-                type="number"
-                min="1"
-                value={newItemQty}
-                onChange={(e) => setNewItemQty(parseInt(e.target.value) || 1)}
-                placeholder="Qty"
-                style={{ width: '60px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}
-              />
-              <input
-                type="number"
-                min="0"
-                value={newItemRate}
-                onChange={(e) => setNewItemRate(parseFloat(e.target.value) || 0)}
-                placeholder="Price"
-                style={{ width: '80px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.8rem', textAlign: 'center' }}
-              />
-              <button 
-                type="submit"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: '#0f172a',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
+            <div style={{ borderTop: '1px dashed #cbd5e1', marginTop: '20px', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#475569' }}>Grand Total Amount:</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#4f46e5' }}>₹{selectedBill.amount.toFixed(2)}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button
+                onClick={handlePrintInvoice}
+                style={{ 
+                  padding: '8px 16px', 
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+                  color: '#fff', 
+                  fontSize: '0.8rem', 
+                  fontWeight: 800, 
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.15)'
                 }}
               >
-                <FaPlus size={10} /> Add Item
+                <FaPrint size={11} /> Print Invoice
+              </button>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setSelectedBill(null);
+                }}
+                style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Close
               </button>
             </div>
-          </form>
+          </div>
+        </CommonModal>
+      )}
 
-        </div>
-
-      </div>
+      <DeleteConfirmationModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, row: null })}
+        onConfirm={handleDelete}
+        itemName={deleteModal.row ? `Bill No: ${deleteModal.row.billNo}` : ''}
+      />
     </div>
   );
 };

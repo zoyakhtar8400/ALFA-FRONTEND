@@ -42,35 +42,35 @@ const TableCard = React.memo(({ table, onClick, onView, onDelete, onSave, onDown
     borderStyle = '1px solid #cbd5e1';
   }
 
-  // Dynamic running duration timer (hh:mm:ss format)
+  // Booking time display state (static hh:mm format) and running minutes count
   const [elapsed, setElapsed] = useState('');
+  const [minutesCount, setMinutesCount] = useState(0);
 
   useEffect(() => {
-    let intervalId;
     const isTimerActive = table.openedAt && 
-      (table.status !== 'Blank' && table.status !== 'Paid' && table.status !== 'Cleaning' && table.status !== 'Reserved');
+      (table.status !== 'Blank' && table.status !== 'Paid' && table.status !== 'Cleaning');
 
     if (isTimerActive) {
       const updateTimer = () => {
-        const diffMs = Date.now() - table.openedAt;
-        const totalSecs = Math.floor(diffMs / 1000);
-        const hours = Math.floor(totalSecs / 3600);
-        const mins = Math.floor((totalSecs % 3600) / 60);
-        const secs = totalSecs % 60;
-        
-        const pad = (val) => String(val).padStart(2, '0');
-        setElapsed(`${pad(hours)}:${pad(mins)}:${pad(secs)}`);
+        try {
+          const dateObj = new Date(table.openedAt);
+          const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const diffMs = Date.now() - dateObj.getTime();
+          const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+          setElapsed(timeStr);
+          setMinutesCount(diffMins);
+        } catch (err) {
+          setElapsed('');
+        }
       };
-      
+
       updateTimer();
-      intervalId = setInterval(updateTimer, 1000);
+      const interval = setInterval(updateTimer, 30000);
+      return () => clearInterval(interval);
     } else {
       setElapsed('');
+      setMinutesCount(0);
     }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
   }, [table.status, table.openedAt]);
 
   return (
@@ -106,19 +106,18 @@ const TableCard = React.memo(({ table, onClick, onView, onDelete, onSave, onDown
           : '0 1px 3px rgba(0,0,0,0.05)';
       }}
     >
-      {/* Timer Badge (Circular badge at the top-right corner) */}
+      {/* Time Badge (Pill badge at the top-right corner showing booking time and running duration) */}
       {elapsed && (
         <div style={{
           position: 'absolute',
-          top: '-12px',
-          right: '-12px',
+          top: '-10px',
+          right: '-10px',
           background: '#0d9488',
           color: '#ffffff',
-          borderRadius: '50%',
-          width: '46px',
-          height: '46px',
+          borderRadius: '12px',
+          padding: '4px 10px',
           fontSize: '0.62rem',
-          fontWeight: 700,
+          fontWeight: 800,
           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
@@ -127,7 +126,7 @@ const TableCard = React.memo(({ table, onClick, onView, onDelete, onSave, onDown
           lineHeight: '1',
           zIndex: 5
         }}>
-          {elapsed}
+          {elapsed} ({minutesCount}m)
         </div>
       )}
 

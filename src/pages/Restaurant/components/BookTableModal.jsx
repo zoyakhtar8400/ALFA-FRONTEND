@@ -24,7 +24,7 @@ const BookTableModal = ({ isOpen, onClose, tables, onBook }) => {
 
     const tableId = parseInt(selectedTableId);
     const table = tables.find(t => t.id === tableId);
-    
+
     if (table && (table.status === 'Running' || table.status === 'Paid')) {
       const confirmBook = window.confirm(`Table T${table.no} is currently '${table.status}'. Are you sure you want to book this table?`);
       if (!confirmBook) return;
