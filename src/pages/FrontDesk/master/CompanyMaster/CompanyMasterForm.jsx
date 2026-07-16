@@ -19,7 +19,7 @@ const CITIES = [
   'Singapore'
 ];
 
-const CompanyMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const CompanyMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState(() => ({
     name: initialData?.name || '',
     underGroup: initialData?.underGroup || 'Sundry Debtors',
@@ -40,7 +40,8 @@ const CompanyMasterForm = ({ mode, initialData, onSave, onCancel, existingRecord
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   const handleSubmit = (e) => {

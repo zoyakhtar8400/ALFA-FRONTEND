@@ -28,7 +28,7 @@ const Login = ({ showToast }) => {
     <div className="login-wrapper">
       <div className="login-card">
         <div className="login-header">
-          <img src="/logo/hotel-logo.png" alt="Logo" className="login-logo" />
+          <img src="/logo/alfa-logo.png" alt="Logo" className="login-logo" />
           <h2 className="login-title">ALFA HMS LOGIN</h2>
           <p className="login-subtitle">Sign in to manage your hotel operations</p>
         </div>

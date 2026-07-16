@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import CommonModal from '../components/common/CommonModal';
+import { FaExclamationTriangle } from 'react-icons/fa';
 
 export const useDuplicateValidation = ({
   existingRecords = [],
   currentFormData = {},
   uniqueFields = [],
   currentId = null,
-  mode = 'add'
+  mode = 'add',
+  onEditExisting = null
 }) => {
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [duplicateItem, setDuplicateItem] = useState(null);
   const warnedRef = useRef(null);
 
   useEffect(() => {
     if (!existingRecords || existingRecords.length === 0 || !uniqueFields || uniqueFields.length === 0) {
       setIsDuplicate(false);
       setShowModal(false);
+      setDuplicateItem(null);
       warnedRef.current = null;
       return;
     }
@@ -29,12 +33,13 @@ export const useDuplicateValidation = ({
     if (!hasValues) {
       setIsDuplicate(false);
       setShowModal(false);
+      setDuplicateItem(null);
       warnedRef.current = null;
       return;
     }
 
     // Check if duplicate exists
-    const duplicateExists = existingRecords.some(record => {
+    const duplicateExists = existingRecords.find(record => {
       // Ignore the current record when editing
       if (mode === 'edit' && record.id === currentId) {
         return false;
@@ -62,7 +67,8 @@ export const useDuplicateValidation = ({
       });
     });
 
-    setIsDuplicate(duplicateExists);
+    setIsDuplicate(!!duplicateExists);
+    setDuplicateItem(duplicateExists || null);
 
     if (duplicateExists) {
       // Signature of the duplicate value
@@ -87,33 +93,105 @@ export const useDuplicateValidation = ({
   };
 
   const DuplicateModal = () => {
+    const itemName = duplicateItem ? (duplicateItem.name || duplicateItem.guestName || duplicateItem.shortName || duplicateItem.code || duplicateItem.roomNo || Object.values(duplicateItem)[1] || '') : '';
+    
     return (
       <CommonModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Duplicate Record"
-        maxWidth="460px"
+        title="Duplicate Entry Alert"
+        maxWidth="480px"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '4px 0', color: 'var(--text-primary)' }}>
-          <h4 style={{ fontWeight: 700, fontSize: '1.05rem', color: '#244e5f', margin: 0 }}>Duplicate Record</h4>
-          <p style={{ fontSize: '0.88rem', margin: 0, lineHeight: '1.4' }}>
-            This record already exists in the system.
-          </p>
-          <p style={{ fontSize: '0.88rem', margin: 0, lineHeight: '1.4' }}>
-            The data you entered has already been saved previously. Duplicate records are not allowed.
-          </p>
-          <p style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--primary)', margin: 0, lineHeight: '1.4' }}>
-            Please modify the information if you want to create a new record.
-          </p>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={() => setShowModal(false)}
-              className="btn-primary"
-              style={{ padding: '8px 24px', borderRadius: '8px', fontSize: '0.88rem', fontWeight: 700 }}
-            >
-              OK
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', padding: '10px 0' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            background: 'rgba(245, 158, 11, 0.1)',
+            color: '#D97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px'
+          }}>
+            <FaExclamationTriangle />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--dark)' }}>
+              Record Already Exists
+            </h4>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              You saved the entry {itemName ? <strong>"{itemName}"</strong> : 'this record'} previously. Duplicate records are not allowed.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            width: '100%',
+            marginTop: '12px',
+            borderTop: '1px solid #f1f5f9',
+            paddingTop: '16px'
+          }}>
+            {onEditExisting ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    onEditExisting(duplicateItem);
+                  }}
+                  className="btn-primary"
+                  style={{
+                    flex: 1,
+                    height: '38px',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    background: '#D97706',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Edit the Same Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  style={{
+                    flex: 1,
+                    height: '38px',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    color: '#475569',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
       </CommonModal>

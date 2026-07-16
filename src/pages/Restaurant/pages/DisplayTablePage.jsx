@@ -88,6 +88,8 @@ const DisplayTablePage = () => {
   const [service, setService] = useState('Restaurant');
   const [search, setSearch] = useState('');
   const [activeRestaurant, setActiveRestaurant] = useState('Main Dining Room');
+  const [focusedTableIndex, setFocusedTableIndex] = useState(-1);
+  const [previewTable, setPreviewTable] = useState(null);
 
   // Delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -103,12 +105,81 @@ const DisplayTablePage = () => {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setIsBookingMode(false);
+        if (previewTable) {
+          setPreviewTable(null);
+        } else {
+          setIsBookingMode(false);
+          setFocusedTableIndex(-1);
+        }
+        return;
+      }
+      // Arrow key navigation across table cards
+      if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
+        // Only when no modal/input is focused
+        if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        setFocusedTableIndex(prev => {
+          const len = filteredDataRef.current.length;
+          if (len === 0) return -1;
+          if (prev === -1) return 0;
+
+          let cols = 5;
+          const container = document.querySelector('.pos-table-grid');
+          if (container) {
+            const compStyles = window.getComputedStyle(container);
+            const gridTemplateCols = compStyles.getPropertyValue('grid-template-columns');
+            if (gridTemplateCols) {
+              cols = gridTemplateCols.split(' ').length || 5;
+            }
+          }
+
+          if (e.key === 'ArrowRight') return Math.min(prev + 1, len - 1);
+          if (e.key === 'ArrowLeft') return Math.max(prev - 1, 0);
+          if (e.key === 'ArrowDown') return Math.min(prev + cols, len - 1);
+          if (e.key === 'ArrowUp') return Math.max(prev - cols, 0);
+          return prev;
+        });
+      }
+      if (e.key === 'Enter' && focusedTableIndexRef.current >= 0) {
+        const t = filteredDataRef.current[focusedTableIndexRef.current];
+        if (t) handleTableCardClick(t);
+      }
+      // F-key shortcuts
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const t = focusedTableIndexRef.current >= 0 ? filteredDataRef.current[focusedTableIndexRef.current] : null;
+        navigate('/front-desk/operation/booking', {
+          state: {
+            roomNo: t && t.status === 'Blank' ? `Table T${t.no}` : null,
+            source: 'POS'
+          }
+        });
+      }
+      if (e.key === 'F4') {
+        e.preventDefault();
+        const t = focusedTableIndexRef.current >= 0 ? filteredDataRef.current[focusedTableIndexRef.current] : null;
+        if (t && t.status !== 'Blank') {
+          const items = orderItemsMap[t.id] || [];
+          if (items.length === 0) return toast('No items to generate KOT.');
+          const newKotId = `KOT-${Math.floor(100 + Math.random() * 900)}`;
+          const newKot = { id: newKotId, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), items: items.map(it => ({ name: it.name, qty: it.qty })) };
+          setTables(prev => prev.map(tb => tb.id === t.id ? { ...tb, kots: [...(tb.kots || []), newKot], kotCount: (tb.kots || []).length + 1, status: 'KOT Generated' } : tb));
+          toast(`KOT generated: ${newKotId}`);
+        }
+      }
+      if (e.key === 'F10') {
+        e.preventDefault();
+        const t = focusedTableIndexRef.current >= 0 ? filteredDataRef.current[focusedTableIndexRef.current] : null;
+        if (t && t.status !== 'Blank') handleDownload(t);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [orderItemsMap, previewTable]);
+
+  // Refs for keyboard nav (avoid stale closures)
+  const filteredDataRef = React.useRef([]);
+  const focusedTableIndexRef = React.useRef(-1);
 
   // Add Table modal state
   const [addTableModalOpen, setAddTableModalOpen] = useState(false);
@@ -156,8 +227,21 @@ const DisplayTablePage = () => {
         }
       });
     } else {
-      const rows = orderItemsMap[table.id] || [];
-      navigate('/restaurant/pos-billing', { state: { table, orderRows: rows } });
+      if (table.status === 'Blank') {
+        const idx = filteredDataRef.current.findIndex(t => t.id === table.id);
+        if (idx !== -1) {
+          setFocusedTableIndex(idx);
+        }
+        navigate('/restaurant/pos-billing', {
+          state: {
+            tableId: table.id,
+            tableNumber: `T${table.no}`,
+            isNewBooking: true
+          }
+        });
+        return;
+      }
+      setPreviewTable(table);
     }
   };
 
@@ -250,24 +334,23 @@ const DisplayTablePage = () => {
   const SECTIONS = ['All', 'Ground', 'First', 'Balcony', 'Garden'];
   const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Reserved', 'Paid', 'Cleaning'];
 
-  const filteredData = tables.filter(t => {
+  const filteredData = React.useMemo(() => tables.filter(t => {
     const matchesSearch = t.no.includes(search) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
     const matchesSection = filter === 'All' || t.floor === filter || t.section === filter;
-
-    // Status category filters
     let matchesStatus = true;
-    if (service === 'All') {
-      matchesStatus = true;
-    } else {
+    if (service !== 'All') {
       if (service === 'Blank') matchesStatus = t.status === 'Blank';
       else if (service === 'Running') matchesStatus = (t.status !== 'Blank' && t.status !== 'Paid' && t.status !== 'Cleaning' && t.status !== 'Reserved');
       else if (service === 'Reserved') matchesStatus = t.status === 'Reserved';
       else if (service === 'Paid') matchesStatus = t.status === 'Paid';
       else if (service === 'Cleaning') matchesStatus = t.status === 'Cleaning';
     }
-
     return matchesSearch && matchesSection && matchesStatus;
-  });
+  }), [tables, search, filter, service]);
+
+  // Keep refs in sync for keyboard handler (avoids stale closures)
+  filteredDataRef.current = filteredData;
+  focusedTableIndexRef.current = focusedTableIndex;
 
   return (
     <div style={{ fontFamily: 'var(--font-family, system-ui)', background: '#fff', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -275,20 +358,25 @@ const DisplayTablePage = () => {
       {/* Booking Mode Instruction Banner */}
       {isBookingMode && (
         <div style={{
-          background: '#ea580c', color: '#fff', padding: '14px 24px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '0.9rem',
-          boxShadow: '0 4px 12px rgba(234, 88, 12, 0.2)', borderBottom: '2px solid #c2410c', zIndex: 99
+          background: 'linear-gradient(90deg, #ea580c 0%, #f97316 100%)',
+          color: '#fff',
+          padding: '16px 24px',
+          textAlign: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '24px',
+          fontWeight: 800,
+          fontSize: '1rem',
+          letterSpacing: '0.5px',
+          boxShadow: '0 4px 20px rgba(234, 88, 12, 0.3)',
+          borderBottom: '3px solid #c2410c',
+          zIndex: 999,
+          position: 'sticky',
+          top: 0
         }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#fff', animation: 'pulse 1.5s infinite', display: 'inline-block' }} />
-            Select a Blank Table to Start Booking
-          </span>
-          <button 
-            onClick={() => setIsBookingMode(false)}
-            style={{ background: '#fff', color: '#ea580c', border: 'none', padding: '6px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 800, fontSize: '0.75rem', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
-          >
-            Cancel (ESC)
-          </button>
+          <span>Select Table For New Booking</span>
+          <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '4px', textTransform: 'uppercase' }}>Press ESC To Cancel</span>
         </div>
       )}
 
@@ -326,7 +414,7 @@ const DisplayTablePage = () => {
 
           {/* Book Table Button */}
           <button
-            onClick={() => setShowSelectTableDialog(true)}
+            onClick={() => setIsBookingMode(true)}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -474,7 +562,7 @@ const DisplayTablePage = () => {
 
       {/* 3. Main Tables grid */}
       <div className="pos-table-grid" style={{ flex: 1, padding: '24px' }}>
-        {filteredData.map(table => {
+        {filteredData.map((table, idx) => {
           const isBlank = table.status === 'Blank';
           const isHighlighted = isBookingMode && isBlank;
           const isFaded = isBookingMode && !isBlank;
@@ -491,7 +579,8 @@ const DisplayTablePage = () => {
             }}>
               <TableCard
                 table={table}
-                onClick={() => handleTableCardClick(table)}
+                isSelected={focusedTableIndex === idx}
+                onClick={() => { setFocusedTableIndex(idx); handleTableCardClick(table); }}
                 onView={(e) => {
                   e.stopPropagation();
                   handleView(table);
@@ -644,7 +733,7 @@ const DisplayTablePage = () => {
               Please select an available table to continue booking.
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button 
+              <button
                 onClick={() => {
                   setShowSelectTableDialog(false);
                   setIsBookingMode(true);
@@ -653,7 +742,7 @@ const DisplayTablePage = () => {
               >
                 Select Table
               </button>
-              <button 
+              <button
                 onClick={() => setShowSelectTableDialog(false)}
                 style={{ padding: '10px 22px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: '800', fontSize: '0.82rem', cursor: 'pointer' }}
               >
@@ -760,26 +849,137 @@ const DisplayTablePage = () => {
           padding: 24px;
         }
         @media (min-width: 1024px) {
-          .pos-table-grid {
-            grid-template-columns: repeat(5, 1fr);
-          }
+          .pos-table-grid { grid-template-columns: repeat(5, 1fr); }
         }
         @media (min-width: 768px) and (max-width: 1023px) {
-          .pos-table-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
+          .pos-table-grid { grid-template-columns: repeat(4, 1fr); }
         }
         @media (min-width: 550px) and (max-width: 767px) {
-          .pos-table-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
+          .pos-table-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 549px) {
-          .pos-table-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
+          .pos-table-grid { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
+
+      {/* Order Details Preview Overlay Modal */}
+      {previewTable && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, fontFamily: 'var(--font-family, system-ui)'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', width: '480px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid #cbd5e1', overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{ background: '#0e7490', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900 }}>
+                Table T{parseInt(previewTable.no)} Details
+              </h3>
+              <span style={{ background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 800 }}>
+                {previewTable.status}
+              </span>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Meta details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  <strong>Waiter:</strong> {previewTable.waiter || 'Not Assigned'}
+                </span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  <strong>Pax (Seats):</strong> {previewTable.seats || 4}
+                </span>
+              </div>
+
+              {/* Items List */}
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase' }}>Current Order</h4>
+                <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
+                  {(orderItemsMap[previewTable.id] || []).length > 0 ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr style={{ background: '#cbd5e1', borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '6px 12px', textAlign: 'left' }}>Item Name</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'center', width: '60px' }}>Qty</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', width: '90px' }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(orderItemsMap[previewTable.id] || []).map((it, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '6px 12px' }}>{it.name}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'center' }}>{it.qty}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right' }}>₹{(it.qty * (it.rate || it.unitPrice || 0)).toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No items in current order.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtotal */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px 4px', borderTop: '1px solid #f1f5f9' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#475569' }}>Running Amount:</span>
+                <strong style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
+                  ₹{(previewTable.amount || 0).toLocaleString('en-IN')}
+                </strong>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ background: '#f8fafc', padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                onClick={() => setPreviewTable(null)}
+                className="btn btn-secondary"
+                style={{ height: '36px', fontSize: '0.8rem', padding: '0 16px', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const t = previewTable;
+                  setPreviewTable(null);
+                  handleDownload(t);
+                }}
+                className="btn"
+                style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 16px', height: '36px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Settlement
+              </button>
+              <button
+                onClick={() => {
+                  const t = previewTable;
+                  setPreviewTable(null);
+                  navigate('/restaurant/pos-billing', { state: { table: t, orderRows: orderItemsMap[t.id] || [] } });
+                }}
+                className="btn btn-primary"
+                style={{ height: '36px', fontSize: '0.8rem', padding: '0 16px', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Edit Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard shortcut hint bar */}
+      <div style={{ padding: '8px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+        {[['←→ / ↑↓', 'Navigate'], ['Enter', 'Open Table'], ['F2', 'Book Table'], ['F4', 'Print KOT'], ['F10', 'Quick Bill'], ['Esc', 'Cancel']].map(([key, label]) => (
+          <span key={key} style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <kbd style={{ background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'monospace' }}>{key}</kbd>
+            {label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 };

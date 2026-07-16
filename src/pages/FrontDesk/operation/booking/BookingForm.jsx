@@ -78,12 +78,12 @@ const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = []
     const daysVal = parseFloat(row.days) || 0;
     const roomsVal = parseFloat(row.noOfRooms) || 1;
     const isTaxInc = row.taxInclusive === 'Yes';
-    
+
     const subtotal = rateVal * daysVal * roomsVal;
-    
+
     let taxable;
     let net;
-    
+
     if (isTaxInc) {
       net = subtotal;
       taxable = subtotal / 1.12; // 12% tax rate
@@ -91,7 +91,7 @@ const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = []
       taxable = subtotal;
       net = subtotal * 1.12;
     }
-    
+
     return {
       ...row,
       taxableAmount: taxable.toFixed(2),
@@ -103,7 +103,7 @@ const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = []
     setRooms(prev => prev.map((r, i) => {
       if (i === idx) {
         const updated = { ...r, [key]: val };
-        
+
         // Auto-calculate departure date if arrival or days change
         if (key === 'arrivalDate' || key === 'days') {
           const daysNum = parseInt(updated.days) || 0;
@@ -142,9 +142,10 @@ const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = []
 
   return (
     <div className="animate-in duration-200">
-      
+
       {/* CSS Block to completely hide scrollbars inside the booking form and outer content area */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .no-scrollbar::-webkit-scrollbar,
         .content-area::-webkit-scrollbar {
           display: none !important;
@@ -286,14 +287,14 @@ const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = []
       </div>
 
       <form onSubmit={handleSubmit} style={{ padding: '0 16px 8px' }}>
-        
+
         {/* Natural Form Content (No nested scrolling container) */}
         <div style={{ marginBottom: '8px' }}>
-          
+
           {/* TAB 1: GUEST INFORMATION (5 PARTS GRID LAYOUT) */}
           {activeTab === 'guest' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'start' }}>
-              
+
               {/* LEFT COLUMN: Guest Details + Address Details */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <GuestDetailsSection

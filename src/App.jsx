@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
@@ -7,6 +8,7 @@ import { FaInfoCircle, FaCheckCircle, FaExclamationTriangle, FaTimesCircle } fro
 import { initKeyboardNavigation } from './utils/keyboardNavigation';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import GlobalSearch from './components/common/GlobalSearch';
 
 const TOAST_THEMES = {
   success: {
@@ -29,6 +31,7 @@ const TOAST_THEMES = {
 
 function App() {
   const { isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -37,6 +40,8 @@ function App() {
       return false;
     }
   });
+
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Enterprise Toast State
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -67,12 +72,64 @@ function App() {
 
   useEffect(() => {
     window.showToast = showToast;
-    const cleanup = initKeyboardNavigation();
+    const keyboardCleanup = initKeyboardNavigation();
+
+    const handleGlobalKeyDown = (e) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      
+      // Ctrl + K to toggle command palette
+      if (isCtrl && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(prev => !prev);
+        return;
+      }
+
+      // Function keys mapping
+      if (e.key === 'F1') {
+        e.preventDefault();
+        navigate('/');
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        navigate('/front-desk/operation/booking');
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        navigate('/front-desk');
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        navigate('/restaurant/display-table');
+      } else if (e.key === 'F6') {
+        e.preventDefault();
+        navigate('/front-desk/mis/reservation-dashboard');
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        navigate('/front-desk/operation/guest-profile');
+      } else if (e.key === 'F8') {
+        e.preventDefault();
+        navigate('/front-desk/operation/payment-recieve-entry');
+      } else if (e.key === 'F9') {
+        e.preventDefault();
+        navigate('/pos/report');
+      } else if (e.key === 'F10') {
+        e.preventDefault();
+        window.print();
+      } else if (e.key === 'F11') {
+        e.preventDefault();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+
     return () => {
-      cleanup();
+      keyboardCleanup();
+      window.removeEventListener('keydown', handleGlobalKeyDown);
       delete window.showToast;
     };
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     logout(showToast);
@@ -129,6 +186,8 @@ function App() {
           </ProtectedRoute>
         </main>
       </div>
+
+      <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

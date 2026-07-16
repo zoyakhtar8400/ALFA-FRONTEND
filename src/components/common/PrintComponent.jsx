@@ -10,7 +10,7 @@ export const PrintHeader = ({ title }) => {
 
   return (
     <div className="print-only print-header-container">
-      <img src="/logo/hotel-logo.png" alt="Company Logo" className="print-logo" />
+      <img src="/logo/alfa-logo.png" alt="Company Logo" className="print-logo" />
       <h1 className="print-company-name">ALFA HOTEL MANAGEMENT SYSTEM</h1>
       <h2 className="print-report-title">{title}</h2>
       <div className="print-date-time">

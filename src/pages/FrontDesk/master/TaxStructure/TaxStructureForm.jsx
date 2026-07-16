@@ -4,7 +4,7 @@ import CommonModal from "../../../../components/common/CommonModal";
 import CommonActionButtons from "../../../../components/common/CommonActionButtons";
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const TaxStructureForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [] }) => {
+const TaxStructureForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState({
     name: "",
     applicableDate: "",

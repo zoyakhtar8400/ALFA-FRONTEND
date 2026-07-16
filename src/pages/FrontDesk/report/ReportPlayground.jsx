@@ -119,7 +119,7 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
 
   useEffect(() => {
     const defaults = { ...DEFAULT_FILTERS };
-    
+
     if (['change-guest-profile', 'room-change-entry-report'].includes(selectedReport.id)) {
       defaults.startDate = '2024-04-01';
       defaults.endDate = '2026-07-03';
@@ -131,7 +131,7 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
       defaults.endDate = '2026-07-03';
       defaults.date = '2026-07-03';
     }
-    
+
     setFilters(defaults);
   }, [selectedReport]);
 
@@ -193,7 +193,7 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
   const getActiveFilters = (reportId) => {
     const list = {};
     const activeFilters = REPORT_FILTERS[reportId] || [];
-    
+
     activeFilters.forEach(filterKey => {
       switch (filterKey) {
         case 'startDate':

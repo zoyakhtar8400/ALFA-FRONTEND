@@ -5,7 +5,7 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import FormCard from '../../../../components/common/FormCard';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const ServiceChargeForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const ServiceChargeForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState({
     name: '',
     acName: 'Service Charge Revenue',
@@ -25,7 +25,8 @@ const ServiceChargeForm = ({ mode, initialData, onSave, onCancel, existingRecord
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   useEffect(() => {

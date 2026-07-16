@@ -78,6 +78,10 @@ const CompanyMaster = ({ showToast }) => {
           onSave={handleSave}
           onCancel={handleCancel}
           existingRecords={data}
+          onEditExisting={(item) => {
+            setEditMode({ mode: 'edit', row: item });
+            setShowForm(true);
+          }}
         />
       </FormLoadingWrapper>
     );

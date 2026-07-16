@@ -59,7 +59,7 @@ export const useTableOperations = (location, navigate) => {
     } else if (location.state?.updatedTable && location.state?.updatedRows) {
       const ut = location.state.updatedTable;
       const ur = location.state.updatedRows;
-      
+
       setTables(prev => prev.map(t => {
         if (t.id === ut.id) {
           return {
@@ -179,7 +179,7 @@ export const useTableOperations = (location, navigate) => {
     // Add items to target
     const targetItems = [...(orderItemsMap[targetTableId] || [])];
     kotToMove.items.forEach(kotIt => {
-      const idx = targetItems.findIndex(t => 
+      const idx = targetItems.findIndex(t =>
         (t.itemId === kotIt.itemId || t.itemName === kotIt.itemName || t.name === kotIt.name) &&
         (t.variantId === kotIt.variantId || t.variantName === kotIt.variantName || t.variant === kotIt.variant)
       );
@@ -192,7 +192,7 @@ export const useTableOperations = (location, navigate) => {
         };
       } else {
         const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
-        targetItems.push({ 
+        targetItems.push({
           ...kotIt,
           lineId: kotIt.lineId || lineId,
           name: kotIt.name || kotIt.itemName,
@@ -278,7 +278,7 @@ export const useTableOperations = (location, navigate) => {
 
     const targetItems = [...(orderItemsMap[dstId] || [])];
     itemsToTransfer.forEach(transferItem => {
-      const idx = targetItems.findIndex(t => 
+      const idx = targetItems.findIndex(t =>
         (t.itemId === transferItem.itemId || t.itemName === transferItem.itemName || t.name === transferItem.name) &&
         (t.variantId === transferItem.variantId || t.variantName === transferItem.variantName || t.variant === transferItem.variant)
       );
@@ -345,8 +345,8 @@ export const useTableOperations = (location, navigate) => {
 
     setOrderItemsMap(prev => {
       const list = [...(prev[srcId] || [])];
-      const idx = list.findIndex(l => 
-        (l.itemId === menuObj.id || l.itemName === menuObj.name || l.name === menuObj.name) && 
+      const idx = list.findIndex(l =>
+        (l.itemId === menuObj.id || l.itemName === menuObj.name || l.name === menuObj.name) &&
         l.variantId === variantId
       );
       if (idx !== -1) {
@@ -442,7 +442,7 @@ export const useTableOperations = (location, navigate) => {
       id: newKotId,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'Sent to Kitchen',
-      items: items.map(it => ({ 
+      items: items.map(it => ({
         lineId: it.lineId || (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5))),
         itemId: it.itemId,
         itemName: it.itemName || it.name,
@@ -542,7 +542,7 @@ export const useTableOperations = (location, navigate) => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
     const { grandTotal } = getBillingSummary();
-    
+
     if (paymentMethod === 'Split') {
       const splitTotal = (parseFloat(splitCash) || 0) + (parseFloat(splitCard) || 0) + (parseFloat(splitUPI) || 0);
       if (Math.abs(splitTotal - grandTotal) > 1) {
@@ -575,17 +575,17 @@ export const useTableOperations = (location, navigate) => {
     setTimeout(() => {
       setTables(prev => prev.map(t => {
         if (t.id === srcId) {
-          return { 
-            ...t, 
-            status: 'Blank', 
-            amount: 0, 
-            waiter: null, 
-            captain: null, 
-            customer: 'Walk-in', 
-            openedAt: null, 
-            isHold: false, 
-            kots: [], 
-            kotCount: 0 
+          return {
+            ...t,
+            status: 'Blank',
+            amount: 0,
+            waiter: null,
+            captain: null,
+            customer: 'Walk-in',
+            openedAt: null,
+            isHold: false,
+            kots: [],
+            kotCount: 0
           };
         }
         return t;
@@ -692,12 +692,12 @@ export const useTableOperations = (location, navigate) => {
         toast(`Merged Table ${sourceTable.no} into Table ${targetTable.no}.`);
       }
       setShowQuickSwitch(false);
-    } 
+    }
     else if (modalTab === 'MoveKOT') {
       const selectedKots = Object.keys(selectedTransferKots).filter(k => selectedTransferKots[k]);
       if (selectedKots.length === 0) return toast("Please select KOTs to transfer.");
       if (!fromTableId || !toTableId) return toast("Select From Table and To Table.");
-      
+
       const srcId = parseInt(fromTableId);
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
@@ -707,7 +707,7 @@ export const useTableOperations = (location, navigate) => {
       });
       setSelectedTransferKots({});
       setShowQuickSwitch(false);
-    } 
+    }
     else if (modalTab === 'MoveItems') {
       const selectedKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0);
       if (selectedKeys.length === 0) return toast("Adjust item quantities to transfer.");

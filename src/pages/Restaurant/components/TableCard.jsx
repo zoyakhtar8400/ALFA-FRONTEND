@@ -1,257 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { FaPrint, FaEye, FaTrash, FaDownload } from 'react-icons/fa';
+import { FaPrint, FaEye, FaTrash, FaFileInvoiceDollar } from 'react-icons/fa';
 
-const TableCard = React.memo(({ table, onClick, onView, onDelete, onSave, onDownload, onOpenOps }) => {
-  let cardBg = '#ffffff';
-  let textColor = '#0f172a';
-  let borderStyle = '1px solid #cbd5e1';
+const STATUS_STYLE = {
+  Running: { bg: '#5fcb83', text: '#0f172a', border: '1px solid #4ade80' },
+  Reserved: { bg: '#ffe8cc', text: '#d9480f', border: '2px solid #fd7e14' },
+  Paid: { bg: '#475569', text: '#ffffff', border: '1px solid #64748b' },
+  Cleaning: { bg: '#e0f2fe', text: '#0c4a6e', border: '1px solid #7dd3fc' },
+  'KOT Generated': { bg: '#fef9c3', text: '#713f12', border: '1px solid #fef08a' },
+  'Food Served': { bg: '#dcfce7', text: '#14532d', border: '1px solid #bbf7d0' },
+  'Bill Generated': { bg: '#fce7f3', text: '#9d174d', border: '1px solid #fbcfe8' },
+  Blank: { bg: '#ffffff', text: '#94a3b8', border: '1px dashed #cbd5e1' },
+};
 
-  if (table.status === 'Running') {
-    cardBg = '#5fcb83'; // Vibrant green from screenshot
-    textColor = '#0f172a';
-    borderStyle = '1px solid #cbd5e1';
-  } else if (table.status === 'Paid') {
-    cardBg = '#475569';
-    textColor = '#ffffff';
-    borderStyle = '1px solid #cbd5e1';
-  } else if (table.status === 'Reserved') {
-    cardBg = '#ffe8cc';
-    textColor = '#d9480f';
-    borderStyle = '2px solid #fd7e14';
-  } else if (table.status === 'Cleaning') {
-    cardBg = '#e0f2fe';
-    textColor = '#0c4a6e';
-    borderStyle = '1px solid #cbd5e1';
-  } else if (table.status === 'Blank') {
-    borderStyle = '1px dashed #cbd5e1';
-  } else if (table.status === 'KOT Generated') {
-    cardBg = '#fef9c3';
-    textColor = '#713f12';
-    borderStyle = '1px solid #fef08a';
-  } else if (table.status === 'Food Served') {
-    cardBg = '#dcfce7';
-    textColor = '#14532d';
-    borderStyle = '1px solid #bbf7d0';
-  } else if (table.status === 'Bill Generated') {
-    cardBg = '#fce7f3';
-    textColor = '#9d174d';
-    borderStyle = '1px solid #fbcfe8';
-  } else if (table.status === 'Payment Pending') {
-    cardBg = '#475569';
-    textColor = '#ffffff';
-    borderStyle = '1px solid #cbd5e1';
-  }
+const TableCard = React.memo(({ table, onClick, onDelete, onSave, onDownload, onOpenOps, isSelected }) => {
+  const style = STATUS_STYLE[table.status] || STATUS_STYLE.Blank;
 
-  // Booking time display state (static hh:mm format) and running minutes count
-  const [elapsed, setElapsed] = useState('');
   const [minutesCount, setMinutesCount] = useState(0);
 
   useEffect(() => {
-    const isTimerActive = table.openedAt && 
-      (table.status !== 'Blank' && table.status !== 'Paid' && table.status !== 'Cleaning');
-
-    if (isTimerActive) {
-      const updateTimer = () => {
-        try {
-          const dateObj = new Date(table.openedAt);
-          const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const diffMs = Date.now() - dateObj.getTime();
-          const diffMins = Math.max(0, Math.floor(diffMs / 60000));
-          setElapsed(timeStr);
-          setMinutesCount(diffMins);
-        } catch (err) {
-          setElapsed('');
-        }
-      };
-
-      updateTimer();
-      const interval = setInterval(updateTimer, 30000);
-      return () => clearInterval(interval);
-    } else {
-      setElapsed('');
-      setMinutesCount(0);
-    }
+    const active = table.openedAt && table.status !== 'Blank' && table.status !== 'Paid' && table.status !== 'Cleaning';
+    if (!active) { setMinutesCount(0); return; }
+    const update = () => setMinutesCount(Math.max(0, Math.floor((Date.now() - table.openedAt) / 60000)));
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
   }, [table.status, table.openedAt]);
+
+  const isActive = table.status !== 'Blank';
+  const kotCount = (table.kots || []).length;
 
   return (
     <div
       onClick={onClick}
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter') onClick?.(); }}
       style={{
-        background: cardBg,
-        color: textColor,
-        border: borderStyle,
-        borderRadius: '8px',
-        padding: '16px',
+        background: style.bg,
+        color: style.text,
+        border: isSelected ? '3px solid #0e7490' : style.border,
+        borderRadius: '10px',
+        padding: '14px 12px 12px',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '120px',
-        boxShadow: table.status === 'Reserved' ? '0 0 10px rgba(253, 126, 20, 0.4)' : '0 1px 3px rgba(0,0,0,0.05)',
-        transition: 'transform 150ms ease-in-out, box-shadow 150ms ease-in-out',
+        boxShadow: isSelected
+          ? '0 0 0 3px rgba(14,116,144,0.25)'
+          : table.status === 'Reserved'
+            ? '0 0 10px rgba(253,126,20,0.4)'
+            : '0 1px 3px rgba(0,0,0,0.06)',
+        transition: 'all 150ms ease-in-out',
         position: 'relative',
-        textAlign: 'center'
+        textAlign: 'center',
+        outline: 'none',
       }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = table.status === 'Reserved' 
-          ? '0 0 16px rgba(253, 126, 20, 0.6)' 
-          : '0 10px 15px -3px rgba(0,0,0,0.05)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'none';
-        e.currentTarget.style.boxShadow = table.status === 'Reserved' 
-          ? '0 0 10px rgba(253, 126, 20, 0.4)' 
-          : '0 1px 3px rgba(0,0,0,0.05)';
-      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
     >
-      {/* Time Badge (Pill badge at the top-right corner showing booking time and running duration) */}
-      {elapsed && (
+      {/* Timer badge */}
+      {minutesCount > 0 && (
         <div style={{
-          position: 'absolute',
-          top: '-10px',
-          right: '-10px',
-          background: '#0d9488',
-          color: '#ffffff',
-          borderRadius: '12px',
-          padding: '4px 10px',
-          fontSize: '0.62rem',
-          fontWeight: 800,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          textAlign: 'center',
-          lineHeight: '1',
-          zIndex: 5
+          position: 'absolute', top: '-10px', right: '-10px',
+          background: minutesCount > 60 ? '#dc2626' : '#0d9488',
+          color: '#fff', borderRadius: '12px', padding: '3px 8px',
+          fontSize: '0.6rem', fontWeight: 800, zIndex: 5, lineHeight: 1,
         }}>
-          {elapsed} ({minutesCount}m)
+          {minutesCount}m
         </div>
       )}
 
-      {/* Table No Label */}
-      <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+      {/* Table number */}
+      <div style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
         T{parseInt(table.no)}
       </div>
 
-      {/* Order Amount */}
-      {table.status !== 'Blank' && table.amount > 0 && (
-        <div style={{ fontSize: '0.9rem', fontWeight: 800, marginTop: '4px' }}>
+      {/* Status label */}
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.75, marginTop: '2px' }}>
+        {table.status}
+      </div>
+
+      {/* Amount */}
+      {isActive && table.amount > 0 && (
+        <div style={{ fontSize: '0.88rem', fontWeight: 800, marginTop: '4px' }}>
           ₹{table.amount.toLocaleString('en-IN')}
         </div>
       )}
 
-      {/* Customer Name / Pax info for Reserved Tables */}
-      {table.status === 'Reserved' && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '4px' }}>
-          <div style={{
-            background: '#fd7e14',
-            color: '#ffffff',
-            borderRadius: '4px',
-            padding: '2px 8px',
-            fontSize: '0.62rem',
-            fontWeight: 800,
-            marginTop: '6px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-          }}>
-            Reserved
-          </div>
+      {/* KOT count */}
+      {isActive && kotCount > 0 && (
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, marginTop: '3px', opacity: 0.8 }}>
+          {kotCount} KOT
         </div>
       )}
 
-      {/* Floating Bottom action row with original design, plus operations trigger */}
-      {table.status !== 'Blank' && (
+      {/* Action bar — only for active tables */}
+      {isActive && (
         <div
-          onClick={(e) => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            bottom: '-16px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: '14px',
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-            whiteSpace: 'nowrap'
+            position: 'absolute', bottom: '-15px', left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', gap: '10px', background: '#fff', border: '1px solid #e2e8f0',
+            borderRadius: '6px', padding: '5px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+            alignItems: 'center', zIndex: 10, whiteSpace: 'nowrap',
           }}
         >
-          <button
-            onClick={onSave}
-            title="Save / Print KOT"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#475569'
-            }}
-          >
-            <FaPrint size={18} />
-          </button>
-          <button
-            onClick={onOpenOps}
-            title="View Order / Table Operations"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#475569'
-            }}
-          >
-            <FaEye size={18} />
-          </button>
-          <button
-            onClick={onDelete}
-            title="Clear Table / Reset"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#dc2626'
-            }}
-          >
-            <FaTrash size={18} />
-          </button>
-          <button
-            onClick={onDownload}
-            title="Download Receipt"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#475569'
-            }}
-          >
-            <FaDownload size={18} />
-          </button>
+          <button onClick={onSave} title="Print KOT (F4)" style={btnStyle('#475569')}><FaPrint size={14} /></button>
+          <button onClick={onOpenOps} title="Order Details (Enter)" style={btnStyle('#0e7490')}><FaEye size={14} /></button>
+          <button onClick={onDownload} title="Quick Bill (F10)" style={btnStyle('#16a34a')}><FaFileInvoiceDollar size={14} /></button>
+          <button onClick={onDelete} title="Reset Table" style={btnStyle('#dc2626')}><FaTrash size={14} /></button>
         </div>
       )}
     </div>
   );
+});
+
+const btnStyle = (color) => ({
+  background: 'none', border: 'none', cursor: 'pointer',
+  padding: 0, display: 'flex', alignItems: 'center', color,
 });
 
 export default TableCard;

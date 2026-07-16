@@ -51,6 +51,10 @@ const ServiceChargeMaster = ({ showToast }) => {
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
           existingRecords={data}
+          onEditExisting={(item) => {
+            setEditMode({ mode: 'edit', row: item });
+            setShowForm(true);
+          }}
         />
       </FormLoadingWrapper>
     );

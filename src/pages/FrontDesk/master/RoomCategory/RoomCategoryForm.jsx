@@ -5,7 +5,7 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import FormCard from '../../../../components/common/FormCard';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const RoomCategoryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const RoomCategoryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState({
     name: '',
     shortName: '',
@@ -27,7 +27,8 @@ const RoomCategoryForm = ({ mode, initialData, onSave, onCancel, existingRecords
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   useEffect(() => {

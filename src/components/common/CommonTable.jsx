@@ -12,7 +12,7 @@ import { PrintHeader, PrintFooter } from './PrintComponent';
  */
 const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
   return (
-    <tr 
+    <tr
       tabIndex={0}
       className="focusable-row focus:bg-slate-50 outline-none"
       onKeyDown={(e) => {
@@ -88,6 +88,8 @@ const CommonTable = ({
   statusFilterKey = 'active',
   isLoading = false,
   onlyTable = false,
+  emptyMessage = 'No matching records found',
+  extraButtons = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -280,6 +282,17 @@ const CommonTable = ({
               <span>Export</span>
             </button>
 
+            {extraButtons && extraButtons.map((btn, idx) => (
+              <button
+                key={idx}
+                onClick={btn.onClick}
+                className={btn.className || "btn-secondary"}
+              >
+                {btn.icon && <span className="mr-1 inline-flex items-center" style={{ verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center' }}>{btn.icon}</span>}
+                <span>{btn.label}</span>
+              </button>
+            ))}
+
             {onAddEntry && (
               <button
                 onClick={onAddEntry}
@@ -344,7 +357,7 @@ const CommonTable = ({
             ) : (
               <tr>
                 <td colSpan={columns.length + 1} className="p-0 border-none">
-                  <EmptyState />
+                  <EmptyState message={emptyMessage} />
                 </td>
               </tr>
             )}

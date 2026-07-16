@@ -14,10 +14,11 @@ const SidebarFlyoutL1 = ({
   handleMobileNav,
   setActiveFlyout,
 }) => {
-  if (!isCollapsed || !activeFlyout || (activeFlyout.menu !== 'front-desk' && activeFlyout.menu !== 'restaurant')) return null;
+  if (!isCollapsed || !activeFlyout || (activeFlyout.menu !== 'front-desk' && activeFlyout.menu !== 'restaurant' && activeFlyout.menu !== 'point-of-sale')) return null;
 
   const isRestaurant = activeFlyout.menu === 'restaurant';
-  const prefix = isRestaurant ? '/restaurant' : '/front-desk';
+  const isPOS = activeFlyout.menu === 'point-of-sale';
+  const prefix = isRestaurant ? '/restaurant' : isPOS ? '/restaurant' : '/front-desk';
 
   return (
     <div
@@ -26,9 +27,9 @@ const SidebarFlyoutL1 = ({
       onMouseEnter={handleFlyoutL1MouseEnter}
       onMouseLeave={handleFlyoutL1MouseLeave}
     >
-      <div className="flyout-header">{isRestaurant ? 'Restaurant' : 'Front Desk'}</div>
+      <div className="flyout-header">{isRestaurant ? 'Restaurant' : isPOS ? 'Point Of Sale' : 'Front Desk'}</div>
       <div className="flyout-menu-items">
-        {isRestaurant ? (
+        {isRestaurant && (
           <>
             <NavLink
               to="/restaurant/display-table"
@@ -72,7 +73,35 @@ const SidebarFlyoutL1 = ({
               <span>Order Details</span>
             </NavLink>
           </>
-        ) : (
+        )}
+
+        {isPOS && (
+          <>
+            <div
+              className={`flyout-menu-item ${location.pathname.startsWith('/restaurant/master') ? 'active' : ''} ${activeSubFlyout?.submenu === 'restaurant-master' ? 'hovered' : ''}`}
+              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'restaurant-master')}
+              onMouseLeave={handleSubmenuMouseLeave}
+              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'restaurant-master' ? null : { submenu: 'restaurant-master', top: activeFlyout.top })}
+            >
+              <FaCogs className="flyout-item-icon" />
+              <span>Master</span>
+              <FaChevronRight className="flyout-chevron" />
+            </div>
+
+            <div
+              className={`flyout-menu-item ${location.pathname.includes('order-details') ? 'active' : ''} ${activeSubFlyout?.submenu === 'restaurant-report' ? 'hovered' : ''}`}
+              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'restaurant-report')}
+              onMouseLeave={handleSubmenuMouseLeave}
+              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'restaurant-report' ? null : { submenu: 'restaurant-report', top: activeFlyout.top })}
+            >
+              <FaFileAlt className="flyout-item-icon" />
+              <span>Report</span>
+              <FaChevronRight className="flyout-chevron" />
+            </div>
+          </>
+        )}
+
+        {!isRestaurant && !isPOS && (
           <>
             <div
               className={`flyout-menu-item ${location.pathname.startsWith(`${prefix}/master`) ? 'active' : ''} ${activeSubFlyout?.submenu === 'master' ? 'hovered' : ''}`}

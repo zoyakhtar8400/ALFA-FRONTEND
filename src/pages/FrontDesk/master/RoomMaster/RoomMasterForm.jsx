@@ -16,7 +16,7 @@ const FEATURES_OPTIONS = [
   'Tea/Coffee Maker'
 ];
 
-const RoomMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const RoomMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState({
     roomNo: '',
     name: '',
@@ -33,7 +33,8 @@ const RoomMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords =
     currentFormData: form,
     uniqueFields: ['roomNo'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   useEffect(() => {

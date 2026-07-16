@@ -38,7 +38,11 @@ const TaxStructure = ({ showToast = () => {} }) => {
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: modal.data?.id,
-    mode: modal.mode
+    mode: modal.mode,
+    onEditExisting: (item) => {
+      setForm({ ...item });
+      setModal({ open: true, mode: 'edit', data: item });
+    }
   });
 
   const openAdd = () => { setForm(EMPTY_FORM); setModal({ open: true, mode: 'add', data: null }); };

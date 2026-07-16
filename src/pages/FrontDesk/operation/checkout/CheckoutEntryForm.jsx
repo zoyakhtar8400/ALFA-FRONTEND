@@ -17,7 +17,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
     const qGrc = initialData?.grcNo || '';
     const qRoom = initialData?.roomNo || '';
     const found = OCCUPANT_DB.find(o => (qGrc && o.grcNo === qGrc) || (qRoom && o.roomNo === qRoom));
-    
+
     return {
       grcNo: found?.grcNo || qGrc || '125',
       billNo: initialData?.billNo || '119',
@@ -96,7 +96,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
     const calculatedNet = gross - disc + sgst + cgst + vat;
     const finalNet = Math.round(calculatedNet);
     const roundOff = (finalNet - calculatedNet).toFixed(2);
-    
+
     const advance = parseFloat(form.advanceSettlement || 0) + parseFloat(form.roomSettlement || 0);
     const balance = finalNet - advance - rec;
 
@@ -121,7 +121,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
       const qGrc = initialData.grcNo || '';
       const qRoom = initialData.roomNo || initialData.roomCode || '';
       const found = OCCUPANT_DB.find(o => (qGrc && o.grcNo === qGrc) || (qRoom && o.roomNo === qRoom));
-      
+
       setForm({
         grcNo: found?.grcNo || qGrc || '125',
         billNo: initialData.billNo || '119',
@@ -239,7 +239,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
 
   return (
     <div className="animate-in duration-200" style={{ padding: '0 8px', width: '100%' }}>
-      
+
       <PageHeader
         title={mode === 'displayFolio' ? 'Display Folio' : mode === 'add' ? 'Checkout Entry' : 'Edit Checkout'}
         breadcrumbs={['Dashboard', 'Front Desk', 'Operation', 'Checkout Entry', mode === 'displayFolio' ? 'Display Folio' : mode === 'add' ? 'Add' : 'Edit']}
@@ -256,10 +256,10 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
           width: '100%',
           alignItems: 'start'
         }}>
-          
+
           {/* LEFT & CENTER: Workspace Info panels & Folio Charge details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: 0 }}>
-            
+
             {/* Split Grid: Guest Info (Left) and Stay Details (Middle) */}
             <div style={{
               display: 'grid',
@@ -273,7 +273,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
             }}>
               {/* Left Column: Guest info */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>GRC No</span>
                   {mode === 'displayFolio' ? (
@@ -333,7 +333,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
 
               {/* Middle Column: Stay details */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '6px' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Date</span>
                   {mode === 'displayFolio' ? (
@@ -541,7 +541,7 @@ const CheckoutEntryForm = ({ mode, initialData, onSave, onCancel, existingRecord
 
           {/* RIGHT PANEL: Stacked Tables (Receipts, POS Outlets, Tax summary, Settlement totals) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            
+
             {/* Table 1: Receipts table (Red Header) */}
             <div style={{
               background: '#ffffff',

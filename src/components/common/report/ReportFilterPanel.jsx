@@ -1,15 +1,26 @@
 import React from 'react';
 
-const ReportFilterPanel = ({ children }) => {
+const ReportFilterPanel = ({ children, onSubmit }) => {
+  const handleSubmit = (e) => {
+    if (onSubmit) {
+      e.preventDefault();
+      onSubmit();
+    }
+  };
+
   return (
-    <div className="panel-premium slide-up-item delay-1" style={{
-      width: '100%',
-      padding: '20px 24px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '16px',
-      marginBottom: '20px'
-    }}>
+    <form
+      onSubmit={handleSubmit}
+      className="panel-premium slide-up-item delay-1"
+      style={{
+        width: '100%',
+        padding: '20px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        marginBottom: '20px'
+      }}
+    >
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -18,7 +29,7 @@ const ReportFilterPanel = ({ children }) => {
       }}>
         {children}
       </div>
-    </div>
+    </form>
   );
 };
 

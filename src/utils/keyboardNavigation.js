@@ -62,11 +62,12 @@ const markInvalid = (el) => {
  */
 const getFields = (el) => {
   const container =
-    el.closest('.modal-container') ||
     el.closest('form') ||
-    el.closest('.dashboard-panel') ||
-    document.body;
+    el.closest('.modal-container') ||
+    el.closest('.drawer-container') ||
+    el.closest('.dashboard-panel');
 
+  if (!container) return [];
   return Array.from(container.querySelectorAll(FIELD_SELECTOR)).filter(isVisible);
 };
 
@@ -104,6 +105,14 @@ const handleKeyDown = (e) => {
 
   // ── Buttons handle themselves ─────────────────────────────────
   if (active.tagName === 'BUTTON') return;
+
+  // ── Only intercept inside a form, modal, or drawer ───────────
+  // Do NOT intercept Enter on standalone inputs outside a form context
+  const container =
+    active.closest('form') ||
+    active.closest('.modal-container') ||
+    active.closest('.drawer-container');
+  if (!container) return;
 
   e.preventDefault();
 
@@ -222,11 +231,11 @@ const handleGlobalShortcuts = (e) => {
 // ─── Escape: close modal or custom drawer ──────────────────────────
 const handleEscape = (e) => {
   if (e.key !== 'Escape') return;
-  const modal = document.querySelector('.modal-overlay, .modal-container, .drawer-overlay, .drawer-container');
-  if (modal) {
-    const closeBtn = modal.querySelector('.modal-close-btn, .drawer-close-btn, button[aria-label="Close"], button.btn-secondary');
-    if (closeBtn) { e.preventDefault(); closeBtn.click(); }
-  }
+  // Only handle modals/drawers with a dedicated close button class
+  const modal = document.querySelector('.modal-container, .drawer-container');
+  if (!modal) return;
+  const closeBtn = modal.querySelector('.modal-close-btn, .drawer-close-btn, button[aria-label="Close"]');
+  if (closeBtn) { e.preventDefault(); closeBtn.click(); }
 };
 
 // ─── Arrow Keys: navigate inside tables focusable rows ──────────────
@@ -268,23 +277,11 @@ export const initKeyboardNavigation = () => {
   window.addEventListener('keydown', handleEscape);
   window.addEventListener('keydown', handleArrowNavigation);
 
-  // Automatically focus first input element in dynamic forms
-  const handleAutoFocus = (e) => {
-    if (e.target && e.target.classList && (e.target.classList.contains('modal-container') || e.target.classList.contains('drawer-container') || e.target.tagName === 'FORM')) {
-      const firstInput = e.target.querySelector('input:not([type="hidden"]):not([type="submit"]):not([disabled])');
-      if (firstInput) {
-        setTimeout(() => firstInput.focus(), 50);
-      }
-    }
-  };
-  document.addEventListener('DOMNodeInserted', handleAutoFocus);
-
   return () => {
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('keydown', handleGlobalShortcuts);
     window.removeEventListener('keydown', handleEscape);
     window.removeEventListener('keydown', handleArrowNavigation);
-    document.removeEventListener('DOMNodeInserted', handleAutoFocus);
   };
 };
 

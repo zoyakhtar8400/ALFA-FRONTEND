@@ -54,7 +54,7 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
   </div>
 );
 
-const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState(() => {
     if (initialData) {
       return {
@@ -116,7 +116,8 @@ const RoomRateMasterForm = ({ mode, initialData, onSave, onCancel, existingRecor
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   // Fetch rates when room category is changed

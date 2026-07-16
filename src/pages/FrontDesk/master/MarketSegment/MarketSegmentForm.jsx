@@ -4,7 +4,7 @@ import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [] }) => {
+const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState(() => ({
     name: initialData?.name || '',
     status: initialData?.status || 'Active'
@@ -15,7 +15,8 @@ const MarketSegmentForm = ({ isOpen, mode, initialData, onSave, onClose, existin
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   const handleSubmit = (e) => {

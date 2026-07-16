@@ -4,12 +4,20 @@ import DisplayTablePage from './pages/DisplayTablePage';
 import ViewKOTPage from './pages/ViewKOTPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import POSBillingPage from './pages/POSBillingPage';
+import POSMasterPage from '../PointOfSale/PointOfSale';
+import StewardMasterPage from '../PointOfSale/Masters/StewardMaster/StewardMasterPage';
 
-const Restaurant = () => {
+const Restaurant = ({ showToast }) => {
   const location = useLocation();
   const path = location.pathname;
 
   const renderSubPage = () => {
+    if (path.includes('/restaurant/masters/steward-master')) {
+      return <StewardMasterPage showToast={showToast} />;
+    }
+    if (path.includes('/restaurant/master') || path.includes('/restaurant/masters')) {
+      return <POSMasterPage showToast={showToast} />;
+    }
     if (path.includes('/restaurant/view-kot')) {
       return <ViewKOTPage />;
     }

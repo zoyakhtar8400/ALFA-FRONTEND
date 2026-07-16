@@ -16,7 +16,7 @@ const AppRoutes = ({ showToast }) => {
       <Route path="/" element={<Dashboard showToast={showToast} />} />
       <Route path="/front-desk/*" element={<FrontDesk showToast={showToast} />} />
       <Route path="/housekeeping" element={<HouseKeeping />} />
-      <Route path="/pos" element={<PointOfSale />} />
+      <Route path="/pos/*" element={<PointOfSale showToast={showToast} />} />
       <Route path="/room-services" element={<RoomServices />} />
       <Route path="/restaurant/*" element={<Restaurant showToast={showToast} />} />
       <Route path="/banquet" element={<Banquet />} />

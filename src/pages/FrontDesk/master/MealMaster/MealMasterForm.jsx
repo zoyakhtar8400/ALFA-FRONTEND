@@ -5,7 +5,7 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import FormCard from '../../../../components/common/FormCard';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const MealMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+const MealMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState(() => ({
     name: initialData?.name || '',
     acName: initialData?.acName || 'Food Revenue',
@@ -24,7 +24,8 @@ const MealMasterForm = ({ mode, initialData, onSave, onCancel, existingRecords =
     currentFormData: form,
     uniqueFields: ['name'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   const handleSubmit = (e) => {

@@ -135,7 +135,7 @@ export const FrontDeskProvider = ({ children }) => {
         if (room.status === 'Clean') newStatus = 'Dirty';
         else if (room.status === 'Dirty') newStatus = 'Maintenance';
         else newStatus = 'Clean';
-        
+
         if (showToast) {
           showToast(`Room ${roomNo} status updated to: ${newStatus}`);
         }

@@ -24,7 +24,15 @@ const MasterTable = ({ title, columns, seed, formFields, FormComponent, showToas
     currentFormData: form,
     uniqueFields: uniqueFields.length > 0 ? uniqueFields : (formFields && formFields.length > 0 ? [formFields[0].key] : []),
     currentId: modal.row?.id,
-    mode: modal.mode
+    mode: modal.mode,
+    onEditExisting: (item) => {
+      if (FormComponent) {
+        setModal({ open: true, mode: 'edit', row: item });
+      } else {
+        setForm({ ...item });
+        setModal({ open: true, mode: 'edit', row: item });
+      }
+    }
   });
 
   const openAdd = () => {

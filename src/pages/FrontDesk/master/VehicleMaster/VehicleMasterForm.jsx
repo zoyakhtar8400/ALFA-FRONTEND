@@ -4,7 +4,7 @@ import CommonModal from '../../../../components/common/CommonModal';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 
-const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [] }) => {
+const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose, existingRecords = [], onEditExisting }) => {
   const [form, setForm] = useState(() => ({
     regNo: initialData?.regNo || '',
     type: initialData?.type || 'Sedan',
@@ -19,7 +19,8 @@ const VehicleMasterForm = ({ isOpen, mode, initialData, onSave, onClose, existin
     currentFormData: form,
     uniqueFields: ['regNo'],
     currentId: initialData?.id,
-    mode
+    mode,
+    onEditExisting
   });
 
   const handleSubmit = (e) => {

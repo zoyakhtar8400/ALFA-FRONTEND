@@ -199,7 +199,7 @@ const Table = ({
       
       {/* Print Header - Hidden on screen, visible on print */}
       <div className="print-header" style={{ display: 'none' }}>
-        <img src="/logo/hotel-logo.png" alt="Hotel Logo" className="print-logo-img" />
+        <img src="/logo/alfa-logo.png" alt="Hotel Logo" className="print-logo-img" />
         <div className="print-title">{title}</div>
       </div>
 

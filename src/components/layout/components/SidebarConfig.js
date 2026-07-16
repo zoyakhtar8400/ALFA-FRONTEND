@@ -44,3 +44,26 @@ export const restaurantItems = [
   { name: 'View KOT', path: '/restaurant/view-kot' },
   { name: 'Order Details', path: '/restaurant/order-details' }
 ];
+
+export const restaurantMasters = [
+  { name: 'Steward Master', path: '/pos/masters/steward-master' },
+  { name: 'Delivery Master', path: '/pos/master/delivery' },
+  { name: 'Outlet Master', path: '/pos/master/outlet' },
+  { name: 'Table Master', path: '/pos/master/table' },
+  { name: 'Table Structure Design', path: '/pos/master/structure-design' },
+  { name: 'Item Tax Category', path: '/pos/master/tax-category' },
+  { 
+    name: 'Item Menu', 
+    path: '/pos/master/item-menu',
+    subitems: [
+      { name: 'Main Group Entry', path: '/pos/master/item-menu/main-group' },
+      { name: 'Item Group Entry', path: '/pos/master/item-menu/item-group' },
+      { name: 'Menu Item Entry', path: '/pos/master/item-menu/menu-item' },
+      { name: 'Item Entry CSV upload', path: '/pos/master/item-menu/csv-upload' },
+      { name: 'HSN Update', path: '/pos/master/item-menu/hsn-update' }
+    ]
+  },
+  { name: 'NC Type Master', path: '/pos/master/nc-type' },
+  { name: 'Item Rate Update', path: '/pos/master/rate-update' },
+  { name: 'Item Rate Category', path: '/pos/master/rate-category' }
+];
