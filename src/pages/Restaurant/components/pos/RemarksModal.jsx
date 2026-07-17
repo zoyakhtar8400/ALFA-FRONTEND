@@ -57,6 +57,7 @@ const RemarksModal = ({ isOpen, onClose, remarks = '', onSaveRemarks }) => {
         {/* Text Area input */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
           <textarea
+            autoFocus
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder="Add specific instructions (e.g. Extra hot, No cheese)..."

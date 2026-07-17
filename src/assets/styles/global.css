@@ -261,10 +261,10 @@ body {
 }
 
 .sidebar-item:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   padding-left: 20px;
-  border-left-color: rgba(74, 153, 147, 0.5);
+  border-left-color: rgba(74, 153, 147, 0.8);
 }
 
 .sidebar-item.active {
@@ -286,6 +286,36 @@ body {
 .sidebar-item:hover .sidebar-icon {
   color: #ffffff;
   transform: scale(1.05);
+}
+
+/* Sidebar sub-menu item base */
+.sidebar-subitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--border-radius);
+  border-left: 3px solid transparent;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.sidebar-subitem:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-left-color: rgba(74, 153, 147, 0.8);
+  padding-left: 20px;
+}
+
+.sidebar-subitem.active {
+  background: linear-gradient(90deg, rgba(65,138,139,0.6) 0%, rgba(65,138,139,0.3) 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-left-color: var(--secondary);
 }
 
 /* Sidebar Profile & Logout Footer Styling */
@@ -2264,16 +2294,43 @@ input:focus, select:focus, textarea:focus, div.form-select:focus {
   }
 }
 
-/* Custom Keyboard Focus Styles for Sidebar Items */
-.sidebar [tabindex="0"]:focus,
-.sidebar [tabindex="0"]:focus-visible,
+/* ============================================
+   Keyboard Focus Styles — clearly visible highlight
+   matching hover appearance exactly
+   ============================================ */
+
+/* Base: all focusable sidebar elements */
 .sidebar-item:focus,
-.sidebar-subitem:focus,
 .sidebar-item:focus-visible,
-.sidebar-subitem:focus-visible {
-  outline: none;
-  background-color: #418a8b !important;
+.sidebar-subitem:focus,
+.sidebar-subitem:focus-visible,
+.sidebar [tabindex="0"]:focus,
+.sidebar [tabindex="0"]:focus-visible {
+  outline: none !important;
+  background-color: rgba(255, 255, 255, 0.12) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 0 3px rgba(65, 138, 139, 0.4) !important;
-  border-radius: 8px;
+  border-left: 3px solid rgba(74, 153, 147, 0.85) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: inset 0 0 0 1px rgba(74, 153, 147, 0.5), 0 2px 8px rgba(0,0,0,0.18) !important;
+}
+
+/* Icon becomes white on focus */
+.sidebar-item:focus .sidebar-icon,
+.sidebar-item:focus-visible .sidebar-icon,
+.sidebar-subitem:focus .sidebar-icon,
+.sidebar-subitem:focus-visible .sidebar-icon,
+.sidebar [tabindex="0"]:focus .sidebar-icon,
+.sidebar [tabindex="0"]:focus-visible .sidebar-icon {
+  color: #ffffff !important;
+  transform: scale(1.08);
+}
+
+/* Text span becomes white on focus */
+.sidebar-item:focus span,
+.sidebar-item:focus-visible span,
+.sidebar-subitem:focus span,
+.sidebar-subitem:focus-visible span,
+.sidebar [tabindex="0"]:focus span,
+.sidebar [tabindex="0"]:focus-visible span {
+  color: #ffffff !important;
 }

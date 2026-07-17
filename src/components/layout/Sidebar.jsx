@@ -619,7 +619,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
           {/* Restaurant Accordion Container */}
           <div>
             <div
-              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant') || location.pathname.startsWith('/pos')) ? 'active' : ''}`}
+              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant') && !location.pathname.startsWith('/restaurant/master') && !location.pathname.startsWith('/restaurant/masters')) ? 'active' : ''}`}
               onClick={() => {
                 if (isCollapsed) {
                   setActiveFlyout(prev => prev ? null : { menu: 'restaurant', top: 320 });

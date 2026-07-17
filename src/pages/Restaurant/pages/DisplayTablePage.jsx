@@ -227,11 +227,12 @@ const DisplayTablePage = () => {
         }
       });
     } else {
+      const idx = filteredDataRef.current.findIndex(t => t.id === table.id);
+      if (idx !== -1) {
+        setFocusedTableIndex(idx);
+      }
+      
       if (table.status === 'Blank') {
-        const idx = filteredDataRef.current.findIndex(t => t.id === table.id);
-        if (idx !== -1) {
-          setFocusedTableIndex(idx);
-        }
         navigate('/restaurant/pos-billing', {
           state: {
             tableId: table.id,
@@ -239,9 +240,15 @@ const DisplayTablePage = () => {
             isNewBooking: true
           }
         });
-        return;
+      } else {
+        // Direct order edit on clicking any running/occupied table!
+        navigate('/restaurant/pos-billing', {
+          state: {
+            table,
+            orderRows: orderItemsMap[table.id] || []
+          }
+        });
       }
-      setPreviewTable(table);
     }
   };
 

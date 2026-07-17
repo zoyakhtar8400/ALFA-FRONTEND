@@ -39,13 +39,14 @@ const TableSelector = ({ isOpen, onClose, tablesList, currentTableId, onSelectTa
             gridTemplateColumns: 'repeat(5, 1fr)',
             gap: '10px'
           }}>
-            {tablesList.map((table) => {
+            {tablesList.map((table, idx) => {
               const isAssigned = table.id === currentTableId;
               const isOccupied = table.status !== 'Blank' && table.status !== 'Paid';
               return (
                 <button
                   key={table.id}
                   type="button"
+                  autoFocus={idx === 0}
                   onClick={() => {
                     onSelectTable(table);
                     onClose();

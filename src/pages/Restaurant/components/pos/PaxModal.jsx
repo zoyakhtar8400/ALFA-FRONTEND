@@ -49,6 +49,7 @@ const PaxModal = ({ isOpen, onClose, adults = 1, children = 0, onSavePax }) => {
             <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Adults</label>
             <input
               type="number"
+              autoFocus
               value={adultsCount}
               onChange={e => setAdultsCount(Math.max(0, parseInt(e.target.value) || 0))}
               style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700 }}

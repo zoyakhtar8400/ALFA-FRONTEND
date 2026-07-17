@@ -84,6 +84,7 @@ const CustomerDrawer = ({ isOpen, onClose, currentCustomer, onSaveCustomer }) =>
               <FaPhone style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
               <input
                 type="text"
+                autoFocus
                 required
                 maxLength="10"
                 value={phone}

@@ -1,0 +1,105 @@
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
+
+export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printedOn = '') => {
+  // 1. Initialize Document in A4 Portrait
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const leftMargin = 10;
+  const rightMargin = 10;
+
+  const titleStr = 'Customer Outlet Visit Report';
+  const subStr = `Track frequency of guest visits across specific outlets (Cafe, Restaurant, Bar).`;
+
+  // 2. Report Header (Plain text matching layout style)
+  doc.setFont('Helvetica', 'bold');
+  doc.setFontSize(10.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
+
+  doc.setFontSize(8.5);
+  doc.text(titleStr, pageWidth / 2, 18.5, { align: 'center' });
+
+  // Metadata block (Plain text left-aligned)
+  doc.setFont('Helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.text(subStr, leftMargin, 23.5);
+
+  const startY = 28;
+
+  // 3. Build Table Rows
+  const tableRows = data.map(item => [
+    { content: item.c1, styles: { halign: 'left' } },   // Customer Name
+    { content: item.c2, styles: { halign: 'center' } }, // Mobile
+    { content: item.c3, styles: { halign: 'center' } }, // Main Restaurant
+    { content: item.c4, styles: { halign: 'center' } }, // Bar Outlet
+    { content: item.c5, styles: { halign: 'center' } }  // Cafe Outlet
+  ]);
+
+  // 4. Draw Plain Table
+  autoTable(doc, {
+    startY: startY,
+    head: [['Customer Name', 'Mobile', 'Main Restaurant', 'Bar Outlet', 'Cafe Outlet']],
+    body: tableRows,
+    theme: 'plain',
+    headStyles: {
+      textColor: [0, 0, 0],
+      fontSize: 7.5,
+      fontStyle: 'bold',
+      halign: 'center',
+      valign: 'middle',
+      cellPadding: { top: 1.5, bottom: 1.5 },
+      lineWidth: { top: 0.25, bottom: 0.25, left: 0, right: 0 },
+      lineColor: [0, 0, 0]
+    },
+    bodyStyles: {
+      fontSize: 7,
+      textColor: [0, 0, 0],
+      valign: 'middle',
+      cellPadding: 1.2
+    },
+    columnStyles: {
+      0: { cellWidth: 50 },  // Customer Name
+      1: { cellWidth: 35 },  // Mobile
+      2: { cellWidth: 35 },  // Main Restaurant
+      3: { cellWidth: 35 },  // Bar Outlet
+      4: { cellWidth: 35 }   // Cafe Outlet
+    },
+    margin: { left: leftMargin, right: rightMargin, top: 15, bottom: 15 },
+    pageBreak: 'auto'
+  });
+
+  // 5. Running footers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+
+    doc.setFont('Helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+
+    // running header page 2+
+    if (i > 1) {
+      doc.setFont('Helvetica', 'bold');
+      doc.text('ALFA HOTEL MANAGEMENT SYSTEM   |   Customer Outlet Visit Report', leftMargin, 10);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(leftMargin, 12, pageWidth - rightMargin, 12);
+    }
+
+    // running footer page indicator
+    doc.setFont('Helvetica', 'normal');
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin, pageHeight - 8, { align: 'right' });
+  }
+
+  // Open in new tab
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+  window.open(blobUrl, '_blank');
+};

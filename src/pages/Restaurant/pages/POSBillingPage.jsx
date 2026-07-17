@@ -97,6 +97,7 @@ const INITIAL_ROWS = [
 const POSBillingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const searchInputRef = React.useRef(null);
 
   // Check if opened from "Book Table" button in new booking flow
   const isNewBooking = location.state?.isNewBooking || location.state?.newBooking || false;
@@ -145,6 +146,8 @@ const POSBillingPage = () => {
   const [isGstModalOpen, setIsGstModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [variantModalItem, setVariantModalItem] = useState(null);
 
   // KOT states
   const [kotCreated, setKotCreated] = useState(false);
@@ -157,10 +160,91 @@ const POSBillingPage = () => {
   const [isSettling, setIsSettling] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
 
-  // Global Shortcuts Hook for F5-F10
+  // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
     const handleShortcuts = (e) => {
+      // Check Alt key combos
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+        switch (key) {
+          case '1': // Alt + 1 -> FOOD category
+            e.preventDefault();
+            setCategory('FOOD');
+            toast('Category: FOOD');
+            break;
+          case '2': // Alt + 2 -> BANQUET category
+            e.preventDefault();
+            setCategory('BANQUET');
+            toast('Category: BANQUET');
+            break;
+          case 'c': // Alt + C -> Focus Cart Table
+            e.preventDefault();
+            focusCartTable();
+            break;
+          case 't': // Alt + T -> Open Table Selector
+            e.preventDefault();
+            setIsTableModalOpen(true);
+            break;
+          case 'm': // Alt + M -> Open Customer Drawer
+            e.preventDefault();
+            setIsCustomerDrawerOpen(true);
+            break;
+          case 'p': // Alt + P -> Open PAX Configurator
+            e.preventDefault();
+            setIsPaxModalOpen(true);
+            break;
+          case 'r': // Alt + R -> Open Kitchen Remarks
+            e.preventDefault();
+            setIsRemarksModalOpen(true);
+            break;
+          case 'g': // Alt + G -> Open GST Configuration
+            e.preventDefault();
+            setIsGstModalOpen(true);
+            break;
+          case 'a': // Alt + A -> Add Item Row
+            e.preventDefault();
+            handleAddEmptyRow();
+            break;
+          case 'd': // Alt + D -> Clear Cart
+            e.preventDefault();
+            setIsClearModalOpen(true);
+            break;
+          case 'v': // Alt + V -> Toggle Service Type
+            e.preventDefault();
+            setServiceType(prev => {
+              const modes = ['Dine In', 'Take Away', 'Delivery'];
+              const next = (modes.indexOf(prev) + 1) % modes.length;
+              toast(`Service Type: ${modes[next]}`);
+              return modes[next];
+            });
+            break;
+          case 'y': // Alt + Y -> Toggle Payment Mode
+            e.preventDefault();
+            setPaymentMode(prev => {
+              const modes = ['Cash', 'Card', 'UPI', 'Room'];
+              const next = (modes.indexOf(prev) + 1) % modes.length;
+              toast(`Payment Mode: ${modes[next]}`);
+              return modes[next];
+            });
+            break;
+          default:
+            break;
+        }
+        return;
+      }
+
       switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          if (searchInputRef.current) {
+            searchInputRef.current.focus();
+            searchInputRef.current.select();
+          }
+          break;
+        case 'F3':
+          e.preventDefault();
+          focusCartTable();
+          break;
         case 'F5':
           e.preventDefault();
           handleConfirmBooking();
@@ -185,17 +269,54 @@ const POSBillingPage = () => {
           e.preventDefault();
           handleConfirmBooking();
           break;
+        case '+':
+          if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            setRows(prev => {
+              const lastIdx = prev.findIndex(r => r.itemName || r.name);
+              if (lastIdx === -1) return prev;
+              const lastRow = prev[lastIdx];
+              return prev.map((r, i) => i === lastIdx ? { ...r, qty: r.qty + 1, total: (r.qty + 1) * r.unitPrice } : r);
+            });
+            toast('Quantity increased');
+          }
+          break;
+        case '-':
+          if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            setRows(prev => {
+              const lastIdx = prev.findIndex(r => r.itemName || r.name);
+              if (lastIdx === -1) return prev;
+              const lastRow = prev[lastIdx];
+              if (lastRow.qty <= 1) return prev;
+              return prev.map((r, i) => i === lastIdx ? { ...r, qty: r.qty - 1, total: (r.qty - 1) * r.unitPrice } : r);
+            });
+            toast('Quantity decreased');
+          }
+          break;
         default:
           break;
       }
     };
     window.addEventListener('keydown', handleShortcuts);
     return () => window.removeEventListener('keydown', handleShortcuts);
-  }, [rows, assignedTableId, customerName, mobileNumber, waiter, captain, remarks, paymentMode, isPaid, gstin]);
+  }, [rows, assignedTableId, customerName, mobileNumber, waiter, captain, remarks, paymentMode, isPaid, gstin, serviceType]);
 
-  // Variant selection modal states
-  const [showVariantModal, setShowVariantModal] = useState(false);
-  const [variantModalItem, setVariantModalItem] = useState(null);
+  // Auto-focus search bar on mount
+  useEffect(() => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, []);
+
+  // Refocus search input whenever any modal/drawer closes
+  useEffect(() => {
+    if (!isTableModalOpen && !isCustomerDrawerOpen && !isPaxModalOpen && !isRemarksModalOpen && !isGstModalOpen && !isSettingsModalOpen && !isClearModalOpen && !showVariantModal) {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }
+  }, [isTableModalOpen, isCustomerDrawerOpen, isPaxModalOpen, isRemarksModalOpen, isGstModalOpen, isSettingsModalOpen, isClearModalOpen, showVariantModal]);
 
   // Load existing items if editing
   useEffect(() => {
@@ -239,12 +360,16 @@ const POSBillingPage = () => {
     }
   };
 
-  // Filter items
+  // Filter items matching name or numeric ID
   const filteredGridItems = useMemo(() => {
+    const q = searchItem.toLowerCase().trim();
+    if (!q) {
+      return ALL_FOOD_ITEMS.filter(item => item.category === category);
+    }
     return ALL_FOOD_ITEMS.filter(item => {
-      const matchesCategory = item.category === category;
-      const matchesSearch = item.name.toLowerCase().includes(searchItem.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const matchesName = item.name.toLowerCase().includes(q);
+      const matchesId = String(item.id).includes(q);
+      return matchesName || matchesId;
     });
   }, [category, searchItem]);
 
@@ -402,6 +527,56 @@ const POSBillingPage = () => {
     }));
   };
 
+  const focusCartTable = () => {
+    const firstInput = document.querySelector('[data-row="0"][data-col="1"]') || document.querySelector('[data-row="0"][data-col="3"]');
+    if (firstInput) {
+      firstInput.focus();
+      if (firstInput.select) firstInput.select();
+      toast('Focused cart table.');
+    } else {
+      toast('Cart is empty.');
+    }
+  };
+
+  const handleGridKeyDown = (e, rowIndex, colIndex) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (rowIndex === rows.length - 1) {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.select();
+        }
+      } else {
+        const nextTarget = document.querySelector(`[data-row="${rowIndex + 1}"][data-col="${colIndex}"]`);
+        if (nextTarget) {
+          nextTarget.focus();
+          if (nextTarget.select) nextTarget.select();
+        }
+      }
+      return;
+    }
+
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (e.target.tagName === 'SELECT' && ['ArrowUp', 'ArrowDown'].includes(e.key)) {
+        return;
+      }
+      e.preventDefault();
+      let nextRow = rowIndex;
+      let nextCol = colIndex;
+
+      if (e.key === 'ArrowUp') nextRow = Math.max(0, rowIndex - 1);
+      else if (e.key === 'ArrowDown') nextRow = Math.min(rows.length - 1, rowIndex + 1);
+      else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIndex - 1);
+      else if (e.key === 'ArrowRight') nextCol = Math.min(4, colIndex + 1);
+
+      const target = document.querySelector(`[data-row="${nextRow}"][data-col="${nextCol}"]`);
+      if (target) {
+        target.focus();
+        if (target.select) target.select();
+      }
+    }
+  };
+
   const handleAddEmptyRow = () => {
     const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
     setRows(prev => [...prev, { lineId, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }]);
@@ -536,9 +711,29 @@ const POSBillingPage = () => {
             RESTAURANT POS
           </h2>
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden' }}>
-              <input type="text" placeholder="SEARCH ITEM" value={searchItem} onChange={e => setSearchItem(e.target.value)}
-                style={{ border: 'none', padding: '8px 12px', fontSize: '0.8rem', outline: 'none', width: '160px' }} />
+            <div style={{ display: 'flex', border: '1.5px solid #0e7490', borderRadius: '6px', overflow: 'hidden', background: '#fff' }}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="SEARCH / ITEM ID (ENTER TO ADD)"
+                value={searchItem}
+                onChange={e => setSearchItem(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (filteredGridItems.length > 0) {
+                      handleGridItemClick(filteredGridItems[0]);
+                      setSearchItem('');
+                      toast(`Added: ${filteredGridItems[0].name}`);
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const firstGridBtn = document.querySelector('.grid-item-btn[data-index="0"]');
+                    if (firstGridBtn) firstGridBtn.focus();
+                  }
+                }}
+                style={{ border: 'none', padding: '8px 12px', fontSize: '0.8rem', outline: 'none', width: '160px' }}
+              />
               <button style={{ border: 'none', background: '#0e7490', color: '#fff', padding: '8px 12px', cursor: 'pointer' }}><FaSearch size={12} /></button>
             </div>
           </div>
@@ -550,10 +745,15 @@ const POSBillingPage = () => {
               const isSelected = category === cat;
               return (
                 <button key={cat} onClick={() => setCategory(cat)}
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCategory(cat); } }}
+                  onFocus={e => { if (!isSelected) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0e7490'; } e.currentTarget.style.outline = 'none'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(14,116,144,0.4)'; }}
+                  onBlur={e => { if (!isSelected) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } e.currentTarget.style.boxShadow = 'none'; }}
                   style={{
                     width: '100%', padding: '16px 20px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 700, border: 'none',
                     background: isSelected ? '#f1f5f9' : 'transparent', color: isSelected ? '#0e7490' : '#475569', cursor: 'pointer',
-                    borderLeft: isSelected ? '4px solid #0e7490' : '4px solid transparent'
+                    borderLeft: isSelected ? '4px solid #0e7490' : '4px solid transparent',
+                    transition: 'all 150ms ease-in-out'
                   }}
                 >{cat}</button>
               );
@@ -562,15 +762,48 @@ const POSBillingPage = () => {
 
           <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: '#fff' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-              {filteredGridItems.map(item => (
-                <button key={item.name} onClick={() => handleGridItemClick(item)}
+              {filteredGridItems.map((item, idx) => (
+                <button key={item.name}
+                  className="grid-item-btn"
+                  data-index={idx}
+                  onClick={() => handleGridItemClick(item)}
+                  onKeyDown={e => {
+                    const maxIndex = filteredGridItems.length - 1;
+                    let targetIndex = idx;
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      targetIndex = Math.min(maxIndex, idx + 4);
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      targetIndex = Math.max(0, idx - 4);
+                    } else if (e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      targetIndex = Math.min(maxIndex, idx + 1);
+                    } else if (e.key === 'ArrowLeft') {
+                      e.preventDefault();
+                      targetIndex = Math.max(0, idx - 1);
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus();
+                        searchInputRef.current.select();
+                      }
+                    }
+                    
+                    if (targetIndex !== idx) {
+                      const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
+                      if (targetBtn) targetBtn.focus();
+                    }
+                  }}
                   style={{
                     padding: '20px 12px', borderRadius: '8px', border: '1.5px solid #0e7490', background: '#fff', color: '#0e7490',
                     fontSize: '0.78rem', fontWeight: 700, textAlign: 'center', cursor: 'pointer', minHeight: '80px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 120ms ease-in-out', textTransform: 'uppercase'
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14,116,144,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
+                  onFocus={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,116,144,0.35), 0 4px 12px rgba(14,116,144,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.outline = 'none'; }}
+                  onBlur={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
                 >{item.name}</button>
               ))}
             </div>
@@ -612,13 +845,26 @@ const POSBillingPage = () => {
                 return (
                   <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                     <td style={{ padding: '6px 4px', textAlign: 'center' }}>
-                      <button type="button" onClick={() => handleRemoveRow(index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                      <button
+                        type="button"
+                        data-row={index}
+                        data-col={0}
+                        onKeyDown={e => handleGridKeyDown(e, index, 0)}
+                        onClick={() => handleRemoveRow(index)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                      >
                         <FaTimes size={13} />
                       </button>
                     </td>
                     <td style={{ padding: '6px' }}>
-                      <select value={row.itemName || row.name || ''} onChange={e => updateRowField(index, 'itemName', e.target.value)}
-                        style={{ width: '100%', padding: '6px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}>
+                      <select
+                        data-row={index}
+                        data-col={1}
+                        onKeyDown={e => handleGridKeyDown(e, index, 1)}
+                        value={row.itemName || row.name || ''}
+                        onChange={e => updateRowField(index, 'itemName', e.target.value)}
+                        style={{ width: '100%', padding: '6px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}
+                      >
                         <option value="">SELECT ITEM...</option>
                         {ALL_FOOD_ITEMS.map(item => (
                           <option key={item.id} value={item.name}>{item.name}</option>
@@ -641,16 +887,40 @@ const POSBillingPage = () => {
                       )}
                     </td>
                     <td style={{ padding: '6px' }}>
-                      <input type="text" value={row.remark || ''} onChange={e => updateRowField(index, 'remark', e.target.value)} placeholder="REMARKS"
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem' }} />
+                      <input
+                        type="text"
+                        data-row={index}
+                        data-col={2}
+                        onKeyDown={e => handleGridKeyDown(e, index, 2)}
+                        value={row.remark || ''}
+                        onChange={e => updateRowField(index, 'remark', e.target.value)}
+                        placeholder="REMARKS"
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem' }}
+                      />
                     </td>
                     <td style={{ padding: '6px', textAlign: 'center' }}>
-                      <input type="number" min="1" value={row.qty} onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
-                        style={{ width: '42px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }} />
+                      <input
+                        type="number"
+                        min="1"
+                        data-row={index}
+                        data-col={3}
+                        onKeyDown={e => handleGridKeyDown(e, index, 3)}
+                        value={row.qty}
+                        onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
+                        style={{ width: '42px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }}
+                      />
                     </td>
                     <td style={{ padding: '6px', textAlign: 'center' }}>
-                      <input type="number" min="0" value={row.unitPrice || row.price || 0} onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        style={{ width: '52px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }} />
+                      <input
+                        type="number"
+                        min="0"
+                        data-row={index}
+                        data-col={4}
+                        onKeyDown={e => handleGridKeyDown(e, index, 4)}
+                        value={row.unitPrice || row.price || 0}
+                        onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        style={{ width: '52px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }}
+                      />
                     </td>
                     <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 700 }}>
                       {(row.qty * (row.unitPrice || row.price || 0)).toFixed(2)}
@@ -815,6 +1085,69 @@ const POSBillingPage = () => {
             <span style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginTop: '16px' }}>
               Resetting checkout registers...
             </span>
+          </div>
+        </div>
+      )}
+      {/* Variant Selection Modal */}
+      {showVariantModal && variantModalItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
+          zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-family, system-ui)'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '24px', width: '360px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0e7490', margin: 0 }}>
+                Select Variant
+              </h3>
+              <button
+                onClick={() => setShowVariantModal(false)}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.1rem' }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {variantModalItem.variants.map((v, idx) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  autoFocus={idx === 0}
+                  className="variant-select-btn"
+                  data-idx={idx}
+                  onClick={() => {
+                    addOrUpdateItemRow(variantModalItem, v);
+                    setShowVariantModal(false);
+                    toast(`Added: ${variantModalItem.name} (${v.name})`);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      const next = document.querySelector(`.variant-select-btn[data-idx="${Math.min(variantModalItem.variants.length - 1, idx + 1)}"]`);
+                      if (next) next.focus();
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      const prev = document.querySelector(`.variant-select-btn[data-idx="${Math.max(0, idx - 1)}"]`);
+                      if (prev) prev.focus();
+                    }
+                  }}
+                  style={{
+                    padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                    background: '#f8fafc', fontWeight: 700, textAlign: 'left', cursor: 'pointer',
+                    fontSize: '0.85rem', color: '#334155', display: 'flex', justifyContent: 'space-between'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
+                >
+                  <span>{v.name}</span>
+                  <span style={{ color: '#0e7490' }}>₹ {v.price}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

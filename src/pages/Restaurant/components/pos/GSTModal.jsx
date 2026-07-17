@@ -46,6 +46,7 @@ const GSTModal = ({ isOpen, onClose, gstin = '', onSaveGSTIN }) => {
           <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Customer GSTIN</label>
           <input
             type="text"
+            autoFocus
             maxLength="15"
             placeholder="e.g. 07AAAAA1111A1Z1"
             value={val}
