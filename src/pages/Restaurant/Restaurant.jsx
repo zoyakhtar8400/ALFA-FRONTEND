@@ -4,6 +4,9 @@ import DisplayTablePage from './pages/DisplayTablePage';
 import ViewKOTPage from './pages/ViewKOTPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import POSBillingPage from './pages/POSBillingPage';
+import PrinterMasterPage from './pages/PrinterMasterPage';
+import ProductionCategoryPage from './pages/ProductionCategoryPage';
+import BookingListPage from './pages/BookingListPage';
 import POSMasterPage from '../PointOfSale/PointOfSale';
 import StewardMasterPage from '../PointOfSale/Masters/StewardMaster/StewardMasterPage';
 
@@ -15,8 +18,17 @@ const Restaurant = ({ showToast }) => {
     if (path.includes('/restaurant/masters/steward-master')) {
       return <StewardMasterPage showToast={showToast} />;
     }
+    if (path.includes('/restaurant/master/printer-master')) {
+      return <PrinterMasterPage />;
+    }
+    if (path.includes('/restaurant/master/production-category')) {
+      return <ProductionCategoryPage />;
+    }
     if (path.includes('/restaurant/master') || path.includes('/restaurant/masters')) {
       return <POSMasterPage showToast={showToast} />;
+    }
+    if (path.includes('/restaurant/booking-list')) {
+      return <BookingListPage />;
     }
     if (path.includes('/restaurant/view-kot')) {
       return <ViewKOTPage />;

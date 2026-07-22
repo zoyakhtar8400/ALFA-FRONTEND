@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FaSearch,
-  FaUndo,
   FaExchangeAlt,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaClipboardList
 } from 'react-icons/fa';
 
 import TableCard from '../components/TableCard';
@@ -15,6 +15,7 @@ import CommonModal from '../../../components/common/CommonModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
+import { printTaxInvoice } from '../utils/printInvoice';
 
 const DisplayTablePage = () => {
   const navigate = useNavigate();
@@ -89,7 +90,31 @@ const DisplayTablePage = () => {
   const [search, setSearch] = useState('');
   const [activeRestaurant, setActiveRestaurant] = useState('Main Dining Room');
   const [focusedTableIndex, setFocusedTableIndex] = useState(-1);
+  const [isKeyboardNav, setIsKeyboardNav] = useState(false); // only show selection ring during keyboard nav
   const [previewTable, setPreviewTable] = useState(null);
+
+  // On mount: reload tables from localStorage in case TableMaster synced since last render
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('alfa_restaurant_tables');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTables(parsed);
+        }
+      }
+    } catch {}
+    // Also listen for live sync events while this page is open
+    const handleSync = (e) => {
+      if (e.detail && Array.isArray(e.detail.tables)) {
+        setTables(e.detail.tables);
+      }
+    };
+    window.addEventListener('tableMasterSync', handleSync);
+    return () => window.removeEventListener('tableMasterSync', handleSync);
+  }, []);
+
+
 
   // Delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -118,6 +143,7 @@ const DisplayTablePage = () => {
         // Only when no modal/input is focused
         if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') return;
         e.preventDefault();
+        setIsKeyboardNav(true); // show selection ring only during keyboard nav
         setFocusedTableIndex(prev => {
           const len = filteredDataRef.current.length;
           if (len === 0) return -1;
@@ -231,7 +257,7 @@ const DisplayTablePage = () => {
       if (idx !== -1) {
         setFocusedTableIndex(idx);
       }
-      
+
       if (table.status === 'Blank') {
         navigate('/restaurant/pos-billing', {
           state: {
@@ -409,14 +435,13 @@ const DisplayTablePage = () => {
               const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
               setFromTableId(String(activeT.id));
               setToTableId('');
-              setModalTab('status');
               setShowQuickSwitch(true);
             }}
             style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 120ms' }}
             onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
             onMouseLeave={e => e.currentTarget.style.background = '#fff'}
           >
-            <FaExchangeAlt size={12} /> Table Operations
+            <FaExchangeAlt size={12} /> Move KOT
           </button>
 
           {/* Book Table Button */}
@@ -447,6 +472,16 @@ const DisplayTablePage = () => {
             }}
           >
             <FaCalendarAlt size={12} /> Book Table
+          </button>
+
+          {/* Booking List Button — navigates to full Booking List page */}
+          <button
+            onClick={() => navigate('/restaurant/booking-list')}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #0e7490', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 120ms' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#e0f2fe'}
+            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+          >
+            <FaClipboardList size={12} /> Booking List
           </button>
 
           {/* Add Table Button */}
@@ -526,18 +561,19 @@ const DisplayTablePage = () => {
             })}
           </div>
 
-          {/* Move Kot / Items button */}
+          {/* Move KOT button */}
           <button
             onClick={() => {
               const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
               setFromTableId(String(activeT.id));
               setToTableId('');
-              setModalTab('MoveKOT');
               setShowQuickSwitch(true);
             }}
-            style={{ background: '#2dd4bf', color: '#0f766e', border: 'none', borderRadius: '6px', padding: '8px 18px', fontSize: '0.82rem', fontWeight: 800, cursor: 'pointer' }}
+            style={{ background: '#fff', color: '#374151', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '7px 16px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
           >
-            Move Kot/Items
+            Move KOT / Items
           </button>
         </div>
 
@@ -554,21 +590,43 @@ const DisplayTablePage = () => {
             />
           </div>
 
-          <button
-            onClick={() => {
-              setSearch('');
-              setFilter('All');
-              setService('Restaurant');
-            }}
-            style={{ padding: '8px 12px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '8px', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <FaUndo size={11} /> Reset
-          </button>
+
         </div>
       </div>
 
+      {/* Legend */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '8px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fff', border: '1.5px solid #cbd5e1', display: 'inline-block' }} />
+          Blank Table
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#f5c842', border: '1.5px solid #e6b800', display: 'inline-block' }} />
+          Running Table
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#4ade80', border: '1.5px solid #22c55e', display: 'inline-block' }} />
+          Paid
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fb923c', border: '1.5px solid #ea7c1e', display: 'inline-block' }} />
+          Reserved
+        </span>
+        <span style={{ marginLeft: 'auto', color: '#94a3b8', fontWeight: 600 }}>
+          {tables.filter(t => t.status === 'Running' || t.status === 'KOT Generated').length} Running &nbsp;·&nbsp; {tables.filter(t => t.status === 'Blank').length} Blank
+        </span>
+      </div>
+
       {/* 3. Main Tables grid */}
-      <div className="pos-table-grid" style={{ flex: 1, padding: '24px' }}>
+      <div className="pos-table-grid" style={{
+        flex: 1,
+        padding: '20px 20px 36px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+        gap: '26px 14px',
+        alignContent: 'start',
+        overflowY: 'auto',
+      }}>
         {filteredData.map((table, idx) => {
           const isBlank = table.status === 'Blank';
           const isHighlighted = isBookingMode && isBlank;
@@ -586,55 +644,20 @@ const DisplayTablePage = () => {
             }}>
               <TableCard
                 table={table}
-                isSelected={focusedTableIndex === idx}
-                onClick={() => { setFocusedTableIndex(idx); handleTableCardClick(table); }}
+                isSelected={isKeyboardNav && focusedTableIndex === idx}
+                onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
                 onView={(e) => {
-                  e.stopPropagation();
-                  handleView(table);
-                }}
-                onDelete={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(table);
+                  e?.stopPropagation?.();
+                  navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: orderItemsMap[table.id] || [] } });
                 }}
                 onSave={(e) => {
-                  e.stopPropagation();
-                  const items = orderItemsMap[table.id] || [];
-                  if (items.length === 0) return toast("No items to generate KOT.");
-                  const newKotId = `KOT-${Math.floor(100 + Math.random() * 900)}`;
-                  const newKot = {
-                    id: newKotId,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    items: items.map(it => ({ name: it.name, qty: it.qty }))
-                  };
-                  setTables(prev => prev.map(t => {
-                    if (t.id === table.id) {
-                      const nextKots = [...(t.kots || []), newKot];
-                      return { ...t, kots: nextKots, kotCount: nextKots.length, status: 'KOT Generated' };
-                    }
-                    return t;
-                  }));
-                  toast(`KOT generated: ${newKotId}`);
-                }}
-                onDownload={(e) => {
-                  e.stopPropagation();
-                  handleDownload(table);
-                }}
-                onOpenOps={(e) => {
-                  e.stopPropagation();
-                  setFromTableId(String(table.id));
-                  setToTableId('');
-                  setSelectedGuests(table.seats || 4);
-                  setSelectedWaiter(table.waiter || '');
-                  setSelectedCaptain(table.captain || '');
-                  setModalTab('status');
-                  setDiscountPercent(0);
-                  setPaymentMethod('Cash');
-                  setSplitCash('');
-                  setSplitCard('');
-                  setSplitUPI('');
-                  setSelectedTransferItems({});
-                  setSelectedTransferKots({});
-                  setShowQuickSwitch(true);
+                  e?.stopPropagation?.();
+                  printTaxInvoice({
+                    tableNo: table.no,
+                    kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    items: orderItemsMap[table.id] || [],
+                    status: table.status
+                  });
                 }}
               />
             </div>
@@ -987,6 +1010,7 @@ const DisplayTablePage = () => {
           </span>
         ))}
       </div>
+
     </div>
   );
 };

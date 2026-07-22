@@ -165,8 +165,8 @@ const Card = memo(({ title, accent = '#418A8B', defaultOpen = true, noPad = fals
 
 /* ─── Room Grid (inline, small) ─── */
 const STATUS_S = {
-  Clean:       { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
-  Dirty:       { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' },
+  Clean: { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
+  Dirty: { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' },
   Maintenance: { color: '#d97706', bg: '#fffbeb', border: '#fde68a', dot: '#f59e0b' },
 };
 
@@ -206,10 +206,10 @@ const DINING_TABLES = [
 ];
 
 const TABLE_STATUS_S = {
-  Blank:    { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  Running:  { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
+  Blank: { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
+  Running: { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
   Reserved: { color: '#e8590c', bg: '#ffe8cc', border: '#ffd8a8', dot: '#f76707', glow: '0 0 8px rgba(253, 126, 20, 0.4)' },
-  Paid:     { color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd', dot: '#0ea5e9' },
+  Paid: { color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd', dot: '#0ea5e9' },
   Cleaning: { color: '#ca8a04', bg: '#fef9c3', border: '#fef08a', dot: '#eab308' },
 };
 
@@ -219,13 +219,13 @@ const DisplayTableGrid = memo(({ showToast }) => (
       const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
       return (
         <div key={table.no} onClick={() => showToast?.(`Table ${table.no} status: ${table.status}`)} title={`Table ${table.no} — ${table.status}`}
-          style={{ 
-            padding: '12px 6px', 
-            borderRadius: '10px', 
-            textAlign: 'center', 
-            border: `1px solid ${s.border}`, 
-            background: s.bg, 
-            cursor: 'pointer', 
+          style={{
+            padding: '12px 6px',
+            borderRadius: '10px',
+            textAlign: 'center',
+            border: `1px solid ${s.border}`,
+            background: s.bg,
+            cursor: 'pointer',
             transition: 'all 0.15s',
             boxShadow: s.glow || 'none'
           }}
@@ -244,11 +244,11 @@ const DisplayTableGrid = memo(({ showToast }) => (
 /* ─── Revenue Donut ─── */
 const RevenuePie = memo(() => {
   const data = [
-    { label: 'Rooms',      value: 24500, color: '#418A8B' },
+    { label: 'Rooms', value: 24500, color: '#418A8B' },
     { label: 'Restaurant', value: 15350, color: '#4A9993' },
-    { label: 'Banquet',    value: 9800,  color: '#244E5F' },
-    { label: 'Laundry',    value: 2400,  color: '#f59e0b' },
-    { label: 'POS',        value: 4800,  color: '#10b981' },
+    { label: 'Banquet', value: 9800, color: '#244E5F' },
+    { label: 'Laundry', value: 2400, color: '#f59e0b' },
+    { label: 'POS', value: 4800, color: '#10b981' },
   ];
   const total = data.reduce((s, d) => s + d.value, 0);
   const cx = 65, cy = 65, r = 52, inner = 30;

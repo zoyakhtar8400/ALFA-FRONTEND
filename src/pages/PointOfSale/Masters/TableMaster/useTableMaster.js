@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 
 const INITIAL_TABLES = [
   { id: 'T1', name: 'T1', pax: 4, department: 'Restaurant', floor: 'Dining', description: 'Corner booth', isActive: true },
@@ -23,7 +23,88 @@ export const useTableMaster = (showToast) => {
 
   useEffect(() => {
     localStorage.setItem('hms_pos_tables', JSON.stringify(data));
+
+    // ── Sync master tables → Display Table page (alfa_restaurant_tables) ──
+    // Strategy: REPLACE the runtime table list with master-sourced tables,
+    // preserving live session data (status, kots, amount) for tables that
+    // already exist in the runtime list (matched by masterKey or table number).
+    // Legacy mock tables (from INITIAL_TABLES, no masterKey) are dropped once
+    // a master sync has run — the master is the single source of truth for structure.
+    try {
+      const existingRaw = localStorage.getItem('alfa_restaurant_tables');
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+      // Build lookups of runtime tables: by masterKey and by table number
+      const runtimeByMasterKey = {};
+      const runtimeByNo = {};
+      existing.forEach(t => {
+        if (t.masterKey) runtimeByMasterKey[t.masterKey] = t;
+        if (t.no) runtimeByNo[t.no] = t;
+      });
+
+      // Convert each active master table → runtime entry
+      const finalList = data
+        .filter(m => m.isActive !== false)
+        .map((m, idx) => {
+          const key = m.id; // e.g. 'T1', 'T5432_3'
+          const numPart = m.name.replace(/\D/g, '') || String(idx + 1);
+          const paddedNo = numPart.padStart(2, '0');
+
+          // Try to find matching runtime table (preserves live status/kots/amount)
+          const runtime = runtimeByMasterKey[key] || runtimeByNo[paddedNo] || null;
+
+          if (runtime) {
+            // Update structural fields from master, keep all live session data
+            return {
+              ...runtime,
+              id: key,          // normalize id to master key
+              masterKey: key,
+              seats: Number(m.pax) || runtime.seats || 4,
+              floor: m.floor || runtime.floor || 'Ground',
+              section: m.department || runtime.section || 'Main Area',
+              no: paddedNo,
+            };
+          }
+
+          // Brand-new table — create a clean blank runtime entry
+          return {
+            id: key,
+            masterKey: key,
+            no: paddedNo,
+            seats: Number(m.pax) || 4,
+            status: 'Blank',
+            amount: 0,
+            waiter: null,
+            captain: null,
+            customer: 'Walk-in',
+            floor: m.floor || 'Ground',
+            section: m.department || 'Main Area',
+            kots: [],
+            kotCount: 0,
+            openedAt: null,
+          };
+        });
+
+      // Mark that master sync has taken ownership (so context never falls back to mock data)
+      localStorage.setItem('alfa_restaurant_master_synced', '1');
+      localStorage.setItem('alfa_restaurant_tables', JSON.stringify(finalList));
+
+      // Notify RestaurantContext to update its in-memory state immediately
+      window.dispatchEvent(new CustomEvent('tableMasterSync', { detail: { tables: finalList } }));
+    } catch (err) {
+      console.warn('TableMaster sync to restaurant tables failed:', err);
+    }
   }, [data]);
+
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'hms_pos_tables' && e.newValue) {
+        setData(JSON.parse(e.newValue));
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {

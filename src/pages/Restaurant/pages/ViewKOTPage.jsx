@@ -5,19 +5,20 @@ import { LuEye, LuPencil, LuTrash2, LuX, LuCheck, LuChefHat, LuPrinter } from 'r
 import PageHeader from '../../../components/common/PageHeader';
 import CommonModal from '../../../components/common/CommonModal';
 import { useRestaurant } from '../../../context/RestaurantContext';
+import { printKitchenKOT, printTaxInvoice } from '../utils/printInvoice';
 
 const INITIAL_KOTS = [
-  { id: 'KOT-402', tableId: '02', status: 'Cooking',         time: '12:40 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Garlic Naan', variantName: '', qty: 3, unitPrice: 100, total: 300 }] },
+  { id: 'KOT-402', tableId: '02', status: 'Cooking', time: '12:40 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Garlic Naan', variantName: '', qty: 3, unitPrice: 100, total: 300 }] },
   { id: 'KOT-403', tableId: '03', status: 'Sent to Kitchen', time: '12:45 PM', items: [{ itemName: 'Chicken Biryani', variantName: '', qty: 1, unitPrice: 400, total: 400 }, { itemName: 'Cold Drink', variantName: '500 ML', qty: 2, unitPrice: 70, total: 140 }] },
-  { id: 'KOT-404', tableId: '06', status: 'Ready',           time: '12:35 PM', items: [{ itemName: 'Dal Makhani', variantName: 'Half', qty: 1, unitPrice: 160, total: 160 }, { itemName: 'Jeera Rice', variantName: '', qty: 2, unitPrice: 200, total: 400 }] },
-  { id: 'KOT-405', tableId: '09', status: 'Served',          time: '12:50 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Tandoori Roti', variantName: '', qty: 3, unitPrice: 30, total: 90 }] },
+  { id: 'KOT-404', tableId: '06', status: 'Ready', time: '12:35 PM', items: [{ itemName: 'Dal Makhani', variantName: 'Half', qty: 1, unitPrice: 160, total: 160 }, { itemName: 'Jeera Rice', variantName: '', qty: 2, unitPrice: 200, total: 400 }] },
+  { id: 'KOT-405', tableId: '09', status: 'Served', time: '12:50 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Tandoori Roti', variantName: '', qty: 3, unitPrice: 30, total: 90 }] },
 ];
 
 const STATUS_CONFIG = {
   'Sent to Kitchen': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-  'Cooking':         { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  'Ready':           { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  'Served':          { bg: '#f8fafc', color: '#475569', border: '#e2e8f0' },
+  'Cooking': { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  'Ready': { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  'Served': { bg: '#f8fafc', color: '#475569', border: '#e2e8f0' },
 };
 
 const STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
@@ -52,10 +53,10 @@ const ViewKOTPage = () => {
       });
     });
     let result = list.length === 0 ? [...INITIAL_KOTS] : list;
-    
+
     // Sort recent KOTs at top (newest first)
     result.reverse();
-    
+
     if (routedTable) result = result.filter(k => String(k.tableId) === String(routedTable.no));
     if (filterStatus !== 'All') result = result.filter(k => k.status === filterStatus);
     return result;
@@ -85,71 +86,36 @@ const ViewKOTPage = () => {
   };
 
   const handlePrintKOT = (kot) => {
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    if (!printWindow) return;
+    const isServedOrPaid = kot.status === 'Served' || kot.status === 'Paid';
+    if (isServedOrPaid) {
+      printTaxInvoice({
+        tableNo: kot.tableId,
+        kotId: kot.id,
+        items: kot.items || [],
+        time: kot.time,
+        status: kot.status
+      });
+    } else {
+      printKitchenKOT({
+        id: kot.id,
+        tableId: kot.tableId,
+        time: kot.time,
+        items: kot.items || []
+      });
+    }
+  };
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print KOT - ${kot.id}</title>
-          <style>
-            body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 10px; padding: 0; font-size: 14px; }
-            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
-            .title { font-size: 18px; font-weight: bold; }
-            .details { margin-bottom: 8px; line-height: 1.4; }
-            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-            th { border-bottom: 1px solid #000; text-align: left; padding: 4px 0; }
-            td { padding: 6px 0; vertical-align: top; }
-            .qty { font-weight: bold; width: 40px; }
-            .footer { border-top: 2px dashed #000; padding-top: 8px; margin-top: 12px; text-align: center; font-size: 11px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">KITCHEN ORDER TICKET</div>
-            <div>ALFA HMS RESTAURANT</div>
-          </div>
-          <div class="details">
-            <div><strong>KOT No:</strong> ${kot.id}</div>
-            <div><strong>Table:</strong> Table ${kot.tableId}</div>
-            <div><strong>Time:</strong> ${kot.time}</div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 40px;">Qty</th>
-                <th>Item</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${kot.items.map(item => {
-                const displayName = (item.itemName || item.name) + (item.variantName ? ` (${item.variantName})` : '');
-                return `
-                  <tr>
-                    <td class="qty">x${item.qty}</td>
-                    <td>
-                      ${displayName}
-                      ${item.remarks || item.remark ? `<br/><span style="font-size: 11px; font-style: italic;">* ${item.remarks || item.remark}</span>` : ''}
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-          <div class="footer">
-            <div>Sent to Kitchen - Print Copy</div>
-            <div>Thank you!</div>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+  const handleOpenPOSBilling = (kot) => {
+    const matchedTable = tables.find(t => String(t.no) === String(kot.tableId)) || { no: kot.tableId, id: kot.tableId };
+    navigate('/restaurant/pos-billing', {
+      state: {
+        table: matchedTable,
+        tableId: matchedTable.id,
+        tableNumber: matchedTable.no,
+        kot: kot,
+        rows: kot.items
+      }
+    });
   };
 
   const counts = useMemo(() => {
@@ -218,6 +184,7 @@ const ViewKOTPage = () => {
               </tr>
             ) : kots.map((kot, i) => {
               const cfg = STATUS_CONFIG[kot.status] || STATUS_CONFIG['Cooking'];
+              const isClearedOrServed = kot.status === 'Served' || kot.status === 'Paid';
               return (
                 <tr key={kot.id} style={{ borderBottom: i < kots.length - 1 ? '1px solid #f8fafc' : 'none', transition: 'background 150ms' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
@@ -252,21 +219,31 @@ const ViewKOTPage = () => {
                   </td>
                   <td style={{ padding: '14px 18px' }}>
                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                      <button onClick={() => setSelected(kot)} title="View KOT"
-                        style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.color = '#fff'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1d4ed8'; }}
-                      ><LuEye size={14} /></button>
-                      <button onClick={() => setSelected(kot)} title="Edit KOT"
-                        style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#15803d'; e.currentTarget.style.color = '#fff'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = '#15803d'; }}
-                      ><LuPencil size={14} /></button>
-                      <button onClick={() => handleDelete(kot.id)} title="Delete KOT"
-                        style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
-                      ><LuTrash2 size={14} /></button>
+                      {isClearedOrServed ? (
+                        <button onClick={() => handlePrintKOT(kot)} title="Print KOT Receipt"
+                          style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#0e7490'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                        ><LuPrinter size={14} /></button>
+                      ) : (
+                        <>
+                          <button onClick={() => handleOpenPOSBilling(kot)} title="Open POS Billing"
+                            style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#1d4ed8'; }}
+                          ><LuEye size={14} /></button>
+                          <button onClick={() => handleOpenPOSBilling(kot)} title="Edit KOT in POS Billing"
+                            style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#15803d'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = '#15803d'; }}
+                          ><LuPencil size={14} /></button>
+                          <button onClick={() => handleDelete(kot.id)} title="Delete KOT"
+                            style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 150ms' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
+                          ><LuTrash2 size={14} /></button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -286,11 +263,11 @@ const ViewKOTPage = () => {
           <div style={{ fontSize: '13px', color: '#64748b', marginTop: '-8px', marginBottom: '16px' }}>
             Table {selected.tableId} &nbsp;·&nbsp; {selected.time}
           </div>
-          
+
           <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
             Order Items
           </div>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
             {selected.items.map((item, i) => {
               const displayName = (item.itemName || item.name) + (item.variantName ? ` (${item.variantName})` : '');

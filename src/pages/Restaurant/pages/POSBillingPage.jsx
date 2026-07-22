@@ -8,6 +8,10 @@ import {
 import { useRestaurant } from '../../../context/RestaurantContext';
 import { INITIAL_TABLES } from '../constants/mockData';
 
+// KOT Engine & Printer data
+import { ALL_FOOD_ITEMS } from '../constants/printerData';
+import { groupItemsByPrinter, generateKOTPayload } from '../services/kotEngine';
+
 // Modular POS component splits
 import POSHeader from '../components/pos/POSHeader';
 import CustomerDrawer from '../components/pos/CustomerDrawer';
@@ -21,74 +25,105 @@ import POSSummaryBar from '../components/pos/POSSummaryBar';
 import POSActionButtons from '../components/pos/POSActionButtons';
 import POSFooterStatus from '../components/pos/POSFooterStatus';
 import ClearConfirmModal from '../components/pos/ClearConfirmModal';
+import KOTPrintModal from '../components/pos/KOTPrintModal';
 
-const ALL_FOOD_ITEMS = [
-  {
-    id: 101,
-    name: 'CHICKEN TANDOORI',
-    category: 'FOOD',
-    variants: [
-      { id: 'half', name: 'Half', price: 280 },
-      { id: 'full', name: 'Full', price: 520 }
-    ]
-  },
-  {
-    id: 102,
-    name: 'PANEER TIKKA',
-    category: 'FOOD',
-    variants: [
-      { id: 'half', name: 'Half', price: 180 },
-      { id: 'full', name: 'Full', price: 320 }
-    ]
-  },
-  {
-    id: 107,
-    name: 'DAL MAKHANI',
-    category: 'FOOD',
-    variants: [
-      { id: 'half', name: 'Half', price: 160 },
-      { id: 'full', name: 'Full', price: 280 }
-    ]
-  },
-  { id: 118, name: 'BUTTER NAAN', price: 40, category: 'FOOD', variants: [] },
-  {
-    id: 106,
-    name: 'COLD DRINK',
-    category: 'FOOD',
-    variants: [
-      { id: '250ml', name: '250 ML', price: 40 },
-      { id: '500ml', name: '500 ML', price: 70 },
-      { id: '1l', name: '1 Litre', price: 120 }
-    ]
-  },
-  { id: 104, name: 'GARLIC NAAN', price: 100, category: 'FOOD', variants: [] },
-  { id: 105, name: 'JEERA RICE', price: 200, category: 'FOOD', variants: [] },
-  { id: 108, name: 'TANDOORI ROTI', price: 30, category: 'FOOD', variants: [] },
-  { id: 109, name: 'MOCKTAILS', price: 150, category: 'FOOD', variants: [] },
-  { id: 110, name: 'VEG BIRYANI', price: 380, category: 'FOOD', variants: [] },
-  { id: 111, name: 'CHICKEN BIRYANI', price: 400, category: 'FOOD', variants: [] },
-  { id: 112, name: 'CHICKEN TIKKA ROLL', price: 250, category: 'FOOD', variants: [] },
-  { id: 113, name: 'MASALA PAPAD', price: 40, category: 'FOOD', variants: [] },
-  { id: 114, name: 'CHILLI PANEER DRY', price: 320, category: 'FOOD', variants: [] },
-  { id: 115, name: 'FRIED RICE', price: 220, category: 'FOOD', variants: [] },
-  { id: 116, name: 'SPRING ROLLS', price: 180, category: 'FOOD', variants: [] },
-  { id: 117, name: 'FAMILY PLATTER (VEG)', price: 1800, category: 'FOOD', variants: [] },
-  { id: 121, name: 'CLUB SANDWICH', price: 180, category: 'FOOD', variants: [] },
-  { id: 122, name: 'FRENCH FRIES', price: 140, category: 'FOOD', variants: [] },
-  { id: 123, name: 'COLD COFFEE', price: 120, category: 'FOOD', variants: [] },
-  {
-    id: 103, name: 'VEG NOODLES', price: 240, category: 'FOOD', variants: [
-      { id: 'half', name: 'Half', price: 140 },
-      { id: 'full', name: 'Full', price: 240 }
-    ]
-  },
+// ALL_FOOD_ITEMS is now imported from printerData.js — each item has productionCategory
 
-  // BANQUET items
-  { id: 201, name: 'BANQUET BUFFET STANDARD', price: 600, category: 'BANQUET', variants: [] },
-  { id: 202, name: 'BANQUET BUFFET PREMIUM', price: 950, category: 'BANQUET', variants: [] },
-  { id: 203, name: 'BANQUET HALL CHARGE', price: 15000, category: 'BANQUET', variants: [] },
-  { id: 204, name: 'DECORATION STANDARD', price: 4500, category: 'BANQUET', variants: [] }
-];
+const loadUnifiedMenuItems = () => {
+  const mergedMap = new Map();
+
+  // 1. Default fallback from ALL_FOOD_ITEMS
+  ALL_FOOD_ITEMS.forEach(item => {
+    const key = item.name.trim().toLowerCase();
+    mergedMap.set(key, {
+      id: item.id,
+      name: item.name,
+      shortCode: String(item.id),
+      category: (item.category || 'FOOD').toUpperCase(),
+      foodType: item.isVeg === false ? 'Non-Veg' : 'Veg',
+      isVeg: item.isVeg !== false,
+      price: Number(item.price || 0),
+      variants: item.variants || [],
+      productionCategory: item.productionCategory || 'pc1',
+      active: 'Yes',
+      areaPrices: {}
+    });
+  });
+
+  // 2. Load POS Master Menu Items (hms_pos_menu_items)
+  try {
+    const posItems = JSON.parse(localStorage.getItem('hms_pos_menu_items') || '[]');
+    if (Array.isArray(posItems)) {
+      posItems.forEach(item => {
+        if (!item.name) return;
+        const key = item.name.trim().toLowerCase();
+        const existing = mergedMap.get(key) || {};
+        const rawCat = (item.mainGroup || item.itemGroup || existing.category || 'FOOD').toUpperCase();
+        const isVeg = item.category === 'Veg' || item.category === 'VEG' || existing.isVeg !== false;
+        mergedMap.set(key, {
+          id: item.id || existing.id || Date.now(),
+          name: item.name,
+          shortCode: item.dispCode || item.shortCode || existing.shortCode || String(item.id || ''),
+          category: rawCat.includes('BANQUET') ? 'BANQUET' : (rawCat.includes('BEVERAGE') ? 'BEVERAGE' : rawCat),
+          foodType: item.category || (isVeg ? 'Veg' : 'Non-Veg'),
+          isVeg,
+          price: Number(item.price || existing.price || 0),
+          variants: existing.variants || [],
+          productionCategory: existing.productionCategory || 'pc1',
+          active: item.status === 'Inactive' || item.active === 'No' ? 'No' : 'Yes',
+          areaPrices: existing.areaPrices || {}
+        });
+      });
+    }
+  } catch (e) {
+    console.error('Error reading hms_pos_menu_items', e);
+  }
+
+  // 3. Load Common Settings Menu Items (alfa_menu_items) - HIGHEST PRIORITY
+  try {
+    const rawSetting = localStorage.getItem('alfa_menu_items');
+    let settingItems = [];
+    if (rawSetting) {
+      settingItems = JSON.parse(rawSetting);
+    } else {
+      // Default fallback matching Common Settings (MenuList.jsx)
+      settingItems = [
+        { id: 101, name: 'CHICKEN TANDOORI', shortCode: '101', category: 'FOOD', foodType: 'Non-Veg', price: '280.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '280.00', 'Rooftop': '320.00' } },
+        { id: 102, name: 'PANEER TIKKA', shortCode: '102', category: 'FOOD', foodType: 'Veg', price: '180.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '180.00', 'Rooftop': '210.00' } },
+        { id: 103, name: 'DAL MAKHANI', shortCode: '103', category: 'FOOD', foodType: 'Veg', price: '160.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '160.00', 'Rooftop': '190.00' } },
+        { id: 104, name: 'PANEER BUTTER MASALA', shortCode: '104', category: 'FOOD', foodType: 'Veg', price: '260.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '260.00', 'Rooftop': '300.00' } },
+        { id: 105, name: 'COLD DRINK (500ML)', shortCode: '105', category: 'BEVERAGE', foodType: 'Veg', price: '70.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '70.00', 'Rooftop': '80.00' } }
+      ];
+      try { localStorage.setItem('alfa_menu_items', JSON.stringify(settingItems)); } catch (e) {}
+    }
+
+    if (Array.isArray(settingItems)) {
+      settingItems.forEach(item => {
+        if (!item.name) return;
+        const key = item.name.trim().toLowerCase();
+        const existing = mergedMap.get(key) || {};
+        const isVeg = item.foodType ? item.foodType === 'Veg' : (existing.isVeg !== false);
+        mergedMap.set(key, {
+          id: item.id || existing.id || Date.now(),
+          name: item.name,
+          shortCode: item.shortCode || item.dispCode || existing.shortCode || String(item.id || ''),
+          category: (item.category || existing.category || 'FOOD').toUpperCase(),
+          foodType: item.foodType || (isVeg ? 'Veg' : 'Non-Veg'),
+          isVeg,
+          price: Number(item.price || existing.price || 0),
+          variants: existing.variants || [],
+          productionCategory: existing.productionCategory || 'pc1',
+          active: item.active === 'No' ? 'No' : 'Yes',
+          areaPrices: item.areaPrices || existing.areaPrices || {}
+        });
+      });
+    }
+  } catch (e) {
+    console.error('Error reading alfa_menu_items', e);
+  }
+
+  return Array.from(mergedMap.values());
+};
 
 const INITIAL_ROWS = [
   { lineId: 'initial-row-1', itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }
@@ -99,31 +134,61 @@ const POSBillingPage = () => {
   const navigate = useNavigate();
   const searchInputRef = React.useRef(null);
 
+  // Dynamic Unified Menu Items State from Common Settings & POS Masters
+  const [allMenuItems, setAllMenuItems] = useState(loadUnifiedMenuItems);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAllMenuItems(loadUnifiedMenuItems());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('focus', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, []);
+
+  const availableCategories = useMemo(() => {
+    const activeItems = allMenuItems.filter(i => i.active !== 'No');
+    const catSet = new Set(activeItems.map(i => i.category || 'FOOD'));
+    if (catSet.size === 0) return ['FOOD', 'BANQUET'];
+    const cats = Array.from(catSet);
+    cats.sort((a, b) => (a === 'FOOD' ? -1 : b === 'FOOD' ? 1 : a.localeCompare(b)));
+    return cats;
+  }, [allMenuItems]);
+
   // Check if opened from "Book Table" button in new booking flow
   const isNewBooking = location.state?.isNewBooking || location.state?.newBooking || false;
   const preselectedTableId = location.state?.tableId || null;
   const preselectedTableNumber = location.state?.tableNumber || null;
 
-  // Retrieve routed parameters
-  const routedTable = location.state?.table || { id: 1, no: '01', status: 'Blank', waiter: null, customer: 'Walk-in' };
+  // Retrieve routed parameters — blank table uses preselectedTableId, running table has full table object
+  const routedTable = location.state?.table || null;
 
   // Tables List for Assignment
   const { tables: tablesList, setTables: setTablesList } = useRestaurant();
 
   // Component states
   const [category, setCategory] = useState('FOOD');
+
+  useEffect(() => {
+    if (availableCategories.length > 0 && !availableCategories.includes(category)) {
+      setCategory(availableCategories[0]);
+    }
+  }, [availableCategories, category]);
   const [searchItem, setSearchItem] = useState('');
   const [shortCode, setShortCode] = useState('');
   const [serviceType, setServiceType] = useState('Dine In');
 
   // Customer Information inputs
-  const [customerName, setCustomerName] = useState(isNewBooking ? '' : (routedTable.customer || ''));
-  const [mobileNumber, setMobileNumber] = useState(isNewBooking ? '' : (routedTable.mobile || ''));
-  const [paxCount, setPaxCount] = useState(isNewBooking ? 1 : (routedTable.seats || 1));
-  const [paxAdults, setPaxAdults] = useState(isNewBooking ? 1 : (routedTable.seats || 1));
+  const [customerName, setCustomerName] = useState(routedTable?.customer || '');
+  const [mobileNumber, setMobileNumber] = useState(routedTable?.mobile || '');
+  const [paxCount, setPaxCount] = useState(routedTable?.seats || 1);
+  const [paxAdults, setPaxAdults] = useState(routedTable?.seats || 1);
   const [paxChildren, setPaxChildren] = useState(0);
-  const [waiter, setWaiter] = useState(isNewBooking ? '' : (routedTable.waiter || ''));
-  const [captain, setCaptain] = useState(isNewBooking ? '' : (routedTable.captain || ''));
+  const [waiter, setWaiter] = useState(routedTable?.waiter || '');
+  const [captain, setCaptain] = useState(routedTable?.captain || '');
   const [remarks, setRemarks] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
 
@@ -155,10 +220,39 @@ const POSBillingPage = () => {
   const [showKotAlert, setShowKotAlert] = useState(false);
   const [assignedTableId, setAssignedTableId] = useState(preselectedTableId || routedTable?.id || '');
 
+  // KOT Print Modal states (multi-printer routing)
+  const [showKotPrintModal, setShowKotPrintModal] = useState(false);
+  const [kotGroups, setKotGroups] = useState([]);
+  const [kotPayloads, setKotPayloads] = useState([]);
+  // Use ref (not state) so the callback never gets treated as a React updater function
+  const kotSuccessCallbackRef = React.useRef(null);
+
   // Table rows for right-side billing
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [isSettling, setIsSettling] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
+
+  // Sync items when opened from ViewKOT or TableCard
+  useEffect(() => {
+    const passedRows = location.state?.rows || location.state?.kot?.items;
+    if (passedRows && Array.isArray(passedRows) && passedRows.length > 0) {
+      setRows(passedRows.map((item, idx) => ({
+        lineId: item.lineId || `kot-item-${idx}`,
+        itemId: item.itemId || item.id || idx,
+        itemName: item.itemName || item.name || '',
+        name: item.itemName || item.name || '',
+        variantId: item.variantId || '',
+        variantName: item.variantName || item.variant || '',
+        variant: item.variantName || item.variant || '',
+        qty: item.qty || 1,
+        unitPrice: item.unitPrice || item.price || item.rate || 0,
+        price: item.unitPrice || item.price || item.rate || 0,
+        rate: item.unitPrice || item.price || item.rate || 0,
+        total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
+        remark: item.remark || item.remarks || ''
+      })));
+    }
+  }, [location.state]);
 
   // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
@@ -320,7 +414,7 @@ const POSBillingPage = () => {
 
   // Load existing items if editing
   useEffect(() => {
-    if (!isNewBooking) {
+    if (!isNewBooking && routedTable) {
       if (location.state?.orderRows) {
         setRows(location.state.orderRows);
       } else if (routedTable.id === 2) {
@@ -360,18 +454,19 @@ const POSBillingPage = () => {
     }
   };
 
-  // Filter items matching name or numeric ID
+  // Filter items matching name, category, or shortCode
   const filteredGridItems = useMemo(() => {
     const q = searchItem.toLowerCase().trim();
+    const activeItems = allMenuItems.filter(item => item.active !== 'No');
     if (!q) {
-      return ALL_FOOD_ITEMS.filter(item => item.category === category);
+      return activeItems.filter(item => item.category === category);
     }
-    return ALL_FOOD_ITEMS.filter(item => {
-      const matchesName = item.name.toLowerCase().includes(q);
-      const matchesId = String(item.id).includes(q);
+    return activeItems.filter(item => {
+      const matchesName = (item.name || '').toLowerCase().includes(q);
+      const matchesId = String(item.id || '').toLowerCase().includes(q) || String(item.shortCode || '').toLowerCase().includes(q);
       return matchesName || matchesId;
     });
-  }, [category, searchItem]);
+  }, [allMenuItems, category, searchItem]);
 
   // Click handler to select an item from food grid
   const handleGridItemClick = (foodItem) => {
@@ -388,11 +483,25 @@ const POSBillingPage = () => {
     }
   };
 
+  const getAreaAdjustedPrice = (foodItem, basePrice) => {
+    try {
+      const activeArea = routedTable?.area || (serviceType === 'Dine In' ? 'Restaurant Dining' : serviceType);
+      if (foodItem && foodItem.areaPrices) {
+        if (foodItem.areaPrices[activeArea] !== undefined && foodItem.areaPrices[activeArea] !== '') {
+          const areaPrice = Number(foodItem.areaPrices[activeArea]);
+          if (!isNaN(areaPrice) && areaPrice > 0) return areaPrice;
+        }
+      }
+    } catch (e) {}
+    return basePrice;
+  };
+
   // Helper to add or update row
   const addOrUpdateItemRow = (foodItem, variant) => {
     const variantId = variant ? variant.id : '';
     const variantName = variant ? variant.name : '';
-    const price = variant ? variant.price : (foodItem.price || 0);
+    const rawPrice = variant ? variant.price : (foodItem.price || 0);
+    const price = getAreaAdjustedPrice(foodItem, rawPrice);
     const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
 
     setRows(prev => {
@@ -455,24 +564,68 @@ const POSBillingPage = () => {
     });
   };
 
+  // Automatically recalculate cart prices based on selected service area / outlet mode
+  useEffect(() => {
+    setRows(prevRows => prevRows.map(row => {
+      if (!row.itemName && !row.name) return row;
+
+      const rowName = (row.itemName || row.name || '').toLowerCase();
+      const match = allMenuItems.find(f => (f.name || '').toLowerCase() === rowName);
+
+      if (match && (!match.variants || match.variants.length === 0)) {
+        let newPrice = Number(match.price || 0);
+        if (match.areaPrices) {
+          const mappedAreaKey = serviceType === 'Dine In' ? 'Restaurant Dining' : serviceType;
+          if (match.areaPrices[mappedAreaKey] !== undefined && match.areaPrices[mappedAreaKey] !== '') {
+            newPrice = Number(match.areaPrices[mappedAreaKey]);
+          } else if (match.areaPrices[serviceType] !== undefined && match.areaPrices[serviceType] !== '') {
+            newPrice = Number(match.areaPrices[serviceType]);
+          }
+        }
+        return {
+          ...row,
+          unitPrice: newPrice,
+          price: newPrice,
+          rate: newPrice,
+          total: row.qty * newPrice
+        };
+      }
+      return row;
+    }));
+  }, [serviceType, allMenuItems]);
+
   const updateRowField = (index, field, value) => {
     setRows(prev => prev.map((row, i) => {
       if (i === index) {
         const updated = { ...row, [field]: value };
         if (field === 'name' || field === 'itemName') {
-          const match = ALL_FOOD_ITEMS.find(f => f.name === value);
+          const valLower = (value || '').toLowerCase();
+          const match = allMenuItems.find(f => (f.name || '').toLowerCase() === valLower);
+
           if (match) {
             updated.itemId = match.id;
             updated.itemName = match.name;
             updated.name = match.name; // compatibility
 
+            let resolvedPrice = Number(match.price || 0);
+
+            // Area Price Resolution
+            if (match.areaPrices) {
+              const mappedAreaKey = serviceType === 'Dine In' ? 'Restaurant Dining' : serviceType;
+              if (match.areaPrices[mappedAreaKey] !== undefined && match.areaPrices[mappedAreaKey] !== '') {
+                resolvedPrice = Number(match.areaPrices[mappedAreaKey]);
+              } else if (match.areaPrices[serviceType] !== undefined && match.areaPrices[serviceType] !== '') {
+                resolvedPrice = Number(match.areaPrices[serviceType]);
+              }
+            }
+
             if (!match.variants || match.variants.length === 0) {
               updated.variantId = '';
               updated.variantName = '';
               updated.variant = '';
-              updated.unitPrice = match.price || 0;
-              updated.price = match.price || 0;
-              updated.rate = match.price || 0;
+              updated.unitPrice = resolvedPrice;
+              updated.price = resolvedPrice;
+              updated.rate = resolvedPrice;
             } else {
               const firstVar = match.variants[0];
               updated.variantId = firstVar.id;
@@ -507,7 +660,7 @@ const POSBillingPage = () => {
   const handleVariantChange = (index, variantId) => {
     setRows(prev => prev.map((row, i) => {
       if (i === index) {
-        const item = ALL_FOOD_ITEMS.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
+        const item = allMenuItems.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
         const variantObj = item?.variants?.find(v => v.id === variantId);
         if (variantObj) {
           const price = variantObj.price;
@@ -594,17 +747,125 @@ const POSBillingPage = () => {
     return rows.reduce((sum, row) => sum + (row.qty * (row.unitPrice || row.price || 0)), 0);
   }, [rows]);
 
+  // ── Discount state ────────────────────────────────────────────────────────
+  const [showDiscountPanel, setShowDiscountPanel] = useState(false);
+  const [discountLines, setDiscountLines] = useState([
+    { id: 1, type: 'Percentage', value: '', reason: '' }
+  ]);
+
+  const addDiscountLine = () => {
+    setDiscountLines(prev => [
+      ...prev,
+      { id: Date.now(), type: 'Percentage', value: '', reason: '' }
+    ]);
+  };
+
+  const removeDiscountLine = (id) => {
+    setDiscountLines(prev => prev.length > 1 ? prev.filter(d => d.id !== id) : prev);
+  };
+
+  const updateDiscountLine = (id, field, value) => {
+    setDiscountLines(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
+  };
+
+  // Compute total discount amount from all lines
+  const totalDiscountAmt = useMemo(() => {
+    let running = totalBill;
+    return discountLines.reduce((totalDeducted, line) => {
+      const val = parseFloat(line.value) || 0;
+      if (val <= 0) return totalDeducted;
+      if (line.type === 'Percentage') {
+        const deduct = (running * val) / 100;
+        running -= deduct;
+        return totalDeducted + deduct;
+      } else {
+        const deduct = Math.min(val, running);
+        running -= deduct;
+        return totalDeducted + deduct;
+      }
+    }, 0);
+  }, [discountLines, totalBill]);
+
+  const netBill = totalBill - totalDiscountAmt;
+  // ─────────────────────────────────────────────────────────────────────────
+
+
   const handleAddKOT = () => {
-    const activeRows = rows.filter(r => r.name !== '');
+    const activeRows = rows.filter(r => r.name || r.itemName);
     if (activeRows.length === 0) {
-      toast("Please add at least one item before generating KOT.");
+      toast('Please add at least one item before generating KOT.');
       return;
     }
-    const newKot = 'KOT-1001';
-    setGeneratedKotNo(newKot);
+    if (!waiter) {
+      toast('Please select a waiter.');
+      return;
+    }
+
+    // Generate KOT number
+    const kotSeq = String(Date.now()).slice(-4);
+    const newKotNo = `KOT-${kotSeq}`;
+    setGeneratedKotNo(newKotNo);
     setKotCreated(true);
-    setShowKotAlert(true);
-    toast(`Generated KOT: ${newKot}`);
+
+    // Resolve correct table — prefer assignedTableId (always set), fallback to routedTable
+    const resolvedTableId = assignedTableId || routedTable?.id || null;
+    const resolvedTable = tablesList.find(t => t.id === resolvedTableId) || routedTable;
+    const tableNo = resolvedTable?.no || resolvedTableId || '??';
+
+    // Group items by production category → printer using KOT Engine
+    const groups = groupItemsByPrinter(activeRows, allMenuItems);
+
+    const payloads = groups.map(group =>
+      generateKOTPayload({
+        tableNo,
+        tableId: resolvedTableId,
+        kotNo: newKotNo,
+        group,
+        customerName,
+        waiter,
+        captain,
+      })
+    );
+
+    setKotGroups(groups);
+    setKotPayloads(payloads);
+
+    // Store callback in ref so it's never stale and never treated as React updater
+    kotSuccessCallbackRef.current = () => {
+      if (!resolvedTable) {
+        navigate('/restaurant/display-table');
+        return;
+      }
+      const finalRows = rows.filter(r => r.name || r.itemName);
+      const finalAmt = finalRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
+      const updatedTable = {
+        ...resolvedTable,
+        status: 'Running',
+        customer: customerName || resolvedTable.customer || 'Walk-in',
+        mobile: mobileNumber || resolvedTable.mobile || '',
+        waiter: waiter || resolvedTable.waiter || '',
+        captain: captain || resolvedTable.captain || '',
+        remarks: remarks || resolvedTable.remarks || '',
+        amount: finalAmt,
+        openedAt: resolvedTable.openedAt || Date.now(),
+        kots: [
+          ...(resolvedTable.kots || []),
+          {
+            id: newKotNo,
+            amount: finalAmt,
+            items: finalRows,
+            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            status: 'Sent to Kitchen',
+          }
+        ],
+        kotCount: (resolvedTable.kotCount || 0) + 1,
+      };
+      toast(`Table T${resolvedTable.no} → Running`);
+      navigate('/restaurant/display-table', { state: { updatedTable, updatedRows: finalRows } });
+    };
+
+    setShowKotPrintModal(true);
+    toast(`KOT ${newKotNo} → ${groups.length} printer station${groups.length > 1 ? 's' : ''}`);
   };
 
   const handleConfirmBooking = () => {
@@ -640,16 +901,36 @@ const POSBillingPage = () => {
   };
 
   const handleSaveAndPrint = () => {
-    const activeRows = rows.filter(r => r.name !== '');
-    const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * r.price), 0);
+    const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+    const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
+    const targetTableId = assignedTableId || routedTable?.id || preselectedTableId;
+    const targetTableNo = preselectedTableNumber || routedTable?.no;
+
+    const resolvedTable = tablesList.find(t =>
+      (targetTableId && String(t.id) === String(targetTableId)) ||
+      (targetTableNo && String(t.no) === String(targetTableNo))
+    ) || routedTable || {};
 
     const updatedTable = {
-      ...routedTable,
+      ...resolvedTable,
+      id: resolvedTable.id || targetTableId || 1,
+      no: resolvedTable.no || targetTableNo || '1',
       amount: finalAmt,
-      status: finalAmt > 0 ? 'Running' : 'Blank'
+      status: activeRows.length > 0 ? 'Running' : 'Blank',
+      openedAt: resolvedTable.openedAt || Date.now()
     };
 
-    toast(`Saved and printed KOT for Table ${routedTable.no}.`);
+    setTablesList(prev => prev.map(t => {
+      if (
+        (updatedTable.id && String(t.id) === String(updatedTable.id)) ||
+        (updatedTable.no && String(t.no) === String(updatedTable.no))
+      ) {
+        return { ...t, ...updatedTable };
+      }
+      return t;
+    }));
+
+    toast(`Saved and printed KOT for Table T${updatedTable.no || '?'}.`);
     navigate('/restaurant/display-table', {
       state: {
         updatedTable,
@@ -663,21 +944,33 @@ const POSBillingPage = () => {
       toast("Cannot settle an empty bill.");
       return;
     }
+    if (!waiter) {
+      toast('Please select a waiter before settlement.');
+      return;
+    }
+    const resolvedId = assignedTableId || routedTable?.id || null;
     setIsSettling(true);
     setTimeout(() => {
       setIsSettling(false);
-      navigate('/restaurant/display-table', {
-        state: {
-          settledTableId: routedTable.id
-        }
-      });
+      if (resolvedId) {
+        setTablesList(prev => prev.map(t =>
+          t.id === resolvedId ? { ...t, status: 'Paid', paidAt: Date.now() } : t
+        ));
+      }
+      navigate('/restaurant/display-table');
     }, 2500);
   };
 
   const handleDirectComplete = () => {
+    const resolvedId = assignedTableId || routedTable?.id || null;
     setIsSettling(true);
     setTimeout(() => {
       setIsSettling(false);
+      if (resolvedId) {
+        setTablesList(prev => prev.map(t =>
+          t.id === resolvedId ? { ...t, status: 'Paid', paidAt: Date.now() } : t
+        ));
+      }
       toast(`${serviceType} order settled successfully!`);
       navigate('/restaurant/display-table');
     }, 2000);
@@ -686,9 +979,10 @@ const POSBillingPage = () => {
   const handleCancel = () => {
     const confirmCancel = window.confirm("Are you sure you want to cancel this table? This action cannot be undone.");
     if (confirmCancel) {
+      const resolvedId = assignedTableId || routedTable?.id || null;
       navigate('/restaurant/display-table', {
         state: {
-          settledTableId: routedTable.id
+          settledTableId: resolvedId
         }
       });
     }
@@ -710,7 +1004,15 @@ const POSBillingPage = () => {
           <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0e7490', margin: 0, letterSpacing: '0.5px' }}>
             RESTAURANT POS
           </h2>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={() => navigate('/restaurant/booking-list', { state: { fromPOS: true, tableId: assignedTableId, rows, waiter, customerName, mobileNumber, paxCount, remarks, serviceType } })}
+              style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #0e7490', background: '#ecfeff', color: '#0e7490', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#ecfeff'; e.currentTarget.style.color = '#0e7490'; }}
+            >
+              &#128203; Previous Bookings
+            </button>
             <div style={{ display: 'flex', border: '1.5px solid #0e7490', borderRadius: '6px', overflow: 'hidden', background: '#fff' }}>
               <input
                 ref={searchInputRef}
@@ -741,7 +1043,7 @@ const POSBillingPage = () => {
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
           <div style={{ width: '180px', background: '#fff', borderRight: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', paddingTop: '20px' }}>
-            {['FOOD', 'BANQUET'].map(cat => {
+            {availableCategories.map(cat => {
               const isSelected = category === cat;
               return (
                 <button key={cat} onClick={() => setCategory(cat)}
@@ -763,7 +1065,7 @@ const POSBillingPage = () => {
           <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: '#fff' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
               {filteredGridItems.map((item, idx) => (
-                <button key={item.name}
+                <button key={item.id || item.name}
                   className="grid-item-btn"
                   data-index={idx}
                   onClick={() => handleGridItemClick(item)}
@@ -789,14 +1091,16 @@ const POSBillingPage = () => {
                         searchInputRef.current.select();
                       }
                     }
-                    
                     if (targetIndex !== idx) {
                       const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
                       if (targetBtn) targetBtn.focus();
                     }
                   }}
                   style={{
-                    padding: '20px 12px', borderRadius: '8px', border: '1.5px solid #0e7490', background: '#fff', color: '#0e7490',
+                    padding: '20px 12px', borderRadius: '8px',
+                    border: '1.5px solid #0e7490',
+                    borderLeft: item.isVeg === false ? '4px solid #DC2626' : '4px solid #16A34A',
+                    background: '#fff', color: '#0e7490',
                     fontSize: '0.78rem', fontWeight: 700, textAlign: 'center', cursor: 'pointer', minHeight: '80px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 120ms ease-in-out', textTransform: 'uppercase'
                   }}
@@ -820,6 +1124,9 @@ const POSBillingPage = () => {
           customerName={customerName}
           paxCount={paxCount}
           hasRemarks={!!remarks}
+          waiter={waiter}
+          onWaiterChange={useCallback((val) => setWaiter(val), [])}
+          isPaid={isPaid}
           onTableClick={useCallback(() => setIsTableModalOpen(true), [])}
           onCustomerClick={useCallback(() => setIsCustomerDrawerOpen(true), [])}
           onPaxClick={useCallback(() => setIsPaxModalOpen(true), [])}
@@ -841,7 +1148,7 @@ const POSBillingPage = () => {
             </thead>
             <tbody>
               {rows.map((row, index) => {
-                const matchItem = ALL_FOOD_ITEMS.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
+                const matchItem = allMenuItems.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
                 return (
                   <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                     <td style={{ padding: '6px 4px', textAlign: 'center' }}>
@@ -866,8 +1173,8 @@ const POSBillingPage = () => {
                         style={{ width: '100%', padding: '6px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}
                       >
                         <option value="">SELECT ITEM...</option>
-                        {ALL_FOOD_ITEMS.map(item => (
-                          <option key={item.id} value={item.name}>{item.name}</option>
+                        {allMenuItems.filter(item => item.active !== 'No').map(item => (
+                          <option key={item.id || item.name} value={item.name}>{item.name}</option>
                         ))}
                       </select>
 
@@ -955,7 +1262,132 @@ const POSBillingPage = () => {
           </div>
         </div>
 
+        {/* ── Discount Panel ───────────────────────────────────────── */}
+        <div style={{ padding: '0 8px 6px' }}>
+          {!showDiscountPanel ? (
+            <button
+              type="button"
+              onClick={() => setShowDiscountPanel(true)}
+              style={{
+                padding: '6px 14px', borderRadius: '6px',
+                border: '1.5px dashed #f97316', background: 'transparent',
+                color: '#f97316', fontSize: '0.75rem', fontWeight: 800,
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fff7ed'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              🏷️ Add Discount
+            </button>
+          ) : (
+            <div style={{
+              background: '#fffbf5', border: '1.5px solid #fed7aa',
+              borderRadius: '10px', padding: '12px 14px'
+            }}>
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  🏷️ Discount
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setShowDiscountPanel(false); setDiscountLines([{ id: 1, type: 'Percentage', value: '', reason: '' }]); }}
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Discount lines */}
+              {discountLines.map((line, idx) => (
+                <div key={line.id} style={{
+                  display: 'grid',
+                  gridTemplateColumns: '100px 80px 1fr auto',
+                  gap: '6px', alignItems: 'center', marginBottom: '8px'
+                }}>
+                  {/* Type toggle */}
+                  <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #fdba74' }}>
+                    {['Percentage', 'Fixed'].map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => updateDiscountLine(line.id, 'type', t)}
+                        style={{
+                          flex: 1, padding: '5px 0', fontSize: '0.68rem', fontWeight: 800, border: 'none',
+                          background: line.type === t ? '#f97316' : '#fff',
+                          color: line.type === t ? '#fff' : '#9a3412',
+                          cursor: 'pointer', transition: 'all 0.1s'
+                        }}
+                      >
+                        {t === 'Percentage' ? '%' : '₹'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Value input */}
+                  <input
+                    type="number"
+                    min="0"
+                    max={line.type === 'Percentage' ? 100 : undefined}
+                    step="0.01"
+                    placeholder={line.type === 'Percentage' ? '0%' : '0.00'}
+                    value={line.value}
+                    onChange={e => updateDiscountLine(line.id, 'value', e.target.value)}
+                    style={{
+                      padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
+                      fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', outline: 'none',
+                      background: '#fff', color: '#1e293b'
+                    }}
+                  />
+
+                  {/* Reason input */}
+                  <input
+                    type="text"
+                    placeholder="Reason / Note"
+                    value={line.reason}
+                    onChange={e => updateDiscountLine(line.id, 'reason', e.target.value)}
+                    style={{
+                      padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
+                      fontSize: '0.75rem', outline: 'none', background: '#fff', color: '#475569'
+                    }}
+                  />
+
+                  {/* Remove line */}
+                  <button
+                    type="button"
+                    onClick={() => removeDiscountLine(line.id)}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '2px 4px' }}
+                  >✕</button>
+                </div>
+              ))}
+
+              {/* Add more discount + computed total */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed #fed7aa' }}>
+                <button
+                  type="button"
+                  onClick={addDiscountLine}
+                  style={{
+                    padding: '4px 10px', borderRadius: '5px',
+                    border: '1px dashed #f97316', background: 'transparent',
+                    color: '#f97316', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer'
+                  }}
+                >
+                  + Add More Discount
+                </button>
+                {totalDiscountAmt > 0 && (
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a' }}>
+                    Saving ₹{totalDiscountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* ─────────────────────────────────────────────────────────────── */}
+
         {/* Payment and Total section */}
+
         <POSPaymentBar
           activeMode={paymentMode}
           onSelectMode={setPaymentMode}
@@ -964,9 +1396,12 @@ const POSBillingPage = () => {
         />
 
         <POSSummaryBar
-          totalBill={totalBill}
+          totalBill={netBill}
+          discountAmt={totalDiscountAmt}
+          originalBill={totalBill}
           onSplitClick={useCallback(() => toast('Bill split modal triggered'), [])}
         />
+
 
         <POSActionButtons
           onSave={handleConfirmBooking}
@@ -1151,6 +1586,17 @@ const POSBillingPage = () => {
           </div>
         </div>
       )}
+
+      {/* KOT Print Modal — Multi-printer routing */}
+      <KOTPrintModal
+        isOpen={showKotPrintModal}
+        onClose={() => setShowKotPrintModal(false)}
+        kotGroups={kotGroups}
+        payloads={kotPayloads}
+        kotNo={generatedKotNo}
+        tableNo={routedTable?.no || assignedTableId || '?'}
+        onKOTSuccess={() => kotSuccessCallbackRef.current && kotSuccessCallbackRef.current()}
+      />
     </div>
   );
 };

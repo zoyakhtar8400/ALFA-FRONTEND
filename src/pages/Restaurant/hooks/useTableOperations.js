@@ -47,33 +47,39 @@ export const useTableOperations = (location, navigate) => {
       const settledId = location.state.settledTableId;
       setTables(prev => prev.map(t => {
         if (t.id === settledId) {
-          return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
+          return { ...t, status: 'Paid', paidAt: Date.now() };
         }
         return t;
       }));
-      setOrderItemsMap(prev => ({
-        ...prev,
-        [settledId]: []
-      }));
       window.history.replaceState({}, document.title);
-    } else if (location.state?.updatedTable && location.state?.updatedRows) {
+    } else if (location.state?.updatedTable) {
       const ut = location.state.updatedTable;
-      const ur = location.state.updatedRows;
+      const ur = location.state.updatedRows || [];
 
       setTables(prev => prev.map(t => {
-        if (t.id === ut.id) {
+        if (
+          (ut.id && String(t.id) === String(ut.id)) ||
+          (ut.no && String(t.no) === String(ut.no)) ||
+          (ut.tableNo && String(t.no) === String(ut.tableNo))
+        ) {
+          const hasItems = ur.length > 0 || (ut.amount && ut.amount > 0);
           return {
             ...t,
             ...ut,
+            status: hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : t.status,
             openedAt: t.openedAt || Date.now()
           };
         }
         return t;
       }));
-      setOrderItemsMap(prev => ({
-        ...prev,
-        [ut.id]: ur
-      }));
+
+      if (ut.id || ut.no) {
+        const tableKey = ut.id || ut.no;
+        setOrderItemsMap(prev => ({
+          ...prev,
+          [tableKey]: ur
+        }));
+      }
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -550,55 +556,20 @@ export const useTableOperations = (location, navigate) => {
       }
     }
 
-    // 1. Instantly transition to 'Paid' and show success overlay
+    // Set status to 'Paid' with paidAt timestamp — context will auto-reset after 30s
     setTables(prev => prev.map(t => {
       if (t.id === srcId) {
-        return { ...t, status: 'Paid' };
+        return { ...t, status: 'Paid', paidAt: Date.now() };
       }
       return t;
     }));
     setShowSettleSuccess(true);
     toast(`Payment received. Table status: Paid.`);
 
-    // 2. After 1.5 seconds, transition to 'Cleaning'
     setTimeout(() => {
-      setTables(prev => prev.map(t => {
-        if (t.id === srcId) {
-          return { ...t, status: 'Cleaning' };
-        }
-        return t;
-      }));
-      toast(`Table is now under Cleaning.`);
-    }, 1500);
-
-    // 3. After another 1.5 seconds (3.0s total), reset to 'Blank' and clean table details
-    setTimeout(() => {
-      setTables(prev => prev.map(t => {
-        if (t.id === srcId) {
-          return {
-            ...t,
-            status: 'Blank',
-            amount: 0,
-            waiter: null,
-            captain: null,
-            customer: 'Walk-in',
-            openedAt: null,
-            isHold: false,
-            kots: [],
-            kotCount: 0
-          };
-        }
-        return t;
-      }));
-      setOrderItemsMap(prev => ({
-        ...prev,
-        [srcId]: []
-      }));
-
       setShowSettleSuccess(false);
       setShowQuickSwitch(false);
-      toast(`Table T${tables.find(t => t.id === srcId)?.no} is now Clean and Blank!`);
-    }, 3000);
+    }, 2000);
   };
 
   const handleModalOkClick = () => {

@@ -9,6 +9,9 @@ const POSHeader = ({
   customerName,
   paxCount,
   hasRemarks,
+  waiter,
+  onWaiterChange,
+  isPaid,
   onTableClick,
   onCustomerClick,
   onPaxClick,
@@ -23,7 +26,6 @@ const POSHeader = ({
       background: '#ffffff',
       borderBottom: '1px solid #cbd5e1'
     }}>
-      {/* Title block */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 900, color: '#0f172a', margin: 0, textTransform: 'uppercase', letterSpacing: '-0.3px' }}>
           POS Billing Desk
@@ -33,15 +35,16 @@ const POSHeader = ({
         </span>
       </div>
 
-      {/* Segmented Service Selector */}
       <ServiceTabs serviceType={serviceType} setServiceType={setServiceType} />
 
-      {/* Grid Action Icons */}
       <HeaderActions
         assignedTableNo={assignedTableNo}
         customerName={customerName}
         paxCount={paxCount}
         hasRemarks={hasRemarks}
+        waiter={waiter}
+        onWaiterChange={onWaiterChange}
+        isPaid={isPaid}
         onTableClick={onTableClick}
         onCustomerClick={onCustomerClick}
         onPaxClick={onPaxClick}

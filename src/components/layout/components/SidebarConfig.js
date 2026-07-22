@@ -52,6 +52,8 @@ export const restaurantMasters = [
   { name: 'Table Master', path: '/pos/master/table' },
   { name: 'Table Structure Design', path: '/pos/master/structure-design' },
   { name: 'Item Tax Category', path: '/pos/master/tax-category' },
+  { name: 'Printer Master', path: '/restaurant/master/printer-master' },
+  { name: 'Production Category', path: '/restaurant/master/production-category' },
   { 
     name: 'Item Menu', 
     path: '/pos/master/item-menu',
