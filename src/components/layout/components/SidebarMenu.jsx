@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   FaChartLine, FaBed, FaUtensils, FaChevronDown, FaChevronRight,
@@ -6,6 +6,7 @@ import {
   FaConciergeBell, FaFolderOpen, FaBuilding, FaWrench, FaCogs,
   FaCalculator, FaClock, FaCalendarAlt, FaTools, FaShoppingBag
 } from 'react-icons/fa';
+import { purchaseMasters, purchaseOperationsProcess, purchaseOperationsDirect } from './SidebarConfig';
 
 const SidebarMenu = ({
   location, isCollapsed, searchQuery, handleMobileNav,
@@ -27,6 +28,12 @@ const SidebarMenu = ({
   const currentPath = location.pathname;
   const isQuery = searchQuery.trim().length > 0;
   const query = searchQuery.toLowerCase();
+
+  const [purchaseOpen, setPurchaseOpen] = useState(currentPath.startsWith('/purchase'));
+  const [pMasterOpen, setPMasterOpen] = useState(true);
+  const [pOperationOpen, setPOperationOpen] = useState(true);
+  const [pProcessOpen, setPProcessOpen] = useState(true);
+  const [pDirectOpen, setPDirectOpen] = useState(true);
 
   // Highlight check
   const isActive = (path) => currentPath === path;
@@ -291,6 +298,140 @@ const SidebarMenu = ({
           <FaConciergeBell size={15} />
           {!isCollapsed && <span>Room Services</span>}
         </Link>
+      )}
+
+      {/* Purchase Module Section */}
+      {matchesFilter('Purchase') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div
+            onClick={() => !isCollapsed && setPurchaseOpen((prev) => !prev)}
+            className={`sidebar-menu-link ${currentPath.startsWith('/purchase') ? 'active-parent' : ''}`}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between',
+              padding: '10px 14px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600,
+              color: currentPath.startsWith('/purchase') ? '#0f172a' : '#475569', cursor: isCollapsed ? 'default' : 'pointer'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FaShoppingBag size={15} style={{ color: currentPath.startsWith('/purchase') ? '#0e7490' : '#64748b' }} />
+              {!isCollapsed && <span>Purchase</span>}
+            </div>
+            {!isCollapsed && (purchaseOpen ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />)}
+          </div>
+
+          {/* Purchase Nested Accordion Drawer */}
+          {purchaseOpen && !isCollapsed && (
+            <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
+              <Link
+                to="/purchase"
+                onClick={handleMobileNav}
+                style={{
+                  display: 'block', padding: '6px 12px 6px 20px', fontSize: '0.74rem', fontWeight: isActive('/purchase') ? 800 : 600,
+                  color: isActive('/purchase') ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive('/purchase') ? '#ecfeff' : 'transparent',
+                  borderRadius: '4px'
+                }}
+              >
+                Dashboard
+              </Link>
+
+              {/* MASTERS Accordion */}
+              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
+                <div
+                  onClick={() => setPMasterOpen((p) => !p)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
+                >
+                  <span>MASTERS</span>
+                  {pMasterOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
+                </div>
+                {pMasterOpen && (purchaseMasters || []).filter(m => matchesFilter(m.name)).map((m) => (
+                  <Link
+                    key={m.path}
+                    to={m.path}
+                    onClick={handleMobileNav}
+                    style={{
+                      display: 'block', padding: '6px 12px 6px 20px', fontSize: '0.74rem', fontWeight: isActive(m.path) ? 800 : 600,
+                      color: isActive(m.path) ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive(m.path) ? '#ecfeff' : 'transparent',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    {m.name}
+                  </Link>
+                ))}
+              </div>
+
+              {/* OPERATIONS Accordion */}
+              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
+                <div
+                  onClick={() => setPOperationOpen((p) => !p)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
+                >
+                  <span>OPERATIONS</span>
+                  {pOperationOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
+                </div>
+                {pOperationOpen && (
+                  <div style={{ paddingLeft: '10px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px' }}>
+                    <div
+                      onClick={() => setPProcessOpen((p) => !p)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', fontSize: '0.7rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
+                    >
+                      <span>Purchase Process</span>
+                      {pProcessOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
+                    </div>
+                    {pProcessOpen && (purchaseOperationsProcess || []).filter(o => matchesFilter(o.name)).map((o) => (
+                      <Link
+                        key={o.path}
+                        to={o.path}
+                        onClick={handleMobileNav}
+                        style={{
+                          display: 'block', padding: '4px 8px 4px 14px', fontSize: '0.72rem', fontWeight: isActive(o.path) ? 800 : 600,
+                          color: isActive(o.path) ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive(o.path) ? '#ecfeff' : 'transparent',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {o.name}
+                      </Link>
+                    ))}
+
+                    <div
+                      onClick={() => setPDirectOpen((p) => !p)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px', fontSize: '0.7rem', fontWeight: 700, color: '#475569', cursor: 'pointer', marginTop: '4px' }}
+                    >
+                      <span>Direct Process</span>
+                      {pDirectOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
+                    </div>
+                    {pDirectOpen && (purchaseOperationsDirect || []).filter(o => matchesFilter(o.name)).map((o) => (
+                      <Link
+                        key={o.path}
+                        to={o.path}
+                        onClick={handleMobileNav}
+                        style={{
+                          display: 'block', padding: '4px 8px 4px 14px', fontSize: '0.72rem', fontWeight: isActive(o.path) ? 800 : 600,
+                          color: isActive(o.path) ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive(o.path) ? '#ecfeff' : 'transparent',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {o.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* REPORTS Link */}
+              <Link
+                to="/purchase/reports"
+                onClick={handleMobileNav}
+                style={{
+                  display: 'block', padding: '6px 12px 6px 20px', fontSize: '0.74rem', fontWeight: isActive('/purchase/reports') ? 800 : 600,
+                  color: isActive('/purchase/reports') ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive('/purchase/reports') ? '#ecfeff' : 'transparent',
+                  borderRadius: '4px', marginTop: '4px'
+                }}
+              >
+                Reports
+              </Link>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Settings Link */}

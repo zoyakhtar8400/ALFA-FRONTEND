@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaSearch, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaTimes, FaChartBar } from 'react-icons/fa';
 import BackButton from '../../../components/common/BackButton';
 import { PrintHeader, PrintFooter } from '../../../components/common/PrintComponent';
 
@@ -33,7 +33,7 @@ import MonthFilter from '../../../components/common/report/MonthFilter';
 import YearFilter from '../../../components/common/report/YearFilter';
 import ActionButtons from '../../../components/common/report/ActionButtons';
 import { exportExcel } from '../../../utils/exportExcel';
-import { exportPDF } from '../../../utils/exportPDF';
+import { exportFrontDeskPDF } from './pdf';
 
 const DEFAULT_FILTERS = {
   startDate: '2023-04-01',
@@ -116,6 +116,35 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showTablePreview, setShowTablePreview] = useState(true);
   const [tableSearch, setTableSearch] = useState('');
+  const [timeframe, setTimeframe] = useState('monthly');
+
+  const chartData = useMemo(() => {
+    if (timeframe === 'weekly') {
+      return [
+        { label: 'Mon', val: '42', pct: 45 },
+        { label: 'Tue', val: '58', pct: 60 },
+        { label: 'Wed', val: '64', pct: 70 },
+        { label: 'Thu', val: '80', pct: 85 },
+        { label: 'Fri', val: '95', pct: 95 },
+        { label: 'Sat', val: '72', pct: 75 },
+        { label: 'Sun', val: '50', pct: 52 }
+      ];
+    }
+    if (timeframe === 'yearly') {
+      return [
+        { label: '2023', val: '1,240', pct: 50 },
+        { label: '2024', val: '1,580', pct: 65 },
+        { label: '2025', val: '1,920', pct: 80 },
+        { label: '2026', val: '2,340', pct: 95 }
+      ];
+    }
+    return [
+      { label: 'Apr', val: '142', pct: 55 },
+      { label: 'May', val: '188', pct: 70 },
+      { label: 'Jun', val: '210', pct: 82 },
+      { label: 'Jul', val: '245', pct: 95 }
+    ];
+  }, [timeframe]);
 
   useEffect(() => {
     const defaults = { ...DEFAULT_FILTERS };
@@ -156,7 +185,7 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
 
   const handlePDF = () => {
     if (window.showToast) window.showToast(`Exporting PDF for ${selectedReport.name}...`);
-    exportPDF(
+    exportFrontDeskPDF(
       selectedReport.name,
       selectedReport.columns,
       filteredTableData,
@@ -539,154 +568,279 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
         {/* Live Preview Area */}
         <div className="reports-preview-area" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
           {showTablePreview && (
-            <>
-              {(() => {
-                const activeFiltersList = Object.entries(getActiveFilters(selectedReport.id))
-                  .filter(([_, val]) => val !== 'All' && val !== '' && val !== 'Select');
-                const isAdvanceRefund = selectedReport.id === 'advance-refund-report';
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) 320px',
+              gap: '16px',
+              alignItems: 'start',
+              width: '100%'
+            }}>
+              {/* LEFT COLUMN: Filters Summary & Table Grid */}
+              <div style={{ minWidth: 0 }}>
+                {(() => {
+                  const activeFiltersList = Object.entries(getActiveFilters(selectedReport.id))
+                    .filter(([_, val]) => val !== 'All' && val !== '' && val !== 'Select');
+                  const isAdvanceRefund = selectedReport.id === 'advance-refund-report';
 
-                if (activeFiltersList.length === 0 && !isAdvanceRefund) return null;
+                  if (activeFiltersList.length === 0 && !isAdvanceRefund) return null;
 
-                return (
-                  <div style={{
-                    background: '#ffffff',
-                    border: '1px solid #f1f5f9',
-                    borderRadius: '16px',
-                    padding: '24px',
-                    marginBottom: '20px',
-                    fontFamily: 'monospace',
-                    fontSize: '0.85rem',
-                    color: '#334155',
-                    boxShadow: 'var(--shadow-premium)',
-                  }}>
-                    {activeFiltersList.length > 0 && (
-                      <div>
-                        <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#64748b', fontSize: '0.75rem', marginBottom: '6px' }}>Filters Applied</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                          {activeFiltersList.map(([key, val]) => (
-                            <div key={key} style={{ fontSize: '0.78rem' }}>
-                              <span style={{ color: '#64748b', fontWeight: 600 }}>{key}:</span> <span style={{ color: '#0f172a', fontWeight: 700 }}>{val}</span>
-                            </div>
-                          ))}
+                  return (
+                    <div style={{
+                      background: '#ffffff',
+                      border: '1px solid #f1f5f9',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      marginBottom: '20px',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      color: '#334155',
+                      boxShadow: 'var(--shadow-premium)',
+                    }}>
+                      {activeFiltersList.length > 0 && (
+                        <div>
+                          <div style={{ fontWeight: 700, textTransform: 'uppercase', color: '#64748b', fontSize: '0.75rem', marginBottom: '6px' }}>Filters Applied</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                            {activeFiltersList.map(([key, val]) => (
+                              <div key={key} style={{ fontSize: '0.78rem' }}>
+                                <span style={{ color: '#64748b', fontWeight: 600 }}>{key}:</span> <span style={{ color: '#0f172a', fontWeight: 700 }}>{val}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {isAdvanceRefund && (
-                      <div style={{
-                        borderTop: activeFiltersList.length > 0 ? '1px dashed #cbd5e1' : 'none',
-                        paddingTop: activeFiltersList.length > 0 ? '12px' : '0px',
-                        marginTop: activeFiltersList.length > 0 ? '12px' : '0px',
-                        fontFamily: 'monospace',
-                        fontSize: '0.85rem',
-                        color: '#1e293b',
-                        lineHeight: '1.6'
-                      }}>
-                        <div><strong>Total Advance :</strong> ₹50,000</div>
-                        <div><strong>Total Refund  :</strong> ₹5,000</div>
-                        <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '6px', marginTop: '6px', fontWeight: 800 }}>
-                          <strong>Net Advance   :</strong> ₹45,000
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              <div className="custom-table-container slide-up-item">
-                {/* Table Header Controls */}
-                <div className="no-print" style={{ padding: '20px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      PMS Database Records Preview
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                      Compiled output data matching date filters
-                    </span>
-                  </div>
-
-                  {/* Local search within table records */}
-                  <div style={{ position: 'relative', width: '220px' }}>
-                    <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', fontSize: '11px' }} />
-                    <input
-                      type="text"
-                      placeholder="Search inside preview..."
-                      value={tableSearch}
-                      onChange={e => setTableSearch(e.target.value)}
-                      className="custom-form-input"
-                      style={{ paddingLeft: '28px', height: '32px', fontSize: '0.76rem', borderRadius: '8px' }}
-                    />
-                    {tableSearch && (
-                      <FaTimes
-                        onClick={() => setTableSearch('')}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '10px' }}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* Table Grid */}
-                <div className="custom-scrollbar" style={{ overflowX: 'auto', width: '100%' }}>
-                  <table className="custom-table-element" style={{ margin: 0 }}>
-                    <thead>
-                      <tr>
-                        {selectedReport.columns?.map((colName, idx) => (
-                          <th key={idx}>
-                            {colName}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTableData?.map((row, rowIdx) => (
-                        <tr key={rowIdx}>
-                          {selectedReport.columns?.map((col, colIdx) => {
-                            const valKey = `c${colIdx + 1}`;
-                            return (
-                              <td key={colIdx}>
-                                {renderCell(col, row[valKey])}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                      {filteredTableData.length === 0 && (
-                        <tr>
-                          <td colSpan={selectedReport.columns?.length || 1} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
-                            No records match your search criteria.
-                          </td>
-                        </tr>
                       )}
-                    </tbody>
-                  </table>
+
+                      {isAdvanceRefund && (
+                        <div style={{
+                          borderTop: activeFiltersList.length > 0 ? '1px dashed #cbd5e1' : 'none',
+                          paddingTop: activeFiltersList.length > 0 ? '12px' : '0px',
+                          marginTop: activeFiltersList.length > 0 ? '12px' : '0px',
+                          fontFamily: 'monospace',
+                          fontSize: '0.85rem',
+                          color: '#1e293b',
+                          lineHeight: '1.6'
+                        }}>
+                          <div><strong>Total Advance :</strong> ₹50,000</div>
+                          <div><strong>Total Refund  :</strong> ₹5,000</div>
+                          <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '6px', marginTop: '6px', fontWeight: 800 }}>
+                            <strong>Net Advance   :</strong> ₹45,000
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="custom-table-container slide-up-item">
+                  {/* Table Header Controls */}
+                  <div className="no-print" style={{ padding: '20px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--dark)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        PMS Database Records Preview
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                        Compiled output data matching date filters
+                      </span>
+                    </div>
+
+                    {/* Local search within table records */}
+                    <div style={{ position: 'relative', width: '220px' }}>
+                      <FaSearch style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', fontSize: '11px' }} />
+                      <input
+                        type="text"
+                        placeholder="Search inside preview..."
+                        value={tableSearch}
+                        onChange={e => setTableSearch(e.target.value)}
+                        className="custom-form-input"
+                        style={{ paddingLeft: '28px', height: '32px', fontSize: '0.76rem', borderRadius: '8px' }}
+                      />
+                      {tableSearch && (
+                        <FaTimes
+                          onClick={() => setTableSearch('')}
+                          style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '10px' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Table Grid */}
+                  <div className="custom-scrollbar" style={{ overflowX: 'auto', width: '100%' }}>
+                    <table className="custom-table-element" style={{ margin: 0 }}>
+                      <thead>
+                        <tr>
+                          {selectedReport.columns?.map((colName, idx) => (
+                            <th key={idx}>
+                              {colName}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTableData?.map((row, rowIdx) => (
+                          <tr key={rowIdx}>
+                            {selectedReport.columns?.map((col, colIdx) => {
+                              const valKey = `c${colIdx + 1}`;
+                              return (
+                                <td key={colIdx}>
+                                  {renderCell(col, row[valKey])}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                        {filteredTableData.length === 0 && (
+                          <tr>
+                            <td colSpan={selectedReport.columns?.length || 1} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                              No records match your search criteria.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Fake Pagination Footer */}
+                  <div className="no-print" style={{ padding: '14px 24px', borderTop: '1px solid #F1F5F9', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    <span>Showing 1 to {filteredTableData.length} of {filteredTableData.length} records</span>
+                    <span style={{ fontWeight: 800 }}>Page 1 of 1</span>
+                  </div>
                 </div>
 
-                {/* Fake Pagination Footer */}
-                <div className="no-print" style={{ padding: '14px 24px', borderTop: '1px solid #F1F5F9', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                  <span>Showing 1 to {filteredTableData.length} of {filteredTableData.length} records</span>
-                  <span style={{ fontWeight: 800 }}>Page 1 of 1</span>
+                {/* Report Footer */}
+                <div style={{
+                  marginTop: '20px',
+                  borderTop: '2px solid #f1f5f9',
+                  paddingTop: '16px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.82rem',
+                  color: '#475569',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div><strong>Total Records :</strong> {filteredTableData.length}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                    <div><strong>Printed By :</strong> Admin</div>
+                    <div><strong>Printed On :</strong> {printedOnStr}</div>
+                  </div>
                 </div>
               </div>
 
-              {/* Report Footer */}
-              <div style={{
-                marginTop: '20px',
-                borderTop: '2px solid #f1f5f9',
-                paddingTop: '16px',
-                fontFamily: 'monospace',
-                fontSize: '0.82rem',
-                color: '#475569',
+              {/* RIGHT COLUMN: Visual Analytics Bar Chart Card */}
+              <div className="no-print slide-up-item delay-1" style={{
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px',
+                boxShadow: '0 2px 8px -3px rgba(0,0,0,0.05)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '6px'
+                gap: '14px',
+                position: 'sticky',
+                top: '20px'
               }}>
-                <div><strong>Total Records :</strong> {filteredTableData.length}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                  <div><strong>Printed By :</strong> Admin</div>
-                  <div><strong>Printed On :</strong> {printedOnStr}</div>
+                {/* Chart Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ background: 'rgba(13, 148, 136, 0.1)', padding: '6px 8px', borderRadius: '6px', color: 'var(--primary, #0D9488)' }}>
+                      <FaChartBar size={13} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a', textTransform: 'capitalize' }}>
+                        {timeframe} Trend Analysis
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                        Report volume & metrics breakdown
+                      </div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.66rem', fontWeight: 800, color: '#10b981', background: '#ecfdf5', padding: '3px 8px', borderRadius: '10px' }}>
+                    +16.4% ↑
+                  </span>
+                </div>
+
+                {/* Timeframe Segment Control Pill Buttons */}
+                <div style={{
+                  display: 'flex',
+                  background: '#f1f5f9',
+                  padding: '3px',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  justifyContent: 'center'
+                }}>
+                  {['weekly', 'monthly', 'yearly'].map((tf) => (
+                    <button
+                      key={tf}
+                      type="button"
+                      onClick={() => setTimeframe(tf)}
+                      style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.70rem',
+                        fontWeight: timeframe === tf ? 800 : 600,
+                        color: timeframe === tf ? '#ffffff' : '#64748b',
+                        background: timeframe === tf ? 'var(--primary, #0D9488)' : 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textTransform: 'capitalize',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Vertical Bar Chart */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'space-around',
+                  height: '180px',
+                  paddingTop: '16px',
+                  paddingBottom: '6px',
+                  borderBottom: '1px solid #e2e8f0',
+                  gap: '8px'
+                }}>
+                  {chartData.map((item, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      flex: 1,
+                      height: '100%',
+                      justifyContent: 'flex-end',
+                      gap: '4px'
+                    }}>
+                      {/* Value Tag Above Bar */}
+                      <span style={{ fontSize: '0.58rem', fontWeight: 800, color: '#334155' }}>
+                        {item.val}
+                      </span>
+                      {/* Colored Bar */}
+                      <div style={{
+                        width: '100%',
+                        maxWidth: '28px',
+                        height: `${item.pct}%`,
+                        background: idx === chartData.length - 1
+                          ? 'linear-gradient(180deg, #0D9488 0%, #14B8A6 100%)'
+                          : 'linear-gradient(180deg, #94A3B8 0%, #CBD5E1 100%)',
+                        borderRadius: '4px 4px 0 0',
+                        transition: 'height 0.3s ease'
+                      }} />
+                      {/* X-Axis Label */}
+                      <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#64748b', marginTop: '2px' }}>
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', fontWeight: 600 }}>
+                  Filtered mode: <strong style={{ color: 'var(--primary, #0D9488)', textTransform: 'uppercase' }}>{timeframe}</strong> analytics view
                 </div>
               </div>
-            </>
+
+            </div>
           )}
         </div>
 

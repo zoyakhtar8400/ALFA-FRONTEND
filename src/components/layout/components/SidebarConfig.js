@@ -16,6 +16,30 @@ export const masters = [
   { name: 'State Master', path: '/front-desk/master/state-master' },
 ];
 
+export const purchaseMasters = [
+  { name: 'Item Group', path: '/purchase/master/item-group' },
+  { name: 'Item Master', path: '/purchase/master/item-master' },
+  { name: 'Open Stock Entry', path: '/purchase/master/open-stock-entry' },
+  { name: 'Unit Master', path: '/purchase/master/unit-master' },
+  { name: 'Item Entry CSV Upload', path: '/purchase/master/item-entry-csv-upload' }
+];
+
+export const purchaseOperationsProcess = [
+  { name: 'Indent Entry', path: '/purchase/operation/indent-entry' },
+  { name: 'Indent Approval', path: '/purchase/operation/indent-approval' },
+  { name: 'Quotation Entry', path: '/purchase/operation/quotation-entry' },
+  { name: 'Purchase Order Entry', path: '/purchase/operation/purchase-order-entry' },
+  { name: 'GRN Entry', path: '/purchase/operation/grn-entry' },
+  { name: 'Purchase Bill Entry', path: '/purchase/operation/purchase-bill-entry' }
+];
+
+export const purchaseOperationsDirect = [
+  { name: 'Purchase Return Entry', path: '/purchase/operation/purchase-return-entry' },
+  { name: 'Department Issue', path: '/purchase/operation/department-issue' },
+  { name: 'Stock Transfer Entry', path: '/purchase/operation/stock-transfer-entry' },
+  { name: 'Consumer Entry', path: '/purchase/operation/consumer-entry' }
+];
+
 export const operations = [
   { name: 'Booking', path: '/front-desk/operation/booking' },
   { name: 'Walkin Checkin Entry', path: '/front-desk/operation/walkin-checkin-entry' },
@@ -54,8 +78,8 @@ export const restaurantMasters = [
   { name: 'Item Tax Category', path: '/pos/master/tax-category' },
   { name: 'Printer Master', path: '/restaurant/master/printer-master' },
   { name: 'Production Category', path: '/restaurant/master/production-category' },
-  { 
-    name: 'Item Menu', 
+  {
+    name: 'Item Menu',
     path: '/pos/master/item-menu',
     subitems: [
       { name: 'Main Group Entry', path: '/pos/master/item-menu/main-group' },

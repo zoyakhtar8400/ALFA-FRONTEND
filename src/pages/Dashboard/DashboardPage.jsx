@@ -146,19 +146,19 @@ const RunningTablesWidget = ({ tables, setTables, setOrderItemsMap, logAction, s
 const Card = memo(({ title, accent = '#418A8B', defaultOpen = true, noPad = false, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+    <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
       <button onClick={() => setOpen(o => !o)} style={{
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer',
+        padding: '14px 18px', background: 'none', border: 'none', cursor: 'pointer',
         borderBottom: open ? '1px solid #f1f5f9' : 'none',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <div style={{ width: '3.5px', height: '20px', borderRadius: '2px', background: accent, flexShrink: 0 }} />
-          <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{title}</span>
+          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
         </div>
-        <span style={{ color: '#64748b', display: 'flex' }}>{open ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}</span>
+        <span style={{ color: '#64748b', display: 'flex', flexShrink: 0 }}>{open ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}</span>
       </button>
-      {open && <div style={noPad ? {} : { padding: '20px' }}>{children}</div>}
+      {open && <div style={noPad ? {} : { padding: '16px 18px' }}>{children}</div>}
     </div>
   );
 });
@@ -314,7 +314,7 @@ const DashboardPage = ({ showToast }) => {
   const graphData = TIMEFRAME_DATA[timeframe] || TIMEFRAME_DATA.weekly;
 
   return (
-    <div style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', padding: '0px 28px 48px', fontFamily: 'var(--font-family)' }}>
+    <div className="dash-page">
 
       {/* 1. Header */}
       <DashboardHeader
@@ -331,7 +331,7 @@ const DashboardPage = ({ showToast }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
           {/* 3. Grid: Occupancy Trend + Dept Revenue + Rev Mix */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
+          <div className="dash-grid-3">
             <Card title="Occupancy Trend" accent="#418A8B">
               <OccupancyChart data={graphData.occupancy} />
             </Card>
@@ -344,7 +344,7 @@ const DashboardPage = ({ showToast }) => {
           </div>
 
           {/* 5. Room Status + Display Dining Tables + Room Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1.5fr', gap: '16px' }}>
+          <div className="dash-grid-rooms">
             <Card title="Room Status" accent="#22c55e">
               <HousekeepingChart rooms={rooms} showToast={showToast} />
             </Card>
@@ -357,7 +357,7 @@ const DashboardPage = ({ showToast }) => {
           </div>
 
           {/* 6. Today's Arrivals, Departures, and Dirty Rooms Queue — 3 columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div className="dash-grid-3-equal">
             <Card title="Today's Arrivals" accent="#418A8B">
               <TodayArrivalsWidget checkInGuest={checkInGuest} arrivals={arrivals} rooms={rooms} showToast={showToast} />
             </Card>
@@ -370,7 +370,7 @@ const DashboardPage = ({ showToast }) => {
           </div>
 
           {/* 7. POS Table settlements + Recent Orders */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="dash-grid-2">
             <Card title="Running Table Orders" accent="#d97706">
               <RunningTablesWidget tables={tables} setTables={setTables} setOrderItemsMap={setOrderItemsMap} logAction={logAction} showToast={showToast} />
             </Card>
@@ -389,7 +389,7 @@ const DashboardPage = ({ showToast }) => {
 
       {activeTab === 'reservations' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div className="dash-grid-3-equal">
             <Card title="Recent Reservations" accent="#418A8B">
               <RecentBookings showToast={showToast} />
             </Card>
@@ -404,7 +404,7 @@ const DashboardPage = ({ showToast }) => {
       )}
 
       {activeTab === 'outlets' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div className="dash-grid-2">
           <Card title="Recent Restaurant Orders" accent="#d97706">
             <RecentOrders showToast={showToast} />
           </Card>

@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { exportSalesRegisterPDF } from './exportSalesRegisterPDF';
 import { exportItemwiseSalePDF } from './exportItemwiseSalePDF';
 import { exportItemwiseCategorywiseSalePDF } from './exportItemwiseCategorywiseSalePDF';
@@ -17,253 +17,234 @@ import { exportUserwiseCollectionPDF } from './exportUserwiseCollectionPDF';
 import { exportCustomerInfoPDF } from './exportCustomerInfoPDF';
 import { exportCustomerOutletVisitPDF } from './exportCustomerOutletVisitPDF';
 
-export const exportPDF = (reportName, columns, data, activeFilters, printedOn) => {
+export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr) => {
   // Delegate Customer Info to custom portrait exporter
   if (reportName === 'Customer Info Report') {
-    exportCustomerInfoPDF(columns, data, activeFilters, printedOn);
+    exportCustomerInfoPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Customer Outlet Visit to custom portrait exporter
   if (reportName === 'Customer Outlet Visit Report') {
-    exportCustomerOutletVisitPDF(columns, data, activeFilters, printedOn);
+    exportCustomerOutletVisitPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate User Wise Collection to custom portrait exporter
   if (reportName === 'User Wise Collection Report(Summary)') {
-    exportUserwiseCollectionPDF(columns, data, activeFilters, printedOn);
+    exportUserwiseCollectionPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Cashier Settlement to custom portrait exporter
   if (reportName === 'Cashier Settlement Report(Detailed)') {
-    exportCashierSettlementPDF(columns, data, activeFilters, printedOn);
+    exportCashierSettlementPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Pending KOT to custom landscape exporter
   if (reportName === 'Pending KOT Report') {
-    exportPendingKOTPDF(columns, data, activeFilters, printedOn);
+    exportPendingKOTPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate NC KOT to custom portrait exporter
   if (reportName === 'NC KOT(Bill Report)(Detailed)') {
-    exportNCKOTPDF(columns, data, activeFilters, printedOn);
+    exportNCKOTPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate KOT Register to custom landscape exporter
   if (reportName === 'KOT Register') {
-    exportKOTRegisterPDF(columns, data, activeFilters, printedOn);
+    exportKOTRegisterPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Tax Register (Detailed) to custom landscape exporter
   if (reportName === 'Tax Register (Detailed)') {
-    exportTaxRegisterDetailedPDF(columns, data, activeFilters, printedOn);
+    exportTaxRegisterDetailedPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Tax Summary Datewise to custom landscape exporter
   if (reportName === 'Tax Summary Datewise') {
-    exportTaxSummaryDatewisePDF(columns, data, activeFilters, printedOn);
+    exportTaxSummaryDatewisePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Sales Register to custom landscape exporter
   if (reportName === 'Sales Register') {
-    exportSalesRegisterPDF(columns, data, activeFilters, printedOn);
+    exportSalesRegisterPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Itemwise Sale to custom portrait exporter
   if (reportName === 'Itemwise Sale') {
-    exportItemwiseSalePDF(columns, data, activeFilters, printedOn);
+    exportItemwiseSalePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Itemwise Categorywise Sale to custom portrait exporter
   if (reportName === 'Itemwise Categorywise Sale') {
-    exportItemwiseCategorywiseSalePDF(columns, data, activeFilters, printedOn);
+    exportItemwiseCategorywiseSalePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Itemwise Outletwise Sale to custom portrait exporter
   if (reportName === 'Itemwise Outletwise Sale') {
-    exportItemwiseSalePDF(columns, data, activeFilters, printedOn);
+    exportItemwiseSalePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Tablewise Itemwise Sale to custom portrait exporter
   if (reportName === 'Tablewise Itemwise Sale') {
-    exportTablewiseSalePDF(columns, data, activeFilters, printedOn);
+    exportTablewiseSalePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Cover Analysis Report to custom portrait exporter
   if (reportName === 'Cover Analysis Report') {
-    exportCoverAnalysisPDF(columns, data, activeFilters, printedOn);
+    exportCoverAnalysisPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Kitchen Time Gap Report to custom landscape exporter
   if (reportName === 'Kitchen Time Gap Report') {
-    exportKitchenTimeGapPDF(columns, data, activeFilters, printedOn);
+    exportKitchenTimeGapPDF(columns, data, activeFilters, printedOnStr);
     return;
   }
   // Delegate Stewardwise Item Sale to custom portrait exporter
   if (reportName === 'Stewardwise Item Sale') {
-    exportStewardwiseSalePDF(columns, data, activeFilters, printedOn);
+    exportStewardwiseSalePDF(columns, data, activeFilters, printedOnStr);
     return;
   }
 
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
+  try {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-  const pageWidth = 210;
-  const pageHeight = 297;
-  const leftMargin = 15;
-  const rightMargin = 15;
-  const printableWidth = pageWidth - leftMargin - rightMargin; // 180mm
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const leftMargin = 12;
+    const rightMargin = 12;
 
-  // Ensure actualPrintedOn is set
-  const actualPrintedOn = printedOn || (() => {
-    const now = new Date();
-    const datePart = now.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
-    const timePart = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${datePart} ${timePart}`;
-  })();
+    // 1. Hotel Header
+    doc.setFont('Helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(0, 0, 0);
+    doc.text('ALFA', pageWidth / 2, 14, { align: 'center' });
 
-  // 1. Clean Title Block
-  doc.setFont('Helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor(15, 23, 42); // Slate-900
-  doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
-  
-  doc.setFontSize(10.5);
-  doc.setTextColor(71, 85, 105); // Slate-600
-  doc.text(`${reportName} Report`, pageWidth / 2, 19.5, { align: 'center' });
+    // 2. Date Range Format
+    const formatDateDisplay = (dateVal, defaultFallback) => {
+      if (!dateVal) return defaultFallback;
+      try {
+        const parts = dateVal.split('-');
+        if (parts.length === 3) {
+          const d = parseInt(parts[2]);
+          const mIdx = parseInt(parts[1]) - 1;
+          const y = parts[0];
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          return `${String(d).padStart(2, '0')}/${months[mIdx] || 'Apr'}/${y}`;
+        }
+      } catch (e) {
+        // ignore
+      }
+      return defaultFallback;
+    };
 
-  // 2. Printed Metadata Info
-  doc.setFontSize(7.5);
-  doc.setFont('Helvetica', 'normal');
-  doc.setTextColor(100, 116, 139); // Slate-500
-  
-  // Format filter text if filters are passed
-  let filterText = 'Outlet: All Outlets';
-  if (activeFilters) {
-    if (activeFilters.startDate && activeFilters.endDate) {
-      filterText = `Date Range: ${activeFilters.startDate} to ${activeFilters.endDate}   |   ${filterText}`;
-    } else if (activeFilters.dateFrom && activeFilters.dateTo) {
-      filterText = `Date Range: ${activeFilters.dateFrom} to ${activeFilters.dateTo}   |   ${filterText}`;
-    }
-  }
+    const fromStr = formatDateDisplay(activeFilters?.startDate || activeFilters?.dateFrom, '01/Apr/2026');
+    const toStr = formatDateDisplay(activeFilters?.endDate || activeFilters?.dateTo, '25/Jul/2026');
 
-  doc.text(filterText, leftMargin, 26);
-  doc.text(`Generated By: Admin   |   Generated On: ${actualPrintedOn}`, pageWidth - rightMargin, 26, { align: 'right' });
+    doc.setFontSize(10.5);
+    doc.text(`${reportName} From ${fromStr} To ${toStr}`, pageWidth / 2, 20, { align: 'center' });
 
-  // Subtle separator line
-  doc.setDrawColor(226, 232, 240); // Slate-200
-  doc.setLineWidth(0.3);
-  doc.line(leftMargin, 28, pageWidth - rightMargin, 28);
+    // 3. Filter Parameters Block (Left Aligned Key-Value Pairs)
+    doc.setFont('Courier', 'normal');
+    doc.setFontSize(8.2);
+    doc.setTextColor(30, 41, 59);
 
-  const yOffset = 32;
+    let filterY = 27;
+    const filterLines = [
+      `From Date       : ${fromStr}`,
+      `To Date         : ${toStr}`,
+      `Outlet Name     : ${activeFilters?.outlet || activeFilters?.category || 'All Outlets'}`,
+      `Site Name       : HO`,
+      `Report Type     : Detailed`
+    ];
 
-  // 3. Table Rows Mapping
-  const tableHeaders = columns;
-  const tableRows = data.map((rowObj) => 
-    columns.map((_, colIdx) => {
-      const rawVal = rowObj[`c${colIdx + 1}`] || '';
-      return String(rawVal);
-    })
-  );
+    filterLines.forEach((line) => {
+      doc.text(line, leftMargin, filterY);
+      filterY += 4;
+    });
 
-  // 4. AutoTable Configuration
-  autoTable(doc, {
-    startY: yOffset,
-    head: [tableHeaders],
-    body: tableRows,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [30, 41, 59], // Dark Navy/Slate header (#1E293B)
-      textColor: [255, 255, 255],
-      fontSize: 8,
-      fontStyle: 'bold',
-      halign: 'center',
-      valign: 'middle',
-      cellPadding: 2.2
-    },
-    bodyStyles: {
-      fontSize: 7.5,
-      textColor: [51, 65, 85],
-      valign: 'middle',
-      cellPadding: 2.2
-    },
-    columnStyles: {
-      ...columns.reduce((acc, colName, idx) => {
+    const startTableY = filterY + 3;
+
+    // 4. Columns & Data Mapping
+    const tableHeaders = columns;
+    const tableRows = (data || []).map((rowObj) =>
+      columns.map((_, colIdx) => {
+        const rawVal = rowObj[`c${colIdx + 1}`] || '';
+        return String(rawVal).replace(/₹/g, 'Rs. ');
+      })
+    );
+
+    const tableConfig = {
+      startY: startTableY,
+      head: [tableHeaders],
+      body: tableRows,
+      theme: 'plain',
+      headStyles: {
+        fillColor: [209, 213, 219], // Light Gray Header (#D1D5DB)
+        textColor: [0, 0, 0],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'left',
+        valign: 'middle',
+        cellPadding: 2
+      },
+      bodyStyles: {
+        fontSize: 7.5,
+        textColor: [0, 0, 0],
+        font: 'Courier',
+        valign: 'middle',
+        cellPadding: 2
+      },
+      columnStyles: columns.reduce((acc, colName, idx) => {
         const name = colName.toUpperCase();
-        
-        // Right-align currency / numeric values automatically
-        const isNumeric = name.includes('AMOUNT') || 
-                          name.includes('REVENUE') || 
-                          name.includes('TAX') || 
-                          name.includes('BILL') || 
-                          name.includes('PAID') || 
-                          name.includes('TOTAL') ||
-                          name.includes('VAL') ||
-                          name.includes('QUANTITY') ||
-                          name.includes('SUBTOTAL') ||
-                          name.includes('DISCOUNT') ||
-                          name.includes('QTY');
-        
-        const isDateOrTime = name.includes('DATE') || name.includes('TIME') || name === 'SR NO' || name === 'S.NO.';
-
-        if (isNumeric) {
-          acc[idx] = { halign: 'right', fontStyle: name.includes('TOTAL') || name.includes('NET') ? 'bold' : 'normal' };
-        } else if (isDateOrTime) {
+        if (name.includes('AMOUNT') || name.includes('RATE') || name.includes('VALUATION') || name.includes('TOTAL') || name.includes('PRICE') || name.includes('TAX') || name.includes('REVENUE') || name.includes('PAID') || name.includes('BILL')) {
+          acc[idx] = { halign: 'right' };
+        } else if (name.includes('QTY') || name.includes('UNIT') || name.includes('DATE') || name.includes('NO') || name.includes('#') || name.includes('ROOM')) {
           acc[idx] = { halign: 'center' };
         } else {
           acc[idx] = { halign: 'left' };
         }
         return acc;
-      }, {})
-    },
-    styles: {
-      lineColor: [226, 232, 240],
-      lineWidth: 0.15
-    },
-    margin: { left: leftMargin, right: rightMargin, top: 15, bottom: 15 },
-    pageBreak: 'auto'
-  });
+      }, {}),
+      styles: {
+        lineColor: [226, 232, 240],
+        lineWidth: 0.1
+      },
+      margin: { left: leftMargin, right: rightMargin, top: 15, bottom: 15 },
+      pageBreak: 'auto'
+    };
 
-  // 5. Running Headers and Footers (Two-pass)
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-
-    // Draw running header for page >= 2
-    if (i > 1) {
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`ALFA HOTEL MANAGEMENT SYSTEM   |   ${reportName} Report`, leftMargin, 10);
-      
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.25);
-      doc.line(leftMargin, 12, pageWidth - rightMargin, 12);
+    if (typeof autoTable === 'function') {
+      autoTable(doc, tableConfig);
+    } else if (typeof doc.autoTable === 'function') {
+      doc.autoTable(tableConfig);
     }
 
-    // Running Footer
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.25);
-    doc.line(leftMargin, pageHeight - 12, pageWidth - rightMargin, pageHeight - 12);
+    // 5. Footer (Printed By & Page X of Y)
+    const totalPages = doc.internal.getNumberOfPages();
+    const printDateStr = printedOnStr || new Date().toLocaleString();
 
-    doc.setFont('Helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(100, 116, 139);
-    
-    // Left: ALFA HMS
-    doc.text('ALFA HMS', leftMargin, pageHeight - 8);
-    
-    // Center: Report Title
-    doc.text(`${reportName} Report`, pageWidth / 2, pageHeight - 8, { align: 'center' });
-    
-    // Right: Page X of Y
-    doc.text(`Page ${i} of ${totalPages}`, pageWidth - rightMargin, pageHeight - 8, { align: 'right' });
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(71, 85, 105);
+
+      doc.setDrawColor(148, 163, 184);
+      doc.setLineWidth(0.2);
+      doc.line(leftMargin, pageHeight - 12, pageWidth - rightMargin, pageHeight - 12);
+
+      doc.text(`Printed By : SA on ${printDateStr}`, leftMargin, pageHeight - 7);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - rightMargin, pageHeight - 7, { align: 'right' });
+    }
+
+    // Open PDF in new browser tab
+    const blob = doc.output('blob');
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, '_blank');
+  } catch (err) {
+    console.error('Export FrontDesk PDF Error:', err);
   }
-
-  // Open the PDF in a new browser tab/window instead of downloading it directly
-  const blob = doc.output('blob');
-  const blobUrl = URL.createObjectURL(blob);
-  window.open(blobUrl, '_blank');
 };

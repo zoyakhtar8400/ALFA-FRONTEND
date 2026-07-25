@@ -64,27 +64,24 @@ const ReportsDashboard = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', fontFamily: 'var(--font-family)' }}>
+      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '8px' }}>
+        Currently managing <strong>{totalReports}</strong> report registers across <strong>{REPORT_CATALOG.length}</strong> categories.
+      </div>
 
-      {/* Page Header */}
-      {/* <PageHeader
-        title="Reports"
-        subtitle={`${totalReports} reports across ${REPORT_CATALOG.length} categories`}
-        icon={<FaChartBar />}
-      /> */}
-
-      {/* Search Bar */}
-      {/* <div style={{
+      {/* Search Bar & Category Badges */}
+      <div style={{
         background: '#ffffff',
         border: '1px solid rgba(226,232,240,0.8)',
         borderRadius: '16px',
-        padding: '16px 24px',
+        padding: '14px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '16px',
+        flexWrap: 'wrap',
+        gap: '12px',
         boxShadow: '0 2px 12px -4px rgba(36,78,95,0.06)'
       }}>
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           {REPORT_CATALOG.map(cat => {
             const Icon = cat.icon;
             return (
@@ -94,7 +91,7 @@ const ReportsDashboard = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '6px 12px',
+                  padding: '5px 10px',
                   borderRadius: '20px',
                   background: cat.bgLight,
                   border: `1px solid ${cat.color}25`,
@@ -118,24 +115,22 @@ const ReportsDashboard = () => {
             );
           })}
         </div>
-      <div style={{ width: '1000px', flexShrink: 0 }}>
+        <div style={{ width: '100%', maxWidth: '320px', flexShrink: 0 }}>
           <CommonSearch
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search all reports..."
           />
         </div>
-      </div> */}
+      </div>
 
       {/* Multi-Column Report Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${filteredCatalog.length}, 1fr)`,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
         gap: '16px',
         width: '100%',
-        alignItems: 'start',
-        overflowX: 'auto',
-        minWidth: 0
+        alignItems: 'start'
       }}>
         {filteredCatalog.map((cat, catIdx) => {
           const Icon = cat.icon;
@@ -145,7 +140,7 @@ const ReportsDashboard = () => {
               className={`slide-up-item delay-${catIdx + 1}`}
               style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '180px' }}
             >
-              {/* Category Column Header */}
+              {/* Category Column Header Banner */}
               <div style={{
                 background: cat.gradient,
                 borderRadius: '14px',
@@ -197,7 +192,7 @@ const ReportsDashboard = () => {
                 </div>
               </div>
 
-              {/* Report Cards in Column */}
+              {/* Report Cards Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {cat.reports.map((rep, repIdx) => (
                   <ReportListCard

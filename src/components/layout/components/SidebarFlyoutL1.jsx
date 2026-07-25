@@ -14,11 +14,17 @@ const SidebarFlyoutL1 = ({
   handleMobileNav,
   setActiveFlyout,
 }) => {
-  if (!isCollapsed || !activeFlyout || (activeFlyout.menu !== 'front-desk' && activeFlyout.menu !== 'restaurant' && activeFlyout.menu !== 'point-of-sale')) return null;
+  if (!isCollapsed || !activeFlyout || (
+    activeFlyout.menu !== 'front-desk' &&
+    activeFlyout.menu !== 'restaurant' &&
+    activeFlyout.menu !== 'point-of-sale' &&
+    activeFlyout.menu !== 'purchase'
+  )) return null;
 
   const isRestaurant = activeFlyout.menu === 'restaurant';
   const isPOS = activeFlyout.menu === 'point-of-sale';
-  const prefix = isRestaurant ? '/restaurant' : isPOS ? '/restaurant' : '/front-desk';
+  const isPurchase = activeFlyout.menu === 'purchase';
+  const prefix = isRestaurant ? '/restaurant' : isPOS ? '/restaurant' : isPurchase ? '/purchase' : '/front-desk';
 
   return (
     <div
@@ -27,8 +33,50 @@ const SidebarFlyoutL1 = ({
       onMouseEnter={handleFlyoutL1MouseEnter}
       onMouseLeave={handleFlyoutL1MouseLeave}
     >
-      <div className="flyout-header">{isRestaurant ? 'Restaurant' : isPOS ? 'Point Of Sale' : 'Front Desk'}</div>
+      <div className="flyout-header">
+        {isRestaurant ? 'Restaurant' : isPOS ? 'Point Of Sale' : isPurchase ? 'Purchase' : 'Front Desk'}
+      </div>
       <div className="flyout-menu-items">
+        {isPurchase && (
+          <>
+            <div
+              className={`flyout-menu-item ${location.pathname.startsWith('/purchase/master') ? 'active' : ''} ${activeSubFlyout?.submenu === 'purchase-master' ? 'hovered' : ''}`}
+              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'purchase-master')}
+              onMouseLeave={handleSubmenuMouseLeave}
+              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'purchase-master' ? null : { submenu: 'purchase-master', top: activeFlyout.top })}
+            >
+              <FaCogs className="flyout-item-icon" />
+              <span>Master</span>
+              <FaChevronRight className="flyout-chevron" />
+            </div>
+
+            <div
+              className={`flyout-menu-item ${location.pathname.startsWith('/purchase/operation') ? 'active' : ''} ${activeSubFlyout?.submenu === 'purchase-operation' ? 'hovered' : ''}`}
+              onMouseEnter={(e) => handleSubmenuMouseEnter(e, 'purchase-operation')}
+              onMouseLeave={handleSubmenuMouseLeave}
+              onClick={() => setActiveSubFlyout(prev => prev?.submenu === 'purchase-operation' ? null : { submenu: 'purchase-operation', top: activeFlyout.top })}
+            >
+              <FaFolder className="flyout-item-icon" />
+              <span>Operation</span>
+              <FaChevronRight className="flyout-chevron" />
+            </div>
+
+            <NavLink
+              to="/purchase/reports"
+              className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                setActiveFlyout(null);
+                setActiveSubFlyout(null);
+                handleMobileNav();
+              }}
+              onMouseEnter={() => setActiveSubFlyout(null)}
+            >
+              <FaFileAlt className="flyout-item-icon" />
+              <span>Report</span>
+            </NavLink>
+          </>
+        )}
+
         {isRestaurant && (
           <>
             <NavLink
@@ -101,7 +149,7 @@ const SidebarFlyoutL1 = ({
           </>
         )}
 
-        {!isRestaurant && !isPOS && (
+        {!isRestaurant && !isPOS && !isPurchase && (
           <>
             <div
               className={`flyout-menu-item ${location.pathname.startsWith(`${prefix}/master`) ? 'active' : ''} ${activeSubFlyout?.submenu === 'master' ? 'hovered' : ''}`}

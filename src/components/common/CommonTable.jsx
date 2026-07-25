@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { FaFileExport, FaEdit, FaTrash, FaSync } from 'react-icons/fa';
+import { FaFileExport, FaEdit, FaTrash, FaSync, FaEye } from 'react-icons/fa';
 import PageHeader from './PageHeader';
 import CommonSearch from './CommonSearch';
 import CommonPagination from './CommonPagination';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import { PrintHeader } from './PrintComponent';
+import CommonActionToolbar from './CommonActionToolbar';
 
 /**
  * TableRow component memoized using React.memo to prevent unnecessary row re-renders.
@@ -33,9 +34,9 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
           return (
             <td key={col.key} className="action-column" style={{ padding: '14px 18px' }} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2">
-                {actions.map((act, actIdx) => {
+                {actions && actions.map((act, actIdx) => {
                   const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
-                  const IconComponent = act.icon || (act.label.toLowerCase() === 'edit' ? <FaEdit size={14} /> : <FaTrash size={14} />);
+                  const IconComponent = act.icon || (isDelete ? <FaTrash size={14} /> : <FaEdit size={14} />);
                   return (
                     <button
                       key={actIdx}
@@ -242,28 +243,28 @@ const CommonTable = ({
               <tr style="${idx % 2 === 1 ? 'background-color: #f8fafc;' : 'background-color: #ffffff;'}">
                 <td style="text-align: center; font-weight: bold; border: 1px solid #cbd5e1;">${idx + 1}</td>
                 ${exportColumns.map(col => {
-                  let val = row[col.key];
-                  let valStr = '';
-                  let alignClass = 'text-left';
+      let val = row[col.key];
+      let valStr = '';
+      let alignClass = 'text-left';
 
-                  if (val === undefined || val === null) {
-                    valStr = '';
-                  } else if (typeof val === 'object') {
-                    valStr = Object.entries(val)
-                      .filter(([, p]) => p !== '' && p !== undefined && p !== null)
-                      .map(([k, p]) => `${k}: ₹${p}`)
-                      .join(' | ');
-                  } else {
-                    valStr = String(val);
-                    if (col.key === 'price' || col.key === 'amount' || col.key === 'rate') {
-                      alignClass = 'text-right';
-                    } else if (col.key === 'active' || col.key === 'status' || col.key === 'shortCode' || col.key === 'roomNo') {
-                      alignClass = 'text-center';
-                    }
-                  }
+      if (val === undefined || val === null) {
+        valStr = '';
+      } else if (typeof val === 'object') {
+        valStr = Object.entries(val)
+          .filter(([, p]) => p !== '' && p !== undefined && p !== null)
+          .map(([k, p]) => `${k}: ₹${p}`)
+          .join(' | ');
+      } else {
+        valStr = String(val);
+        if (col.key === 'price' || col.key === 'amount' || col.key === 'rate') {
+          alignClass = 'text-right';
+        } else if (col.key === 'active' || col.key === 'status' || col.key === 'shortCode' || col.key === 'roomNo') {
+          alignClass = 'text-center';
+        }
+      }
 
-                  return `<td style="border: 1px solid #cbd5e1;" class="${alignClass}">${valStr}</td>`;
-                }).join('')}
+      return `<td style="border: 1px solid #cbd5e1;" class="${alignClass}">${valStr}</td>`;
+    }).join('')}
               </tr>
             `).join('')}
           </tbody>
@@ -359,48 +360,19 @@ const CommonTable = ({
         {/* Right Action buttons */}
         {!onlyTable && (
           <div className="table-right-controls flex items-center gap-3">
-            <button
-              onClick={handleRefresh}
-              className="btn-secondary"
-            >
-              <FaSync size={11} />
-              <span>Refresh</span>
-            </button>
-
-            <button
-              onClick={handleExportExcel}
-              className="btn-secondary font-semibold"
-              title="Export Excel Report"
-            >
-              <FaFileExport size={11} />
-              <span>Export Excel</span>
-            </button>
-
-            {extraButtons && extraButtons.map((btn, idx) => (
-              <button
-                key={idx}
-                onClick={btn.onClick}
-                className={btn.className || "btn-secondary"}
-              >
-                {btn.icon && <span className="mr-1 inline-flex items-center" style={{ verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center' }}>{btn.icon}</span>}
-                <span>{btn.label}</span>
-              </button>
-            ))}
-
-            {onAddEntry && (
-              <button
-                onClick={onAddEntry}
-                className="btn-primary"
-              >
-                {addEntryLabel}
-              </button>
-            )}
+            <CommonActionToolbar
+              onAdd={onAddEntry}
+              addLabel={addEntryLabel.replace(/^\+\s*/, '')}
+              onExcel={handleExportExcel}
+              onRefresh={handleRefresh}
+              customActions={extraButtons}
+            />
           </div>
         )}
       </div>
 
       {/* Table Container styled identical to View KOT list */}
-      <div style={{ position: 'relative', background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: '12px', minHeight: '180px' }}>
+      <div style={{ position: 'relative', background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflowX: 'auto', overflowY: 'visible', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: '12px', minHeight: '180px', WebkitOverflowScrolling: 'touch' }}>
         <style dangerouslySetInnerHTML={{
           __html: `
             @keyframes commonTableSpin {
@@ -431,7 +403,7 @@ const CommonTable = ({
         {processedData.length === 0 && !isTableLoading ? (
           <EmptyState message={emptyMessage} />
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                 <th style={{ width: '50px', textAlign: 'center', padding: '13px 18px', fontSize: '12px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>

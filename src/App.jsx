@@ -62,6 +62,19 @@ function App() {
     });
   };
 
+  // Auto-close sidebar when screen resizes to mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setSidebarOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    // Run once on mount in case initial size is mobile
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     const timer = setTimeout(() => {
@@ -179,6 +192,7 @@ function App() {
           toggleCollapse={toggleCollapse}
           sidebarCollapsed={sidebarCollapsed}
           showToast={showToast}
+          onOpenSearch={() => setSearchOpen(true)}
         />
         <main className="content-area relative" style={{ position: 'relative' }}>
           <ProtectedRoute>

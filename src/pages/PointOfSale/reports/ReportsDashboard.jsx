@@ -33,7 +33,7 @@ const ReportsDashboard = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', fontFamily: 'var(--font-family, system-ui)' }}>
       {/* Page Header */}
       <PageHeader
-        title="POS Reports Dashboard"
+        title="POS Report Hub"
         breadcrumbs={['Dashboard', 'Point Of Sale', 'Reports']}
       />
 
@@ -96,7 +96,7 @@ const ReportsDashboard = () => {
         </div>
       </div>
 
-      {/* Multi-Column Report Grid */}
+      {/* Multi-Column Side-by-Side Category Layout */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${filteredCatalog.length}, 1fr)`,
@@ -114,7 +114,7 @@ const ReportsDashboard = () => {
               className={`slide-up-item delay-${catIdx + 1}`}
               style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '180px' }}
             >
-              {/* Category Column Header */}
+              {/* Category Column Header Banner */}
               <div style={{
                 background: cat.gradient,
                 borderRadius: '14px',
@@ -165,7 +165,7 @@ const ReportsDashboard = () => {
                 </div>
               </div>
 
-              {/* Report Cards in Column */}
+              {/* Report Cards Column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {cat.reports.map((rep, repIdx) => (
                   <ReportListCard
@@ -250,18 +250,6 @@ const ReportListCard = ({ rep, cat, delay, onSelect }) => {
       }}>
         {rep.name}
       </span>
-      <p style={{
-        fontSize: '0.68rem',
-        color: 'var(--text-secondary)',
-        margin: 0,
-        lineHeight: 1.3,
-        overflow: 'hidden',
-        display: '-webkit-box',
-        WebkitLineClamp: 2,
-        WebkitBoxOrient: 'vertical'
-      }}>
-        {rep.desc}
-      </p>
       <div style={{
         display: 'flex',
         alignItems: 'center',

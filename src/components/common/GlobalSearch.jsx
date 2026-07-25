@@ -153,24 +153,25 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
         display: 'flex',
         alignItems: 'start',
         justifyContent: 'center',
-        paddingTop: '100px',
+        paddingTop: 'clamp(0px, 6vw, 100px)',
         animation: 'fadeIn 0.2s ease-out'
       }}
     >
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
+        className="global-search-panel"
         style={{
           width: '100%',
           maxWidth: '640px',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '16px',
+          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          borderRadius: 'clamp(0px, 2vw, 16px)',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           border: '1px solid rgba(226, 232, 240, 0.8)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '480px',
+          maxHeight: 'min(480px, 92vh)',
           fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
         }}
       >
@@ -184,14 +185,14 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
             borderBottom: '1px solid #f1f5f9'
           }}
         >
-          <FaSearch style={{ color: '#64748b', fontSize: '18px' }} />
+          <FaSearch style={{ color: '#64748b', fontSize: '18px', flexShrink: 0 }} />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type page name or category to search (e.g. 'Room Category')...."
+            placeholder="Search page or category (e.g. 'Booking')..."
             style={{
               flex: 1,
               border: 'none',
@@ -199,10 +200,12 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
               fontSize: '1rem',
               color: '#0f172a',
               background: 'transparent',
-              width: '100%'
+              width: '100%',
+              minWidth: 0,
             }}
           />
           <div
+            onClick={onClose}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -212,7 +215,9 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
               borderRadius: '6px',
               color: '#64748b',
               fontSize: '0.75rem',
-              fontWeight: 600
+              fontWeight: 600,
+              cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             ESC
@@ -246,7 +251,7 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderRadius: '10px',
                     cursor: 'pointer',
                     backgroundColor: isSelected ? 'rgba(65, 138, 139, 0.1)' : 'transparent',
@@ -257,7 +262,7 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     <span
                       style={{
-                        fontSize: '0.88rem',
+                        fontSize: '0.9rem',
                         fontWeight: 600,
                         color: isSelected ? '#418a8b' : '#1e293b'
                       }}
@@ -309,8 +314,9 @@ export const GlobalSearch = ({ isOpen, onClose }) => {
           )}
         </div>
 
-        {/* Footer shortcuts helper */}
+        {/* Footer shortcuts helper — hidden on mobile to save space */}
         <div
+          className="global-search-footer"
           style={{
             padding: '12px 16px',
             backgroundColor: '#f8fafc',

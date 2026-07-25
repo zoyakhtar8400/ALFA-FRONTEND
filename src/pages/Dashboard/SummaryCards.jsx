@@ -21,7 +21,7 @@ const SummaryCards = memo(({ rooms, showToast }) => {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
+    <div className="dash-summary-cards">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
@@ -30,28 +30,29 @@ const SummaryCards = memo(({ rooms, showToast }) => {
             style={{
               background: '#fff', borderRadius: '12px',
               border: '1px solid #e2e8f0', borderTop: `3px solid ${c.accent}`,
-              padding: '16px 18px', cursor: 'pointer',
+              padding: '14px 16px', cursor: 'pointer',
               boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 200ms',
-              display: 'flex', flexDirection: 'column', gap: '10px',
+              display: 'flex', flexDirection: 'column', gap: '8px',
+              minWidth: 0, width: '100%', boxSizing: 'border-box',
             }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', lineHeight: 1.4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.3, wordBreak: 'break-word' }}>
                 {c.label}
               </span>
-              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={18} color={c.accent} />
+              <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon size={16} color={c.accent} />
               </div>
             </div>
-            <div style={{ fontSize: '38px', fontWeight: '800', color: '#0f172a', lineHeight: 1 }}>{c.value}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '13px', fontWeight: '700' }}>
-              <span style={{ color: c.up ? '#15803d' : '#dc2626', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '15px' }}>
-                {c.up ? <LuArrowUpRight size={16} /> : <LuArrowDownRight size={16} />}
+            <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>{c.value}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', flexWrap: 'wrap' }}>
+              <span style={{ color: c.up ? '#15803d' : '#dc2626', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '13px' }}>
+                {c.up ? <LuArrowUpRight size={14} /> : <LuArrowDownRight size={14} />}
                 {c.trend}
               </span>
-              <span style={{ color: '#64748b', fontSize: '15px' }}>{c.sub}</span>
+              <span style={{ color: '#64748b', fontSize: '12px' }}>{c.sub}</span>
             </div>
           </div>
         );

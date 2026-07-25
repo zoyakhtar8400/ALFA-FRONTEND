@@ -22,7 +22,8 @@ import {
 // Import split modules
 import {
   masters, operations, misItems,
-  restaurantItems, restaurantMasters
+  restaurantItems, restaurantMasters,
+  purchaseMasters, purchaseOperationsProcess, purchaseOperationsDirect
 } from './components/SidebarConfig';
 import SidebarFlyoutL1 from './components/SidebarFlyoutL1';
 import SidebarFlyoutL2 from './components/SidebarFlyoutL2';
@@ -117,6 +118,12 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   const [masterOpen, setMasterOpen] = useState(() => location.pathname.startsWith('/front-desk/master'));
   const [operationOpen, setOperationOpen] = useState(() => location.pathname.startsWith('/front-desk/operation'));
   const [misOpen, setMisOpen] = useState(() => location.pathname.startsWith('/front-desk/mis'));
+
+  const [purchaseOpen, setPurchaseOpen] = useState(() => location.pathname.startsWith('/purchase'));
+  const [purchaseMasterOpen, setPurchaseMasterOpen] = useState(true);
+  const [purchaseOperationOpen, setPurchaseOperationOpen] = useState(true);
+  const [purchaseProcessOpen, setPurchaseProcessOpen] = useState(true);
+  const [purchaseDirectOpen, setPurchaseDirectOpen] = useState(true);
 
   const [restaurantOpen, setRestaurantOpen] = useState(() =>
     (location.pathname.startsWith('/restaurant') || location.pathname.startsWith('/pos')) &&
@@ -215,6 +222,22 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   };
 
   const handlePOSMouseLeave = () => {
+    if (!isCollapsed) return;
+    startCloseTimer();
+  };
+
+  const handlePurchaseMouseEnter = (e) => {
+    if (!isCollapsed) return;
+    clearCloseTimer();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setActiveFlyout({
+      menu: 'purchase',
+      top: rect.top
+    });
+    setActiveSubFlyout(null);
+  };
+
+  const handlePurchaseMouseLeave = () => {
     if (!isCollapsed) return;
     startCloseTimer();
   };
@@ -669,11 +692,147 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             <span>Banquet</span>
           </NavLink>
 
-          {/* Purchase */}
-          <NavLink to="/purchase" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Purchase" : ""}>
-            <FaShoppingCart className="sidebar-icon" />
-            <span>Purchase</span>
-          </NavLink>
+          {/* Purchase Accordion Container */}
+          <div onMouseEnter={handlePurchaseMouseEnter} onMouseLeave={handlePurchaseMouseLeave}>
+            <div
+              tabIndex={0}
+              className={`sidebar-item ${location.pathname.startsWith('/purchase') ? 'active' : ''}`}
+              onClick={() => {
+                if (isCollapsed) {
+                  setActiveFlyout(prev => prev?.menu === 'purchase' ? null : { menu: 'purchase', top: 340 });
+                  setActiveSubFlyout(null);
+                } else {
+                  setPurchaseOpen(!purchaseOpen);
+                }
+              }}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              title={isCollapsed ? "Purchase" : ""}
+            >
+              <FaShoppingCart className="sidebar-icon" />
+              <span>Purchase</span>
+              <FaChevronRight className={`chevron-icon ${purchaseOpen ? 'open' : ''}`} />
+            </div>
+
+            {/* Purchase Submenu (only when NOT collapsed) */}
+            {purchaseOpen && !isCollapsed && (
+              <div className="sidebar-submenu">
+                {/* Master Sub-Accordion */}
+                <div>
+                  <div
+                    tabIndex={0}
+                    className="sidebar-subitem"
+                    onClick={() => setPurchaseMasterOpen(!purchaseMasterOpen)}
+                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                  >
+                    <FaCogs style={{ fontSize: '0.95rem' }} />
+                    <span>Master</span>
+                    <FaChevronRight className={`chevron-icon ${purchaseMasterOpen ? 'open' : ''}`} />
+                  </div>
+
+                  {purchaseMasterOpen && (
+                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
+                      {purchaseMasters.map((m) => (
+                        <NavLink
+                          tabIndex={0}
+                          key={m.name}
+                          to={m.path}
+                          className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
+                          onClick={handleMobileNav}
+                        >
+                          {m.name}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Operation Sub-Accordion */}
+                <div>
+                  <div
+                    tabIndex={0}
+                    className="sidebar-subitem"
+                    onClick={() => setPurchaseOperationOpen(!purchaseOperationOpen)}
+                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                  >
+                    <FaFolder style={{ fontSize: '0.95rem' }} />
+                    <span>Operation</span>
+                    <FaChevronRight className={`chevron-icon ${purchaseOperationOpen ? 'open' : ''}`} />
+                  </div>
+
+                  {purchaseOperationOpen && (
+                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
+                      <div style={{ opacity: 0.9 }}>
+                        <div
+                          tabIndex={0}
+                          className="sidebar-subitem"
+                          onClick={() => setPurchaseProcessOpen(!purchaseProcessOpen)}
+                          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                        >
+                          <span>Purchase Process</span>
+                          <FaChevronRight className={`chevron-icon ${purchaseProcessOpen ? 'open' : ''}`} style={{ fontSize: '0.7rem', marginLeft: 'auto' }} />
+                        </div>
+
+                        {purchaseProcessOpen && (
+                          <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '12px' }}>
+                            {purchaseOperationsProcess.map((o) => (
+                              <NavLink
+                                tabIndex={0}
+                                key={o.name}
+                                to={o.path}
+                                className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
+                                onClick={handleMobileNav}
+                              >
+                                {o.name}
+                              </NavLink>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: '4px' }}>
+                        <div
+                          tabIndex={0}
+                          className="sidebar-subitem"
+                          onClick={() => setPurchaseDirectOpen(!purchaseDirectOpen)}
+                          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                        >
+                          <span>Direct Process</span>
+                          <FaChevronRight className={`chevron-icon ${purchaseDirectOpen ? 'open' : ''}`} style={{ fontSize: '0.7rem', marginLeft: 'auto' }} />
+                        </div>
+
+                        {purchaseDirectOpen && (
+                          <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '12px' }}>
+                            {purchaseOperationsDirect.map((o) => (
+                              <NavLink
+                                tabIndex={0}
+                                key={o.name}
+                                to={o.path}
+                                className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
+                                onClick={handleMobileNav}
+                              >
+                                {o.name}
+                              </NavLink>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reports */}
+                <NavLink
+                  to="/purchase/reports"
+                  tabIndex={0}
+                  className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
+                  onClick={handleMobileNav}
+                >
+                  <FaFileAlt style={{ fontSize: '0.95rem' }} />
+                  <span>Report</span>
+                </NavLink>
+              </div>
+            )}
+          </div>
 
           {/* Setting */}
           <NavLink to="/setting" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Setting" : ""}>
@@ -725,6 +884,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
         operations={operations}
         misItems={misItems}
         restaurantMasters={restaurantMasters}
+        purchaseMasters={purchaseMasters}
+        purchaseOperationsProcess={purchaseOperationsProcess}
+        purchaseOperationsDirect={purchaseOperationsDirect}
         setActiveFlyout={setActiveFlyout}
         setActiveSubFlyout={setActiveSubFlyout}
         setActiveSubSubFlyout={setActiveSubSubFlyout}

@@ -17,7 +17,7 @@ const SEARCH_DATA = [
   { type: 'GRC', name: 'GRC-8902 (John Doe)', detail: 'Company: Google | Plan: CP', link: '/' },
 ];
 
-const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) => {
+const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, onOpenSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,8 +119,18 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast }) 
         <span className="navbar-page-title">{getPageTitle(location.pathname)}</span>
       </div>
 
-      {/* Global Search Component */}
-      <div className="flex-1 max-w-md mx-8 relative no-print" ref={searchRef}>
+      {/* Mobile-only search icon button */}
+      <button
+        className="mobile-search-btn"
+        onClick={onOpenSearch}
+        aria-label="Open Search"
+        title="Search pages"
+      >
+        <FaSearch size={16} />
+      </button>
+
+      {/* Global Search Component — desktop only */}
+      <div className="flex-1 max-w-md mx-8 relative no-print navbar-search" ref={searchRef}>
         <div className="relative">
           <input
             type="search"

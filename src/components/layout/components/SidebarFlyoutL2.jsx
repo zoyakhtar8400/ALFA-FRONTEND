@@ -14,6 +14,9 @@ const SidebarFlyoutL2 = ({
   operations,
   misItems,
   restaurantMasters,
+  purchaseMasters,
+  purchaseOperationsProcess,
+  purchaseOperationsDirect,
   setActiveFlyout,
   setActiveSubFlyout,
   setActiveSubSubFlyout,
@@ -33,9 +36,62 @@ const SidebarFlyoutL2 = ({
         {activeSubFlyout.submenu === 'mis' ? 'MIS' : 
          activeSubFlyout.submenu === 'restaurant-master' ? 'Master' :
          activeSubFlyout.submenu === 'restaurant-report' ? 'Report' :
+         activeSubFlyout.submenu === 'purchase-master' ? 'Purchase Master' :
+         activeSubFlyout.submenu === 'purchase-operation' ? 'Purchase Operations' :
          activeSubFlyout.submenu.charAt(0).toUpperCase() + activeSubFlyout.submenu.slice(1)}
       </div>
       <div className="flyout-menu-items scrollable-submenu">
+        {activeSubFlyout.submenu === 'purchase-master' && purchaseMasters && purchaseMasters.map((m) => (
+          <NavLink
+            key={m.name}
+            to={m.path}
+            className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
+            onClick={() => {
+              setActiveFlyout(null);
+              setActiveSubFlyout(null);
+              handleMobileNav();
+            }}
+          >
+            {m.name}
+          </NavLink>
+        ))}
+
+        {activeSubFlyout.submenu === 'purchase-operation' && (
+          <>
+            <div style={{ padding: '6px 12px 2px', fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Purchase Process</div>
+            {purchaseOperationsProcess && purchaseOperationsProcess.map((o) => (
+              <NavLink
+                key={o.name}
+                to={o.path}
+                className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveFlyout(null);
+                  setActiveSubFlyout(null);
+                  handleMobileNav();
+                }}
+              >
+                {o.name}
+              </NavLink>
+            ))}
+
+            <div style={{ padding: '8px 12px 2px', fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Direct Process</div>
+            {purchaseOperationsDirect && purchaseOperationsDirect.map((o) => (
+              <NavLink
+                key={o.name}
+                to={o.path}
+                className={({ isActive }) => `flyout-subitem ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveFlyout(null);
+                  setActiveSubFlyout(null);
+                  handleMobileNav();
+                }}
+              >
+                {o.name}
+              </NavLink>
+            ))}
+          </>
+        )}
+
         {activeSubFlyout.submenu === 'restaurant-master' && restaurantMasters && restaurantMasters.map((m) => {
           if (m.subitems) {
             return (

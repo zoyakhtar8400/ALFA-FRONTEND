@@ -27,7 +27,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
   );
   const [dateTo, setDateTo] = useState(
     report.id === 'sales-register' ? '2026-04-10' :
-    (report.id === 'itemwise-sale' || report.id === 'itemwise-outletwise-sale' || report.id === 'itemwise-categorywise-sale' || report.id === 'tablewise-sale' || report.id === 'cover-analysis' || report.id === 'kitchen-time-gap' || report.id === 'stewardwise-sale' || report.id === 'tax-datawise-summary' || report.id === 'taxwise-summary' || report.id === 'kot-register' || report.id === 'nc-kot' || report.id === 'pending-kot-report' || report.id === 'cashier-settlement-summarized' || report.id === 'userwise-collection-report') ? '2026-04-15' : ''
+      (report.id === 'itemwise-sale' || report.id === 'itemwise-outletwise-sale' || report.id === 'itemwise-categorywise-sale' || report.id === 'tablewise-sale' || report.id === 'cover-analysis' || report.id === 'kitchen-time-gap' || report.id === 'stewardwise-sale' || report.id === 'tax-datawise-summary' || report.id === 'taxwise-summary' || report.id === 'kot-register' || report.id === 'nc-kot' || report.id === 'pending-kot-report' || report.id === 'cashier-settlement-summarized' || report.id === 'userwise-collection-report') ? '2026-04-15' : ''
   );
 
   const handleSearchChange = (e) => {
@@ -50,14 +50,14 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
   const filteredData = useMemo(() => {
     let rows = report.data || [];
-    
+
     // Filter by date range
     if (dateFrom || dateTo) {
       const fromDate = dateFrom ? new Date(dateFrom) : null;
-      if (fromDate) fromDate.setHours(0,0,0,0);
+      if (fromDate) fromDate.setHours(0, 0, 0, 0);
       const toDate = dateTo ? new Date(dateTo) : null;
-      if (toDate) toDate.setHours(23,59,59,999);
-      
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+
       rows = rows.filter(row => {
         const dateColIdx = report.columns.findIndex(col => col.toLowerCase().includes('date'));
         if (dateColIdx !== -1) {
@@ -74,8 +74,8 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      rows = rows.filter(row => 
-        Object.values(row).some(val => 
+      rows = rows.filter(row =>
+        Object.values(row).some(val =>
           String(val).toLowerCase().includes(q)
         )
       );
@@ -135,7 +135,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
   return (
     <div className="reports-layout" style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'var(--font-family, system-ui)' }}>
       <PrintHeader title={report.name} />
-      
+
       {/* Header - Hidden during A4 Print */}
       <div className="no-print">
         <PageHeader
@@ -419,11 +419,11 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                   const outlet = row.outlet || '1978 THE FAMILY RESTAURANT';
                   const date = row.c4 || '03/Apr/2026';
                   const ncType = row.ncType || 'Complementry (0.00%)';
-                  
+
                   if (!grouped[outlet]) grouped[outlet] = {};
                   if (!grouped[outlet][date]) grouped[outlet][date] = {};
                   if (!grouped[outlet][date][ncType]) grouped[outlet][date][ncType] = [];
-                  
+
                   grouped[outlet][date][ncType].push(row);
                 });
 
@@ -830,10 +830,10 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                 filteredData.forEach(row => {
                   const outlet = row.outlet || 'JAZZ BAR';
                   const waiter = row.waiter || 'B.M PATEL';
-                  
+
                   if (!grouped[outlet]) grouped[outlet] = {};
                   if (!grouped[outlet][waiter]) grouped[outlet][waiter] = [];
-                  
+
                   grouped[outlet][waiter].push(row);
                 });
 
@@ -927,11 +927,11 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                   const cat = row.category || 'GST 0 %';
                   const main = row.mainGrp || 'FOOD';
                   const grp = row.grp || 'BEVERAGE';
-                  
+
                   if (!grouped[cat]) grouped[cat] = {};
                   if (!grouped[cat][main]) grouped[cat][main] = {};
                   if (!grouped[cat][main][grp]) grouped[cat][main][grp] = [];
-                  
+
                   grouped[cat][main][grp].push(row);
                 });
 
@@ -1023,11 +1023,11 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                   const outlet = row.outlet || 'All Outlets';
                   const mainGrp = row.mainGrp || 'General';
                   const grp = row.grp || 'General';
-                  
+
                   if (!grouped[outlet]) grouped[outlet] = {};
                   if (!grouped[outlet][mainGrp]) grouped[outlet][mainGrp] = {};
                   if (!grouped[outlet][mainGrp][grp]) grouped[outlet][mainGrp][grp] = [];
-                  
+
                   grouped[outlet][mainGrp][grp].push(row);
                 });
 
@@ -1044,7 +1044,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
                 return outlets.flatMap((outlet) => {
                   const mainGroups = Object.keys(grouped[outlet]).sort();
-                  
+
                   const outletSection = [
                     <tr key={`outlet-${outlet}`} style={{ background: '#cbd5e1', fontWeight: 'bold' }}>
                       <td colSpan={5} style={{ textAlign: 'left', padding: '8px 12px', color: '#1e293b' }}>Outlet : {outlet}</td>
@@ -1053,7 +1053,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
                   const mainGroupsList = mainGroups.flatMap((mainGrp) => {
                     const groups = Object.keys(grouped[outlet][mainGrp]).sort();
-                    
+
                     const mainGrpSection = [
                       <tr key={`maingrp-${outlet}-${mainGrp}`} style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
                         <td colSpan={5} style={{ textAlign: 'left', padding: '6px 16px', color: '#334155' }}>Main Grp: {mainGrp}</td>
@@ -1068,7 +1068,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                       const detailRows = items.map((row, idx) => {
                         grpQty += row.rawQty || 0;
                         grpValue += row.rawValue || 0;
-                        
+
                         return (
                           <tr key={`item-${outlet}-${mainGrp}-${grp}-${idx}`}>
                             <td style={{ paddingLeft: '24px' }}>{row.c1}</td>

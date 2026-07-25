@@ -42,7 +42,7 @@ const FrontDesk = ({ showToast }) => {
       return (
         <div>
           <PageHeader
-            title="Reports"
+            title="Front Desk Report Hub"
             breadcrumbs={['Dashboard', 'Front Desk', 'Reports']}
           />
           <ReportsDashboard />

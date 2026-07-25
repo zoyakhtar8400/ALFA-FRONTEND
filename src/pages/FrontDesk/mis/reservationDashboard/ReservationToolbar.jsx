@@ -1,5 +1,6 @@
 import React from 'react';
-import { FaChevronLeft, FaChevronRight, FaSearch, FaBed, FaPlus, FaPrint, FaFileExport, FaCalendarAlt } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaSearch, FaBed, FaCalendarAlt } from 'react-icons/fa';
+import CommonActionToolbar from '../../../../components/common/CommonActionToolbar';
 
 const ReservationToolbar = ({
   searchQuery, setSearchQuery,
@@ -60,18 +61,20 @@ const ReservationToolbar = ({
 
       {/* Right side */}
       <div className="table-right-controls">
-        <button onClick={onAvailability} className="btn-secondary">
-          <FaBed size={12} /> Room Availability
-        </button>
-        <button onClick={onNewBooking} className="btn-primary">
-          <FaPlus size={11} /> New Reservation
-        </button>
-        <button onClick={onPrint} className="btn-secondary">
-          <FaPrint size={11} /> Print
-        </button>
-        <button onClick={onExport} className="btn-secondary">
-          <FaFileExport size={11} /> Export
-        </button>
+        <CommonActionToolbar
+          onAdd={onNewBooking}
+          addLabel="New Reservation"
+          onPrint={onPrint}
+          onExcel={onExport}
+          customActions={[
+            {
+              label: 'Room Availability',
+              icon: <FaBed size={12} />,
+              onClick: onAvailability,
+              variant: 'btn-secondary'
+            }
+          ]}
+        />
       </div>
     </div>
   );

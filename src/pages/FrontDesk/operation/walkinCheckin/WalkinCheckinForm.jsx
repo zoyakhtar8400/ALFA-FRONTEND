@@ -160,7 +160,7 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast, exi
       />
 
       {/* Top Control Bar: Left | Center (key fields) | Right */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px 8px', marginBottom: '8px', gap: '6px', borderBottom: '1px solid var(--border)' }}>
+      <div className="walkin-top-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 8px 8px', marginBottom: '8px', gap: '6px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
         {/* Left: Navigation Buttons to List Modals */}
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button
@@ -308,7 +308,7 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast, exi
       </div>
 
       <form onSubmit={handleSubmit} style={{ padding: '0 8px 4px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '4fr 6fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
+        <div className="walkin-form-grid" style={{ display: 'grid', gridTemplateColumns: '4fr 6fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
 
           {/* LEFT COLUMN: Stay & GRC + Guest Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
