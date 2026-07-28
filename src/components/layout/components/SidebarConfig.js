@@ -64,9 +64,10 @@ export const misItems = [
 ];
 
 export const restaurantItems = [
-  { name: 'Display Table', path: '/restaurant/display-table' },
-  { name: 'View KOT', path: '/restaurant/view-kot' },
-  { name: 'Order Details', path: '/restaurant/order-details' }
+  { name: 'Display Table', label: 'Display Table', path: '/restaurant/display-table' },
+  { name: 'View KOT', label: 'View KOT', path: '/restaurant/view-kot' },
+  { name: 'Order Details', label: 'Order Details', path: '/restaurant/order-details' },
+  { name: 'Billing Desk', label: 'Billing Desk', path: '/restaurant/billing-desk' }
 ];
 
 export const restaurantMasters = [

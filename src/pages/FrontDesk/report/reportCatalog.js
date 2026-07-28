@@ -19,10 +19,10 @@ export const REPORT_CATALOG = [
         kpis: [ { label: 'Active Checked In', value: '48 Guests' }, { label: 'VIP Stays', value: '6 Guests' } ],
         columns: ['Room', 'Guest Name', 'Mobile', 'Arrival Date', 'Departure Date', 'OTA / Agent', 'ID Type'],
         data: [
-          { c1: '104', c2: 'PRAMOD MISHRA', c3: '+91 77788 91234', c4: '29 Jun 2026', c5: '30 Jun 2026', c6: 'SELF', c7: 'Aadhaar Card' },
+          { c1: '104', c2: 'PRAMOD MISHRA', c3: '+91 77788 91234', c4: '29 Jun 2026', c5: '30 Jun 2026', c6: 'SELF', c7: 'Passport' },
           { c1: '201', c2: 'Sarah Wilson', c3: '+91 91234 56789', c4: '26 Jun 2026', c5: '29 Jun 2026', c6: 'Direct', c7: 'Passport' },
           { c1: '301', c2: 'Robert Taylor', c3: '+91 99999 88888', c4: '26 Jun 2026', c5: '05 Jul 2026', c6: 'Agent', c7: 'Driving License' },
-          { c1: '202', c2: 'David Miller', c3: '+1 570-555-0156', c4: '27 Jun 2026', c5: '30 Jun 2026', c6: 'Website', c7: 'Aadhaar Card' },
+          { c1: '202', c2: 'David Miller', c3: '+1 570-555-0156', c4: '27 Jun 2026', c5: '30 Jun 2026', c6: 'Website', c7: 'Passport' },
         ]
       },
       { 

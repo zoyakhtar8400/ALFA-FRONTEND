@@ -76,7 +76,6 @@ const GuestInfoSection = ({ form, set, setForm, sectionTitle }) => {
           <F label="Id Proof" required>
             <select className="form-select" value={form.idProof} onChange={set('idProof')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
               <option value="">Select ID Proof</option>
-              <option value="Aadhaar Card">Aadhaar Card</option>
               <option value="PAN Card">PAN Card</option>
               <option value="Passport">Passport</option>
               <option value="Driving License">Driving License</option>

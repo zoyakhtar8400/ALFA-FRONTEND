@@ -18,6 +18,7 @@ import BillingScreenConfiguration from './BillingScreenConfiguration';
 const ALL_SETTINGS_MODULES = [
   // Orders & Billing
   { id: 'billing', title: 'Billing', description: 'Open POS Billing Workspace', icon: FaReceipt, section: 'Orders & Billing', path: '/restaurant/pos-billing' },
+  { id: 'billing-desk', title: 'Billing Desk', description: 'Open Cashier & Bill Settlement Desk', icon: FaReceipt, section: 'Orders & Billing', path: '/restaurant/billing-desk' },
   { id: 'orders', title: 'Orders', description: 'View & track customer orders', icon: FaClipboardList, section: 'Orders & Billing', path: '/restaurant/order-details' },
   { id: 'online-orders', title: 'Online Orders', description: 'Manage delivery aggregator orders', icon: FaShoppingBag, section: 'Orders & Billing', path: '/restaurant/booking-list' },
   { id: 'kots', title: 'KOTs', description: 'Kitchen order ticket queue', icon: FaUtensils, section: 'Orders & Billing', path: '/restaurant/view-kot' },

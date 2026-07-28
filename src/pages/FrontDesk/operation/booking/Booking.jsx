@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
@@ -17,6 +17,13 @@ const Booking = ({ showToast, onlyList = false }) => {
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState({ mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    if (location.state?.guestData) {
+      setEditMode({ mode: 'add', row: location.state.guestData });
+      setShowForm(true);
+    }
+  }, [location.state]);
 
   const columns = [
     { key: 'bookingNo', label: 'Booking No' },

@@ -10,7 +10,7 @@ const GuestProfile = ({ showToast }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [data, setData] = useState([
-    { id: 1, name: 'Sanjay Dutt', dob: '1980-05-15', idType: 'Aadhaar Card', idNo: '8877-6655-4433', mobile: '+91 9876541234', email: 'sanjay@dutt.com', address: 'Bandra West', city: 'Mumbai', state: 'Maharashtra', country: 'India', nationality: 'Indian', active: 'Yes' },
+    { id: 1, name: 'Sanjay Dutt', dob: '1980-05-15', idType: 'Passport', idNo: '8877-6655-4433', mobile: '+91 9876541234', email: 'sanjay@dutt.com', address: 'Bandra West', city: 'Mumbai', state: 'Maharashtra', country: 'India', nationality: 'Indian', active: 'Yes' },
     { id: 2, name: 'Emma Watson', dob: '1990-04-15', idType: 'Passport', idNo: 'G1234568', mobile: '+44 7700 900077', email: 'emma@watson.co.uk', address: 'Oxford Street', city: 'London', state: 'London', country: 'United Kingdom', nationality: 'British', active: 'Yes' },
   ]);
   const [showForm, setShowForm] = useState(false);

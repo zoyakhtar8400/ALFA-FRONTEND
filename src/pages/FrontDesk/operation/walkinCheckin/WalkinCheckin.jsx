@@ -9,7 +9,7 @@ const WalkinCheckin = ({ showToast }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [data, setData] = useState([
-    { id: 1, guestName: 'Karan Johar', idType: 'Aadhaar Card', idNo: '1234-5678-9012', roomNo: '101', category: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-24', ratePlan: 'Standard Rate', adults: 2, children: 0, active: 'Yes' },
+    { id: 1, guestName: 'Karan Johar', idType: 'Passport', idNo: '1234-5678-9012', roomNo: '101', category: 'Deluxe Room', checkIn: '2026-06-22', checkOut: '2026-06-24', ratePlan: 'Standard Rate', adults: 2, children: 0, active: 'Yes' },
     { id: 2, guestName: 'Sara Khan', idType: 'Passport', idNo: 'Z9876543', roomNo: '205', category: 'Super Deluxe', checkIn: '2026-06-22', checkOut: '2026-06-26', ratePlan: 'Seasonal Offer', adults: 2, children: 1, active: 'Yes' },
   ]);
   const [showForm, setShowForm] = useState(false);

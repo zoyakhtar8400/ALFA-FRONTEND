@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { FaUser, FaBed, FaDollarSign, FaCar, FaCalendarCheck } from 'react-icons/fa';
@@ -30,24 +31,27 @@ const initialRoomRow = () => ({
 });
 
 const BookingForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
+  const location = useLocation();
+  const verifiedGuest = location.state?.guestData || null;
+
   const [form, setForm] = useState(() => ({
     bookingNo: initialData?.bookingNo || `BK-${Math.floor(1000 + Math.random() * 9000)}`,
     date: initialData?.date || new Date().toISOString().split('T')[0],
     bookingStatus: initialData?.bookingStatus || 'Confirmed',
-    prefix: initialData?.prefix || 'Mr.',
-    name: initialData?.name || '',
-    address: initialData?.address || '',
-    city: initialData?.city || '',
-    state: initialData?.state || '',
-    nationality: initialData?.nationality || 'Indian',
-    mobileNo: initialData?.mobileNo || '',
-    emailId: initialData?.emailId || '',
-    phoneNo: initialData?.phoneNo || '',
-    gender: initialData?.gender || 'Male',
+    prefix: initialData?.prefix || verifiedGuest?.prefix || 'Mr.',
+    name: initialData?.name || verifiedGuest?.name || '',
+    address: initialData?.address || verifiedGuest?.address || '',
+    city: initialData?.city || verifiedGuest?.city || '',
+    state: initialData?.state || verifiedGuest?.state || '',
+    nationality: initialData?.nationality || verifiedGuest?.nationality || 'Indian',
+    mobileNo: initialData?.mobileNo || verifiedGuest?.mobileNo || '',
+    emailId: initialData?.emailId || verifiedGuest?.emailId || '',
+    phoneNo: initialData?.phoneNo || verifiedGuest?.phoneNo || '',
+    gender: initialData?.gender || verifiedGuest?.gender || 'Male',
     company: initialData?.company || '',
     companyGstin: initialData?.companyGstin || '',
-    idProof: initialData?.idProof || '',
-    idProofNo: initialData?.idProofNo || '',
+    idProof: initialData?.idProof || verifiedGuest?.idProof || '',
+    idProofNo: initialData?.idProofNo || verifiedGuest?.idProofNo || '',
     purposeOfVisit: initialData?.purposeOfVisit || '',
     marketSegment: initialData?.marketSegment || '',
     businessSource: initialData?.businessSource || '',

@@ -1,33 +1,15 @@
-import React, { useState, useMemo, useEffect, useCallback, memo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  FaSearch, FaTimes, FaPlus, FaCheck,
-  FaUser, FaTag, FaCommentAlt, FaPrint, FaWindowClose, FaUtensils,
-  FaMotorcycle, FaShoppingBag, FaChevronDown, FaChevronUp
-} from 'react-icons/fa';
 import { useRestaurant } from '../../../context/RestaurantContext';
-import { INITIAL_TABLES } from '../constants/mockData';
 
 // KOT Engine & Printer data
 import { ALL_FOOD_ITEMS } from '../constants/printerData';
 import { groupItemsByPrinter, generateKOTPayload } from '../services/kotEngine';
 
-// Modular POS component splits
-import POSHeader from '../components/pos/POSHeader';
-import CustomerDrawer from '../components/pos/CustomerDrawer';
-import TableSelector from '../components/pos/TableSelector';
-import PaxModal from '../components/pos/PaxModal';
-import RemarksModal from '../components/pos/RemarksModal';
-import GSTModal from '../components/pos/GSTModal';
-import CustomerSettingsModal from '../components/pos/CustomerSettingsModal';
-import POSPaymentBar from '../components/pos/POSPaymentBar';
-import POSSummaryBar from '../components/pos/POSSummaryBar';
-import POSActionButtons from '../components/pos/POSActionButtons';
-import POSFooterStatus from '../components/pos/POSFooterStatus';
-import ClearConfirmModal from '../components/pos/ClearConfirmModal';
-import KOTPrintModal from '../components/pos/KOTPrintModal';
-
-// ALL_FOOD_ITEMS is now imported from printerData.js — each item has productionCategory
+// Presentation splits & layout
+import BillingLayout from '../components/pos/BillingLayout';
+import MenuPanel from '../components/pos/MenuPanel';
+import BillingPanel from '../components/pos/BillingPanel';
 
 const loadUnifiedMenuItems = () => {
   const mergedMap = new Map();
@@ -86,7 +68,6 @@ const loadUnifiedMenuItems = () => {
     if (rawSetting) {
       settingItems = JSON.parse(rawSetting);
     } else {
-      // Default fallback matching Common Settings (MenuList.jsx)
       settingItems = [
         { id: 101, name: 'CHICKEN TANDOORI', shortCode: '101', category: 'FOOD', foodType: 'Non-Veg', price: '280.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '280.00', 'Rooftop': '320.00' } },
         { id: 102, name: 'PANEER TIKKA', shortCode: '102', category: 'FOOD', foodType: 'Veg', price: '180.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '180.00', 'Rooftop': '210.00' } },
@@ -129,7 +110,7 @@ const INITIAL_ROWS = [
   { lineId: 'initial-row-1', itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }
 ];
 
-const POSBillingPage = () => {
+const POSBillingPage = ({ isBillingDesk = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = React.useRef(null);
@@ -163,7 +144,7 @@ const POSBillingPage = () => {
   const preselectedTableId = location.state?.tableId || null;
   const preselectedTableNumber = location.state?.tableNumber || null;
 
-  // Retrieve routed parameters — blank table uses preselectedTableId, running table has full table object
+  // Retrieve routed parameters
   const routedTable = location.state?.table || null;
 
   // Tables List for Assignment
@@ -224,13 +205,11 @@ const POSBillingPage = () => {
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
   const [kotGroups, setKotGroups] = useState([]);
   const [kotPayloads, setKotPayloads] = useState([]);
-  // Use ref (not state) so the callback never gets treated as a React updater function
   const kotSuccessCallbackRef = React.useRef(null);
 
   // Table rows for right-side billing
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [isSettling, setIsSettling] = useState(false);
-  const [variantIndex, setVariantIndex] = useState(0);
 
   // Sync items when opened from ViewKOT or TableCard
   useEffect(() => {
@@ -257,53 +236,52 @@ const POSBillingPage = () => {
   // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
     const handleShortcuts = (e) => {
-      // Check Alt key combos
       if (e.altKey) {
         const key = e.key.toLowerCase();
         switch (key) {
-          case '1': // Alt + 1 -> FOOD category
+          case '1':
             e.preventDefault();
             setCategory('FOOD');
             toast('Category: FOOD');
             break;
-          case '2': // Alt + 2 -> BANQUET category
+          case '2':
             e.preventDefault();
             setCategory('BANQUET');
             toast('Category: BANQUET');
             break;
-          case 'c': // Alt + C -> Focus Cart Table
+          case 'c':
             e.preventDefault();
             focusCartTable();
             break;
-          case 't': // Alt + T -> Open Table Selector
+          case 't':
             e.preventDefault();
             setIsTableModalOpen(true);
             break;
-          case 'm': // Alt + M -> Open Customer Drawer
+          case 'm':
             e.preventDefault();
             setIsCustomerDrawerOpen(true);
             break;
-          case 'p': // Alt + P -> Open PAX Configurator
+          case 'p':
             e.preventDefault();
             setIsPaxModalOpen(true);
             break;
-          case 'r': // Alt + R -> Open Kitchen Remarks
+          case 'r':
             e.preventDefault();
             setIsRemarksModalOpen(true);
             break;
-          case 'g': // Alt + G -> Open GST Configuration
+          case 'g':
             e.preventDefault();
             setIsGstModalOpen(true);
             break;
-          case 'a': // Alt + A -> Add Item Row
+          case 'a':
             e.preventDefault();
             handleAddEmptyRow();
             break;
-          case 'd': // Alt + D -> Clear Cart
+          case 'd':
             e.preventDefault();
             setIsClearModalOpen(true);
             break;
-          case 'v': // Alt + V -> Toggle Service Type
+          case 'v':
             e.preventDefault();
             setServiceType(prev => {
               const modes = ['Dine In', 'Take Away', 'Delivery'];
@@ -312,7 +290,7 @@ const POSBillingPage = () => {
               return modes[next];
             });
             break;
-          case 'y': // Alt + Y -> Toggle Payment Mode
+          case 'y':
             e.preventDefault();
             setPaymentMode(prev => {
               const modes = ['Cash', 'Card', 'UPI', 'Room'];
@@ -369,7 +347,6 @@ const POSBillingPage = () => {
             setRows(prev => {
               const lastIdx = prev.findIndex(r => r.itemName || r.name);
               if (lastIdx === -1) return prev;
-              const lastRow = prev[lastIdx];
               return prev.map((r, i) => i === lastIdx ? { ...r, qty: r.qty + 1, total: (r.qty + 1) * r.unitPrice } : r);
             });
             toast('Quantity increased');
@@ -432,7 +409,6 @@ const POSBillingPage = () => {
     }
   }, [location.state, routedTable, isNewBooking]);
 
-  // Toast notifier
   const toast = (msg) => {
     if (window.showToast) {
       window.showToast(msg);
@@ -454,7 +430,6 @@ const POSBillingPage = () => {
     }
   };
 
-  // Filter items matching name, category, or shortCode
   const filteredGridItems = useMemo(() => {
     const q = searchItem.toLowerCase().trim();
     const activeItems = allMenuItems.filter(item => item.active !== 'No');
@@ -468,16 +443,12 @@ const POSBillingPage = () => {
     });
   }, [allMenuItems, category, searchItem]);
 
-  // Click handler to select an item from food grid
   const handleGridItemClick = (foodItem) => {
     if (!foodItem.variants || foodItem.variants.length === 0) {
-      // Smart Variant Logic: 0 variants -> Add directly
       addOrUpdateItemRow(foodItem, null);
     } else if (foodItem.variants.length === 1) {
-      // Smart Variant Logic: 1 variant -> Add directly with default variant
       addOrUpdateItemRow(foodItem, foodItem.variants[0]);
     } else {
-      // Smart Variant Logic: >1 variants -> Open variant modal
       setVariantModalItem(foodItem);
       setShowVariantModal(true);
     }
@@ -496,7 +467,6 @@ const POSBillingPage = () => {
     return basePrice;
   };
 
-  // Helper to add or update row
   const addOrUpdateItemRow = (foodItem, variant) => {
     const variantId = variant ? variant.id : '';
     const variantName = variant ? variant.name : '';
@@ -527,14 +497,14 @@ const POSBillingPage = () => {
               lineId,
               itemId: foodItem.id,
               itemName: foodItem.name,
-              name: foodItem.name, // compatibility
+              name: foodItem.name,
               variantId,
               variantName,
-              variant: variantName, // compatibility
+              variant: variantName,
               qty: 1,
               unitPrice: price,
-              price: price, // compatibility
-              rate: price, // compatibility
+              price: price,
+              rate: price,
               total: price,
               remark: ''
             };
@@ -548,14 +518,14 @@ const POSBillingPage = () => {
             lineId,
             itemId: foodItem.id,
             itemName: foodItem.name,
-            name: foodItem.name, // compatibility
+            name: foodItem.name,
             variantId,
             variantName,
-            variant: variantName, // compatibility
+            variant: variantName,
             qty: 1,
             unitPrice: price,
-            price: price, // compatibility
-            rate: price, // compatibility
+            price: price,
+            rate: price,
             total: price,
             remark: ''
           }
@@ -564,7 +534,6 @@ const POSBillingPage = () => {
     });
   };
 
-  // Automatically recalculate cart prices based on selected service area / outlet mode
   useEffect(() => {
     setRows(prevRows => prevRows.map(row => {
       if (!row.itemName && !row.name) return row;
@@ -605,11 +574,10 @@ const POSBillingPage = () => {
           if (match) {
             updated.itemId = match.id;
             updated.itemName = match.name;
-            updated.name = match.name; // compatibility
+            updated.name = match.name;
 
             let resolvedPrice = Number(match.price || 0);
 
-            // Area Price Resolution
             if (match.areaPrices) {
               const mappedAreaKey = serviceType === 'Dine In' ? 'Restaurant Dining' : serviceType;
               if (match.areaPrices[mappedAreaKey] !== undefined && match.areaPrices[mappedAreaKey] !== '') {
@@ -668,10 +636,10 @@ const POSBillingPage = () => {
             ...row,
             variantId: variantObj.id,
             variantName: variantObj.name,
-            variant: variantObj.name, // compatibility
+            variant: variantObj.name,
             unitPrice: price,
-            price: price, // compatibility
-            rate: price, // compatibility
+            price: price,
+            rate: price,
             total: row.qty * price
           };
         }
@@ -747,7 +715,6 @@ const POSBillingPage = () => {
     return rows.reduce((sum, row) => sum + (row.qty * (row.unitPrice || row.price || 0)), 0);
   }, [rows]);
 
-  // ── Discount state ────────────────────────────────────────────────────────
   const [showDiscountPanel, setShowDiscountPanel] = useState(false);
   const [discountLines, setDiscountLines] = useState([
     { id: 1, type: 'Percentage', value: '', reason: '' }
@@ -768,7 +735,6 @@ const POSBillingPage = () => {
     setDiscountLines(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
   };
 
-  // Compute total discount amount from all lines
   const totalDiscountAmt = useMemo(() => {
     let running = totalBill;
     return discountLines.reduce((totalDeducted, line) => {
@@ -787,8 +753,6 @@ const POSBillingPage = () => {
   }, [discountLines, totalBill]);
 
   const netBill = totalBill - totalDiscountAmt;
-  // ─────────────────────────────────────────────────────────────────────────
-
 
   const handleAddKOT = () => {
     const activeRows = rows.filter(r => r.name || r.itemName);
@@ -801,18 +765,15 @@ const POSBillingPage = () => {
       return;
     }
 
-    // Generate KOT number
     const kotSeq = String(Date.now()).slice(-4);
     const newKotNo = `KOT-${kotSeq}`;
     setGeneratedKotNo(newKotNo);
     setKotCreated(true);
 
-    // Resolve correct table — prefer assignedTableId (always set), fallback to routedTable
     const resolvedTableId = assignedTableId || routedTable?.id || null;
     const resolvedTable = tablesList.find(t => t.id === resolvedTableId) || routedTable;
     const tableNo = resolvedTable?.no || resolvedTableId || '??';
 
-    // Group items by production category → printer using KOT Engine
     const groups = groupItemsByPrinter(activeRows, allMenuItems);
 
     const payloads = groups.map(group =>
@@ -830,7 +791,6 @@ const POSBillingPage = () => {
     setKotGroups(groups);
     setKotPayloads(payloads);
 
-    // Store callback in ref so it's never stale and never treated as React updater
     kotSuccessCallbackRef.current = () => {
       if (!resolvedTable) {
         navigate('/restaurant/display-table');
@@ -886,7 +846,7 @@ const POSBillingPage = () => {
       captain: captain || 'Amit',
       remarks: remarks || '',
       amount: finalAmt,
-      openedAt: Date.now() - 5 * 60 * 1000, // 5 minutes ago to match duration
+      openedAt: Date.now() - 5 * 60 * 1000,
       kots: [{ id: generatedKotNo, amount: finalAmt, items: activeRows }],
       kotCount: 1
     };
@@ -939,28 +899,6 @@ const POSBillingPage = () => {
     });
   };
 
-  const handleCheckoutSettle = () => {
-    if (totalBill === 0) {
-      toast("Cannot settle an empty bill.");
-      return;
-    }
-    if (!waiter) {
-      toast('Please select a waiter before settlement.');
-      return;
-    }
-    const resolvedId = assignedTableId || routedTable?.id || null;
-    setIsSettling(true);
-    setTimeout(() => {
-      setIsSettling(false);
-      if (resolvedId) {
-        setTablesList(prev => prev.map(t =>
-          t.id === resolvedId ? { ...t, status: 'Paid', paidAt: Date.now() } : t
-        ));
-      }
-      navigate('/restaurant/display-table');
-    }, 2500);
-  };
-
   const handleDirectComplete = () => {
     const resolvedId = assignedTableId || routedTable?.id || null;
     setIsSettling(true);
@@ -976,628 +914,104 @@ const POSBillingPage = () => {
     }, 2000);
   };
 
-  const handleCancel = () => {
-    const confirmCancel = window.confirm("Are you sure you want to cancel this table? This action cannot be undone.");
-    if (confirmCancel) {
-      const resolvedId = assignedTableId || routedTable?.id || null;
-      navigate('/restaurant/display-table', {
-        state: {
-          settledTableId: resolvedId
-        }
-      });
-    }
-  };
-
-  const availableTables = useMemo(() => {
-    return tablesList.filter(t => t.status === 'Blank' || t.status === 'Cleaning');
-  }, [tablesList]);
-
   return (
-    <div style={{
-      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-      display: 'flex', background: '#f8fafc', overflow: 'hidden'
-    }}>
-
-      {/* LEFT SECTION (Categories, Grid & Searches) */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #cbd5e1', background: '#fff' }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0e7490', margin: 0, letterSpacing: '0.5px' }}>
-            RESTAURANT POS
-          </h2>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button
-              onClick={() => navigate('/restaurant/booking-list', { state: { fromPOS: true, tableId: assignedTableId, rows, waiter, customerName, mobileNumber, paxCount, remarks, serviceType } })}
-              style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #0e7490', background: '#ecfeff', color: '#0e7490', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#ecfeff'; e.currentTarget.style.color = '#0e7490'; }}
-            >
-              &#128203; Previous Bookings
-            </button>
-            <div style={{ display: 'flex', border: '1.5px solid #0e7490', borderRadius: '6px', overflow: 'hidden', background: '#fff' }}>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="SEARCH / ITEM ID (ENTER TO ADD)"
-                value={searchItem}
-                onChange={e => setSearchItem(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (filteredGridItems.length > 0) {
-                      handleGridItemClick(filteredGridItems[0]);
-                      setSearchItem('');
-                      toast(`Added: ${filteredGridItems[0].name}`);
-                    }
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    const firstGridBtn = document.querySelector('.grid-item-btn[data-index="0"]');
-                    if (firstGridBtn) firstGridBtn.focus();
-                  }
-                }}
-                style={{ border: 'none', padding: '8px 12px', fontSize: '0.8rem', outline: 'none', width: '160px' }}
-              />
-              <button style={{ border: 'none', background: '#0e7490', color: '#fff', padding: '8px 12px', cursor: 'pointer' }}><FaSearch size={12} /></button>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <div style={{ width: '180px', background: '#fff', borderRight: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', paddingTop: '20px' }}>
-            {availableCategories.map(cat => {
-              const isSelected = category === cat;
-              return (
-                <button key={cat} onClick={() => setCategory(cat)}
-                  tabIndex={0}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCategory(cat); } }}
-                  onFocus={e => { if (!isSelected) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0e7490'; } e.currentTarget.style.outline = 'none'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(14,116,144,0.4)'; }}
-                  onBlur={e => { if (!isSelected) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } e.currentTarget.style.boxShadow = 'none'; }}
-                  style={{
-                    width: '100%', padding: '16px 20px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 700, border: 'none',
-                    background: isSelected ? '#f1f5f9' : 'transparent', color: isSelected ? '#0e7490' : '#475569', cursor: 'pointer',
-                    borderLeft: isSelected ? '4px solid #0e7490' : '4px solid transparent',
-                    transition: 'all 150ms ease-in-out'
-                  }}
-                >{cat}</button>
-              );
-            })}
-          </div>
-
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: '#fff' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-              {filteredGridItems.map((item, idx) => (
-                <button key={item.id || item.name}
-                  className="grid-item-btn"
-                  data-index={idx}
-                  onClick={() => handleGridItemClick(item)}
-                  onKeyDown={e => {
-                    const maxIndex = filteredGridItems.length - 1;
-                    let targetIndex = idx;
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      targetIndex = Math.min(maxIndex, idx + 4);
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      targetIndex = Math.max(0, idx - 4);
-                    } else if (e.key === 'ArrowRight') {
-                      e.preventDefault();
-                      targetIndex = Math.min(maxIndex, idx + 1);
-                    } else if (e.key === 'ArrowLeft') {
-                      e.preventDefault();
-                      targetIndex = Math.max(0, idx - 1);
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      if (searchInputRef.current) {
-                        searchInputRef.current.focus();
-                        searchInputRef.current.select();
-                      }
-                    }
-                    if (targetIndex !== idx) {
-                      const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
-                      if (targetBtn) targetBtn.focus();
-                    }
-                  }}
-                  style={{
-                    padding: '20px 12px', borderRadius: '8px',
-                    border: '1.5px solid #0e7490',
-                    borderLeft: item.isVeg === false ? '4px solid #DC2626' : '4px solid #16A34A',
-                    background: '#fff', color: '#0e7490',
-                    fontSize: '0.78rem', fontWeight: 700, textAlign: 'center', cursor: 'pointer', minHeight: '80px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 120ms ease-in-out', textTransform: 'uppercase'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14,116,144,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
-                  onFocus={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(14,116,144,0.35), 0 4px 12px rgba(14,116,144,0.3)'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.outline = 'none'; }}
-                  onBlur={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#0e7490'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
-                >{item.name}</button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* RIGHT SECTION (Billing ledger details panel) */}
-      <div style={{ width: '540px', height: '100%', background: '#f8fafc', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #cbd5e1' }}>
-        <POSHeader
-          serviceType={serviceType}
-          setServiceType={setServiceType}
-          assignedTableNo={assignedTableId ? tablesList.find(t => t.id === assignedTableId)?.no : routedTable?.no}
-          customerName={customerName}
-          paxCount={paxCount}
-          hasRemarks={!!remarks}
-          waiter={waiter}
-          onWaiterChange={useCallback((val) => setWaiter(val), [])}
-          isPaid={isPaid}
-          onTableClick={useCallback(() => setIsTableModalOpen(true), [])}
-          onCustomerClick={useCallback(() => setIsCustomerDrawerOpen(true), [])}
-          onPaxClick={useCallback(() => setIsPaxModalOpen(true), [])}
-          onRemarksClick={useCallback(() => setIsRemarksModalOpen(true), [])}
+    <BillingLayout showMenu={!isBillingDesk}>
+      {!isBillingDesk && (
+        <MenuPanel
+          searchInputRef={searchInputRef}
+          searchItem={searchItem}
+          setSearchItem={setSearchItem}
+          filteredGridItems={filteredGridItems}
+          handleGridItemClick={handleGridItemClick}
+          availableCategories={availableCategories}
+          category={category}
+          setCategory={setCategory}
+          onPreviousBookingsClick={() => navigate('/restaurant/booking-list', { state: { fromPOS: true, tableId: assignedTableId, rows, waiter, customerName, mobileNumber, paxCount, remarks, serviceType } })}
+          toast={toast}
         />
-
-        {/* Interactive billing item rows ledger */}
-        <div style={{ padding: '8px', flex: 1, overflowY: 'auto' }}>
-          <table className="custom-table-element" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#0e7490', color: '#fff', fontSize: '0.74rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '8px 4px', textAlign: 'center', width: '30px' }}></th>
-                <th style={{ padding: '8px 6px', textAlign: 'left' }}>Items</th>
-                <th style={{ padding: '8px 6px', textAlign: 'left', width: '110px' }}>Remark</th>
-                <th style={{ padding: '8px 4px', textAlign: 'center', width: '50px' }}>Qty</th>
-                <th style={{ padding: '8px 4px', textAlign: 'center', width: '60px' }}>Price</th>
-                <th style={{ padding: '8px 6px', textAlign: 'right', width: '70px' }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => {
-                const matchItem = allMenuItems.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
-                return (
-                  <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
-                    <td style={{ padding: '6px 4px', textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        data-row={index}
-                        data-col={0}
-                        onKeyDown={e => handleGridKeyDown(e, index, 0)}
-                        onClick={() => handleRemoveRow(index)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                      >
-                        <FaTimes size={13} />
-                      </button>
-                    </td>
-                    <td style={{ padding: '6px' }}>
-                      <select
-                        data-row={index}
-                        data-col={1}
-                        onKeyDown={e => handleGridKeyDown(e, index, 1)}
-                        value={row.itemName || row.name || ''}
-                        onChange={e => updateRowField(index, 'itemName', e.target.value)}
-                        style={{ width: '100%', padding: '6px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.75rem', fontWeight: 600 }}
-                      >
-                        <option value="">SELECT ITEM...</option>
-                        {allMenuItems.filter(item => item.active !== 'No').map(item => (
-                          <option key={item.id || item.name} value={item.name}>{item.name}</option>
-                        ))}
-                      </select>
-
-                      {matchItem?.variants && matchItem.variants.length > 0 && (
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '4px', fontSize: '0.7rem', flexWrap: 'wrap' }}>
-                          {matchItem.variants.map(variant => (
-                            <label key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer', fontWeight: '700' }}>
-                              <input
-                                type="radio"
-                                name={`variant-${index}-${row.lineId || index}`}
-                                checked={row.variantId === variant.id}
-                                onChange={() => handleVariantChange(index, variant.id)}
-                              /> {variant.name}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '6px' }}>
-                      <input
-                        type="text"
-                        data-row={index}
-                        data-col={2}
-                        onKeyDown={e => handleGridKeyDown(e, index, 2)}
-                        value={row.remark || ''}
-                        onChange={e => updateRowField(index, 'remark', e.target.value)}
-                        placeholder="REMARKS"
-                        style={{ width: '100%', padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem' }}
-                      />
-                    </td>
-                    <td style={{ padding: '6px', textAlign: 'center' }}>
-                      <input
-                        type="number"
-                        min="1"
-                        data-row={index}
-                        data-col={3}
-                        onKeyDown={e => handleGridKeyDown(e, index, 3)}
-                        value={row.qty}
-                        onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
-                        style={{ width: '42px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }}
-                      />
-                    </td>
-                    <td style={{ padding: '6px', textAlign: 'center' }}>
-                      <input
-                        type="number"
-                        min="0"
-                        data-row={index}
-                        data-col={4}
-                        onKeyDown={e => handleGridKeyDown(e, index, 4)}
-                        value={row.unitPrice || row.price || 0}
-                        onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        style={{ width: '52px', padding: '6px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center' }}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 700 }}>
-                      {(row.qty * (row.unitPrice || row.price || 0)).toFixed(2)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button type="button" onClick={handleAddEmptyRow}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px dashed #0e7490', background: 'transparent', color: '#0e7490', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <FaPlus size={10} /> Add Item Row
-            </button>
-            <button type="button" onClick={useCallback(() => setIsClearModalOpen(true), [])}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-            >
-              Clear Cart
-            </button>
-            <button type="button" onClick={useCallback(() => setIsGstModalOpen(true), [])}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#0e7490', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-            >
-              GSTIN
-            </button>
-            <button type="button" onClick={useCallback(() => setIsSettingsModalOpen(true), [])}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#64748b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-            >
-              Account settings
-            </button>
-          </div>
-        </div>
-
-        {/* ── Discount Panel ───────────────────────────────────────── */}
-        <div style={{ padding: '0 8px 6px' }}>
-          {!showDiscountPanel ? (
-            <button
-              type="button"
-              onClick={() => setShowDiscountPanel(true)}
-              style={{
-                padding: '6px 14px', borderRadius: '6px',
-                border: '1.5px dashed #f97316', background: 'transparent',
-                color: '#f97316', fontSize: '0.75rem', fontWeight: 800,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                transition: 'all 0.15s'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#fff7ed'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              🏷️ Add Discount
-            </button>
-          ) : (
-            <div style={{
-              background: '#fffbf5', border: '1.5px solid #fed7aa',
-              borderRadius: '10px', padding: '12px 14px'
-            }}>
-              {/* Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  🏷️ Discount
-                </span>
-                <button
-                  type="button"
-                  onClick={() => { setShowDiscountPanel(false); setDiscountLines([{ id: 1, type: 'Percentage', value: '', reason: '' }]); }}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Discount lines */}
-              {discountLines.map((line, idx) => (
-                <div key={line.id} style={{
-                  display: 'grid',
-                  gridTemplateColumns: '100px 80px 1fr auto',
-                  gap: '6px', alignItems: 'center', marginBottom: '8px'
-                }}>
-                  {/* Type toggle */}
-                  <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #fdba74' }}>
-                    {['Percentage', 'Fixed'].map(t => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => updateDiscountLine(line.id, 'type', t)}
-                        style={{
-                          flex: 1, padding: '5px 0', fontSize: '0.68rem', fontWeight: 800, border: 'none',
-                          background: line.type === t ? '#f97316' : '#fff',
-                          color: line.type === t ? '#fff' : '#9a3412',
-                          cursor: 'pointer', transition: 'all 0.1s'
-                        }}
-                      >
-                        {t === 'Percentage' ? '%' : '₹'}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Value input */}
-                  <input
-                    type="number"
-                    min="0"
-                    max={line.type === 'Percentage' ? 100 : undefined}
-                    step="0.01"
-                    placeholder={line.type === 'Percentage' ? '0%' : '0.00'}
-                    value={line.value}
-                    onChange={e => updateDiscountLine(line.id, 'value', e.target.value)}
-                    style={{
-                      padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
-                      fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', outline: 'none',
-                      background: '#fff', color: '#1e293b'
-                    }}
-                  />
-
-                  {/* Reason input */}
-                  <input
-                    type="text"
-                    placeholder="Reason / Note"
-                    value={line.reason}
-                    onChange={e => updateDiscountLine(line.id, 'reason', e.target.value)}
-                    style={{
-                      padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
-                      fontSize: '0.75rem', outline: 'none', background: '#fff', color: '#475569'
-                    }}
-                  />
-
-                  {/* Remove line */}
-                  <button
-                    type="button"
-                    onClick={() => removeDiscountLine(line.id)}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '2px 4px' }}
-                  >✕</button>
-                </div>
-              ))}
-
-              {/* Add more discount + computed total */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed #fed7aa' }}>
-                <button
-                  type="button"
-                  onClick={addDiscountLine}
-                  style={{
-                    padding: '4px 10px', borderRadius: '5px',
-                    border: '1px dashed #f97316', background: 'transparent',
-                    color: '#f97316', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer'
-                  }}
-                >
-                  + Add More Discount
-                </button>
-                {totalDiscountAmt > 0 && (
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a' }}>
-                    Saving ₹{totalDiscountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        {/* ─────────────────────────────────────────────────────────────── */}
-
-        {/* Payment and Total section */}
-
-        <POSPaymentBar
-          activeMode={paymentMode}
-          onSelectMode={setPaymentMode}
-          isPaid={isPaid}
-          onChangeIsPaid={setIsPaid}
-        />
-
-        <POSSummaryBar
-          totalBill={netBill}
-          discountAmt={totalDiscountAmt}
-          originalBill={totalBill}
-          onSplitClick={useCallback(() => toast('Bill split modal triggered'), [])}
-        />
-
-
-        <POSActionButtons
-          onSave={handleConfirmBooking}
-          onSaveAndPrint={handleSaveAndPrint}
-          onSaveAndEBill={handleDirectComplete}
-          onKOT={handleAddKOT}
-          onKOTAndPrint={handleSaveAndPrint}
-          onHold={handleConfirmBooking}
-        />
-
-        <POSFooterStatus
-          billNo={generatedKotNo ? `BILL-${generatedKotNo.split('-')[1] || '000123'}` : 'BILL-000123'}
-          cashierName={captain || 'Admin'}
-          outletName="Main Restaurant"
-        />
-      </div>
-
-      {/* Dynamic Overlay Dialogs & Sidebar Drawers */}
-      <TableSelector
-        isOpen={isTableModalOpen}
-        onClose={useCallback(() => setIsTableModalOpen(false), [])}
+      )}
+      <BillingPanel
+        isFullWidth={isBillingDesk}
+        serviceType={serviceType}
+        setServiceType={setServiceType}
+        assignedTableId={assignedTableId}
+        setAssignedTableId={setAssignedTableId}
         tablesList={tablesList}
-        currentTableId={assignedTableId}
-        onSelectTable={useCallback((table) => {
-          setAssignedTableId(table.id);
-          toast(`Assigned to Table ${table.no}`);
-        }, [tablesList])}
-      />
-
-      <CustomerDrawer
-        isOpen={isCustomerDrawerOpen}
-        onClose={useCallback(() => setIsCustomerDrawerOpen(false), [])}
-        currentCustomer={{ phone: mobileNumber, name: customerName }}
-        onSaveCustomer={useCallback((cust) => {
-          setCustomerName(cust.name);
-          setMobileNumber(cust.phone);
-          toast(`Linked customer: ${cust.name}`);
-        }, [])}
-      />
-
-      <PaxModal
-        isOpen={isPaxModalOpen}
-        onClose={useCallback(() => setIsPaxModalOpen(false), [])}
-        adults={paxAdults}
-        children={paxChildren}
-        onSavePax={useCallback((a, c) => {
-          setPaxAdults(a);
-          setPaxChildren(c);
-          setPaxCount(a + c);
-          toast(`Covers set: ${a} Adults, ${c} Children`);
-        }, [])}
-      />
-
-      <RemarksModal
-        isOpen={isRemarksModalOpen}
-        onClose={useCallback(() => setIsRemarksModalOpen(false), [])}
+        routedTable={routedTable}
+        customerName={customerName}
+        setCustomerName={setCustomerName}
+        mobileNumber={mobileNumber}
+        setMobileNumber={setMobileNumber}
+        paxCount={paxCount}
+        setPaxCount={setPaxCount}
+        paxAdults={paxAdults}
+        setPaxAdults={setPaxAdults}
+        paxChildren={paxChildren}
+        setPaxChildren={setPaxChildren}
         remarks={remarks}
-        onSaveRemarks={useCallback((text) => {
-          setRemarks(text);
-          toast('Kitchen instructions saved.');
-        }, [])}
-      />
-
-      <GSTModal
-        isOpen={isGstModalOpen}
-        onClose={useCallback(() => setIsGstModalOpen(false), [])}
+        setRemarks={setRemarks}
+        waiter={waiter}
+        setWaiter={setWaiter}
+        captain={captain}
+        isPaid={isPaid}
+        setIsPaid={setIsPaid}
+        paymentMode={paymentMode}
+        setPaymentMode={setPaymentMode}
+        rows={rows}
+        setRows={setRows}
+        allMenuItems={allMenuItems}
+        handleGridKeyDown={handleGridKeyDown}
+        handleRemoveRow={handleRemoveRow}
+        updateRowField={updateRowField}
+        handleVariantChange={handleVariantChange}
+        handleAddEmptyRow={handleAddEmptyRow}
+        INITIAL_ROWS={INITIAL_ROWS}
+        showDiscountPanel={showDiscountPanel}
+        setShowDiscountPanel={setShowDiscountPanel}
+        discountLines={discountLines}
+        setDiscountLines={setDiscountLines}
+        updateDiscountLine={updateDiscountLine}
+        removeDiscountLine={removeDiscountLine}
+        addDiscountLine={addDiscountLine}
+        totalDiscountAmt={totalDiscountAmt}
+        totalBill={totalBill}
+        netBill={netBill}
+        handleConfirmBooking={handleConfirmBooking}
+        handleSaveAndPrint={handleSaveAndPrint}
+        handleDirectComplete={handleDirectComplete}
+        handleAddKOT={handleAddKOT}
+        generatedKotNo={generatedKotNo}
         gstin={gstin}
-        onSaveGSTIN={useCallback((val) => {
-          setGstin(val);
-          toast(`GSTIN set to: ${val}`);
-        }, [])}
-      />
-
-      <CustomerSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={useCallback(() => setIsSettingsModalOpen(false), [])}
-        settings={customerSettings}
-        onSaveSettings={useCallback((settingsObj) => {
-          setCustomerSettings(settingsObj);
-          toast('Customer accounts configuration saved.');
-        }, [])}
-      />
-
-      <ClearConfirmModal
-        isOpen={isClearModalOpen}
-        onClose={useCallback(() => setIsClearModalOpen(false), [])}
-        onConfirm={useCallback(() => {
-          setRows(INITIAL_ROWS);
-          toast('Draft cart cleared.');
-        }, [])}
-      />
-
-      {/* Success settlements animation */}
-      {isSettling && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', width: '360px', fontFamily: 'system-ui'
-          }}>
-            <div style={{
-              width: '72px', height: '72px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', fontSize: '2rem'
-            }}>
-              ✓
-            </div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 8px 0' }}>
-              Payment Completed
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0, fontWeight: 500 }}>
-              Transaction Settled Successfully
-            </p>
-            <span style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginTop: '16px' }}>
-              Resetting checkout registers...
-            </span>
-          </div>
-        </div>
-      )}
-      {/* Variant Selection Modal */}
-      {showVariantModal && variantModalItem && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
-          zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--font-family, system-ui)'
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '12px', padding: '24px', width: '360px',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #cbd5e1', paddingBottom: '8px', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0e7490', margin: 0 }}>
-                Select Variant
-              </h3>
-              <button
-                onClick={() => setShowVariantModal(false)}
-                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.1rem' }}
-              >
-                <FaTimes />
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {variantModalItem.variants.map((v, idx) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  autoFocus={idx === 0}
-                  className="variant-select-btn"
-                  data-idx={idx}
-                  onClick={() => {
-                    addOrUpdateItemRow(variantModalItem, v);
-                    setShowVariantModal(false);
-                    toast(`Added: ${variantModalItem.name} (${v.name})`);
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      const next = document.querySelector(`.variant-select-btn[data-idx="${Math.min(variantModalItem.variants.length - 1, idx + 1)}"]`);
-                      if (next) next.focus();
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      const prev = document.querySelector(`.variant-select-btn[data-idx="${Math.max(0, idx - 1)}"]`);
-                      if (prev) prev.focus();
-                    }
-                  }}
-                  style={{
-                    padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1',
-                    background: '#f8fafc', fontWeight: 700, textAlign: 'left', cursor: 'pointer',
-                    fontSize: '0.85rem', color: '#334155', display: 'flex', justifyContent: 'space-between'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
-                >
-                  <span>{v.name}</span>
-                  <span style={{ color: '#0e7490' }}>₹ {v.price}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* KOT Print Modal — Multi-printer routing */}
-      <KOTPrintModal
-        isOpen={showKotPrintModal}
-        onClose={() => setShowKotPrintModal(false)}
+        setGstin={setGstin}
+        customerSettings={customerSettings}
+        setCustomerSettings={setCustomerSettings}
+        isTableModalOpen={isTableModalOpen}
+        setIsTableModalOpen={setIsTableModalOpen}
+        isCustomerDrawerOpen={isCustomerDrawerOpen}
+        setIsCustomerDrawerOpen={setIsCustomerDrawerOpen}
+        isPaxModalOpen={isPaxModalOpen}
+        setIsPaxModalOpen={setIsPaxModalOpen}
+        isRemarksModalOpen={isRemarksModalOpen}
+        setIsRemarksModalOpen={setIsRemarksModalOpen}
+        isGstModalOpen={isGstModalOpen}
+        setIsGstModalOpen={setIsGstModalOpen}
+        isSettingsModalOpen={isSettingsModalOpen}
+        setIsSettingsModalOpen={setIsSettingsModalOpen}
+        isClearModalOpen={isClearModalOpen}
+        setIsClearModalOpen={setIsClearModalOpen}
+        showVariantModal={showVariantModal}
+        setShowVariantModal={setShowVariantModal}
+        variantModalItem={variantModalItem}
+        addOrUpdateItemRow={addOrUpdateItemRow}
+        isSettling={isSettling}
+        showKotPrintModal={showKotPrintModal}
+        setShowKotPrintModal={setShowKotPrintModal}
         kotGroups={kotGroups}
-        payloads={kotPayloads}
-        kotNo={generatedKotNo}
-        tableNo={routedTable?.no || assignedTableId || '?'}
-        onKOTSuccess={() => kotSuccessCallbackRef.current && kotSuccessCallbackRef.current()}
+        kotPayloads={kotPayloads}
+        kotSuccessCallbackRef={kotSuccessCallbackRef}
+        toast={toast}
       />
-    </div>
+    </BillingLayout>
   );
 };
 

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import CommonModal from '../../../../components/common/CommonModal';
@@ -13,6 +14,9 @@ import BillingInfoSection from './components/BillingInfoSection';
 import WalkinRoomGridSection from './components/WalkinRoomGridSection';
 
 const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast, existingRecords = [] }) => {
+  const location = useLocation();
+  const verifiedGuest = location.state?.guestData || null;
+
   const [form, setForm] = useState(() => {
     const grcVal = initialData?.grcNo || `GRC-${Math.floor(1000 + Math.random() * 9000)}`;
     const checkinStr = initialData?.checkinDate || new Date().toISOString().split('T')[0];
@@ -34,20 +38,20 @@ const WalkinCheckinForm = ({ mode, initialData, onSave, onCancel, showToast, exi
       time: initialData?.time || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
       expectedCheckoutDate: checkoutVal,
       expectedCheckoutTime: initialData?.expectedCheckoutTime || '12:00 PM',
-      prefix: initialData?.prefix || 'Mr.',
-      name: initialData?.name || '',
-      address: initialData?.address || '',
-      city: initialData?.city || '',
-      state: initialData?.state || '',
-      nationality: initialData?.nationality || 'Indian',
-      mobileNo: initialData?.mobileNo || '',
+      prefix: initialData?.prefix || verifiedGuest?.prefix || 'Mr.',
+      name: initialData?.name || verifiedGuest?.name || '',
+      address: initialData?.address || verifiedGuest?.address || '',
+      city: initialData?.city || verifiedGuest?.city || '',
+      state: initialData?.state || verifiedGuest?.state || '',
+      nationality: initialData?.nationality || verifiedGuest?.nationality || 'Indian',
+      mobileNo: initialData?.mobileNo || verifiedGuest?.mobileNo || '',
       purposeOfVisit: initialData?.purposeOfVisit || '',
       company: initialData?.company || '',
       companyGstin: initialData?.companyGstin || '',
-      idProof: initialData?.idProof || '',
-      idProofNo: initialData?.idProofNo || '',
-      emailId: initialData?.emailId || '',
-      phoneNo: initialData?.phoneNo || '',
+      idProof: initialData?.idProof || verifiedGuest?.idProof || '',
+      idProofNo: initialData?.idProofNo || verifiedGuest?.idProofNo || '',
+      emailId: initialData?.emailId || verifiedGuest?.emailId || '',
+      phoneNo: initialData?.phoneNo || verifiedGuest?.phoneNo || '',
       remark: initialData?.remark || '',
       paymentMode: initialData?.paymentMode || 'CASH',
       marketSegment: initialData?.marketSegment || 'SELF',

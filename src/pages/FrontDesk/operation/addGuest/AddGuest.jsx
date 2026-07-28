@@ -10,7 +10,7 @@ const AddGuest = ({ showToast }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [data, setData] = useState([
-    { id: 1, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Priya Sharma', idType: 'Aadhaar Card', idNo: '9876-5432-1098', relation: 'Spouse', active: 'Yes' },
+    { id: 1, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Priya Sharma', idType: 'Passport', idNo: '9876-5432-1098', relation: 'Spouse', active: 'Yes' },
     { id: 2, roomNo: '202', folioNo: 'FL-4051', newGuestName: 'Aarav Sharma', idType: 'Passport', idNo: 'Y1234567', relation: 'Child', active: 'Yes' },
   ]);
   const [showForm, setShowForm] = useState(false);

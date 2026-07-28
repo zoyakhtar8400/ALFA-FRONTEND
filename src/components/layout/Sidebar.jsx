@@ -16,6 +16,7 @@ import {
   FaFolder,
   FaChartBar,
   FaFileAlt,
+  FaReceipt,
   FaBars
 } from 'react-icons/fa';
 
@@ -666,7 +667,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
               <div className="sidebar-submenu">
                 {restaurantItems.map((item) => {
                   let SubIcon = FaFileAlt;
-                  if (item.name === 'Display Table') SubIcon = FaUtensils;
+                  if (item.name === 'POS') SubIcon = FaCashRegister;
+                  else if (item.name === 'Billing Desk') SubIcon = FaReceipt;
+                  else if (item.name === 'Display Table') SubIcon = FaUtensils;
                   else if (item.name === 'View KOT') SubIcon = FaConciergeBell;
                   else if (item.name === 'Order Details') SubIcon = FaFolder;
 

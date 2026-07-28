@@ -4,6 +4,7 @@ import DisplayTablePage from './pages/DisplayTablePage';
 import ViewKOTPage from './pages/ViewKOTPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import POSBillingPage from './pages/POSBillingPage';
+import BillingDeskPage from './pages/BillingDeskPage';
 import PrinterMasterPage from './pages/PrinterMasterPage';
 import ProductionCategoryPage from './pages/ProductionCategoryPage';
 import BookingListPage from './pages/BookingListPage';
@@ -35,6 +36,9 @@ const Restaurant = ({ showToast }) => {
     }
     if (path.includes('/restaurant/order-details')) {
       return <OrderDetailsPage />;
+    }
+    if (path.includes('/restaurant/billing-desk')) {
+      return <BillingDeskPage />;
     }
     if (path.includes('/restaurant/pos-billing')) {
       return <POSBillingPage />;
