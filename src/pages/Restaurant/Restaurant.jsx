@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import DisplayTablePage from './pages/DisplayTablePage';
 import ViewKOTPage from './pages/ViewKOTPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
+import OrderInvoicePage from './pages/OrderInvoicePage';
 import POSBillingPage from './pages/POSBillingPage';
 import BillingDeskPage from './pages/BillingDeskPage';
 import PrinterMasterPage from './pages/PrinterMasterPage';
@@ -34,8 +35,11 @@ const Restaurant = ({ showToast }) => {
     if (path.includes('/restaurant/view-kot')) {
       return <ViewKOTPage />;
     }
+    if (path.includes('/restaurant/invoice')) {
+      return <OrderInvoicePage showToast={showToast} />;
+    }
     if (path.includes('/restaurant/order-details')) {
-      return <OrderDetailsPage />;
+      return <OrderDetailsPage showToast={showToast} />;
     }
     if (path.includes('/restaurant/billing-desk')) {
       return <BillingDeskPage />;

@@ -2,6 +2,17 @@ import React from 'react';
 import { FaUtensils, FaUser, FaUsers, FaCommentAlt, FaUserTie } from 'react-icons/fa';
 import { MOCK_WAITERS } from '../../constants/mockData';
 
+const formatTableNoDisplay = (tableVal) => {
+  if (!tableVal) return 'Table';
+  const str = String(tableVal).trim();
+  const numMatches = str.match(/\d+/);
+  if (numMatches) {
+    return `T${numMatches[0].padStart(2, '0')}`;
+  }
+  if (str.startsWith('T')) return str;
+  return `T${str}`;
+};
+
 const HeaderActions = ({
   assignedTableNo,
   customerName,
@@ -53,7 +64,7 @@ const HeaderActions = ({
         >
           <FaUtensils size={11} style={{ flexShrink: 0 }} />
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {assignedTableNo ? `T${assignedTableNo}` : 'Table'}
+            {formatTableNoDisplay(assignedTableNo)}
           </span>
         </button>
 

@@ -287,8 +287,8 @@ const DisplayTablePage = () => {
     }
   };
 
-  const handleView = (table) => {
-    navigate('/restaurant/view-kot', { state: { table } });
+  const handleView = () => {
+    navigate('/restaurant/view-kot');
   };
 
   const handleDownload = (table) => {
@@ -703,14 +703,28 @@ const DisplayTablePage = () => {
                   onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
                   onView={(e) => {
                     e?.stopPropagation?.();
-                    navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: orderItemsMap[table.id] || [] } });
+                    const tableRows = (
+                      orderItemsMap[table.id] ||
+                      orderItemsMap[table.no] ||
+                      orderItemsMap[String(table.no)] ||
+                      orderItemsMap[Number(table.no)] ||
+                      (table.kots ? table.kots.flatMap(k => k.items || []) : [])
+                    );
+                    navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: tableRows } });
                   }}
                   onSave={(e) => {
                     e?.stopPropagation?.();
+                    const tableRows = (
+                      orderItemsMap[table.id] ||
+                      orderItemsMap[table.no] ||
+                      orderItemsMap[String(table.no)] ||
+                      orderItemsMap[Number(table.no)] ||
+                      (table.kots ? table.kots.flatMap(k => k.items || []) : [])
+                    );
                     printTaxInvoice({
                       tableNo: table.no,
                       kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
-                      items: orderItemsMap[table.id] || [],
+                      items: tableRows,
                       status: table.status
                     });
                   }}
@@ -1045,7 +1059,14 @@ const DisplayTablePage = () => {
                 onClick={() => {
                   const t = previewTable;
                   setPreviewTable(null);
-                  navigate('/restaurant/pos-billing', { state: { table: t, orderRows: orderItemsMap[t.id] || [] } });
+                  const tableRows = (
+                    orderItemsMap[t.id] ||
+                    orderItemsMap[t.no] ||
+                    orderItemsMap[String(t.no)] ||
+                    orderItemsMap[Number(t.no)] ||
+                    (t.kots ? t.kots.flatMap(k => k.items || []) : [])
+                  );
+                  navigate('/restaurant/pos-billing', { state: { table: t, tableId: t.id, tableNumber: t.no, rows: tableRows } });
                 }}
                 className="btn btn-primary"
                 style={{ height: '36px', fontSize: '0.8rem', padding: '0 16px', borderRadius: '6px', cursor: 'pointer' }}

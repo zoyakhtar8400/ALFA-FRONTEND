@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { LuEye, LuPencil, LuTrash2, LuX, LuCheck, LuChefHat, LuPrinter } from 'react-icons/lu';
+import { useNavigate } from 'react-router-dom';
+import { LuEye, LuPencil, LuTrash2, LuCheck, LuChefHat, LuPrinter } from 'react-icons/lu';
 
 import PageHeader from '../../../components/common/PageHeader';
 import CommonModal from '../../../components/common/CommonModal';
@@ -17,35 +17,20 @@ const STATUS_CONFIG = {
 
 const STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
 
+const formatTableNoDisplay = (tableVal) => {
+  if (!tableVal) return 'T--';
+  const str = String(tableVal).trim();
+  const numMatches = str.match(/\d+/);
+  if (numMatches) {
+    return `T${numMatches[0].padStart(2, '0')}`;
+  }
+  if (str.startsWith('T')) return str;
+  return `T${str}`;
+};
+
 const ViewKOTPage = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const { tables, setTables } = useRestaurant();
-  const routedTable = location.state?.table || null;
-  useEffect(() => {
-    if (routedTable) {
-      try { sessionStorage.setItem('alfa_view_kot_selected_table', JSON.stringify(routedTable)); } catch {}
-    }
-  }, [routedTable]);
-
-  // Read table filter from location.state, URL search params, or sessionStorage
-  const queryParams = new URLSearchParams(location.search);
-  const urlTableId = queryParams.get('tableId') || queryParams.get('table_id') || queryParams.get('table_no');
-
-  const [selectedTableFilter, setSelectedTableFilter] = useState(() => {
-    if (routedTable) return routedTable;
-    if (urlTableId) return { id: urlTableId, no: String(urlTableId).replace(/[^0-9]/g, '') || urlTableId };
-    try {
-      const savedViewKot = sessionStorage.getItem('alfa_view_kot_selected_table');
-      if (savedViewKot) return JSON.parse(savedViewKot);
-      const savedPosTable = sessionStorage.getItem('alfa_selected_pos_table');
-      if (savedPosTable) {
-        const parsed = JSON.parse(savedPosTable);
-        return parsed.table || { id: parsed.tableId, no: parsed.tableNumber ? String(parsed.tableNumber).replace(/[^0-9]/g, '') : parsed.tableId };
-      }
-    } catch {}
-    return null;
-  });
+  const { setTables } = useRestaurant();
 
   const [selected, setSelected] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
@@ -53,26 +38,14 @@ const ViewKOTPage = () => {
   const [dbKots, setDbKots] = useState([]);
 
   useEffect(() => {
-    if (location.state?.table) {
-      setSelectedTableFilter(location.state.table);
-    } else if (urlTableId) {
-      setSelectedTableFilter({ id: urlTableId, no: String(urlTableId).replace(/[^0-9]/g, '') || urlTableId });
-    }
-  }, [location.state, location.search]);
-
-  useEffect(() => {
     async function loadBackendKots() {
       try {
         setLoadingKots(true);
-        const params = selectedTableFilter ? {
-          tableId: selectedTableFilter.id,
-          table_id: selectedTableFilter.id,
-          table_no: selectedTableFilter.no
-        } : {};
-        const res = await kotService.getKOTList(params);
+        // Always fetch all active KOTs across all tables for global kitchen queue
+        const res = await kotService.getKOTList();
         const rawKots = res?.kots || res?.data || [];
         if (Array.isArray(rawKots)) {
-          console.log('✅ Loaded live PostgreSQL KOTs for selected table:', rawKots);
+          console.log('✅ Loaded all live PostgreSQL KOTs:', rawKots);
           setDbKots(rawKots);
         }
       } catch (err) {
@@ -82,7 +55,7 @@ const ViewKOTPage = () => {
       }
     }
     loadBackendKots();
-  }, [selectedTableFilter]);
+  }, []);
 
   useEffect(() => {
     const styleId = 'spinner-style';
@@ -100,12 +73,11 @@ const ViewKOTPage = () => {
 
   const kots = useMemo(() => {
     let result = [...dbKots];
-    if (selectedTableFilter) {
-      result = result.filter(k => String(k.tableId) === String(selectedTableFilter.no) || String(k.tableId) === String(selectedTableFilter.id));
+    if (filterStatus !== 'All') {
+      result = result.filter(k => k.status === filterStatus);
     }
-    if (filterStatus !== 'All') result = result.filter(k => k.status === filterStatus);
     return result;
-  }, [dbKots, selectedTableFilter, filterStatus]);
+  }, [dbKots, filterStatus]);
 
   const handleStatusChange = async (kotId, nextStatus) => {
     try {
@@ -162,13 +134,9 @@ const ViewKOTPage = () => {
   };
 
   const handleOpenPOSBilling = (kot) => {
-    const matchedTable = tables.find(t => String(t.no) === String(kot.tableId)) || { no: kot.tableId, id: kot.tableId };
     const kotIdVal = kot.kotId || kot.id;
     navigate(`/restaurant/pos-billing?kotId=${kotIdVal}`, {
       state: {
-        table: matchedTable,
-        tableId: matchedTable.id,
-        tableNumber: matchedTable.no,
         kotId: kotIdVal,
         isKotView: true,
         kot: kot,
@@ -187,21 +155,13 @@ const ViewKOTPage = () => {
   return (
     <div style={{ padding: '24px', fontFamily: 'var(--font-family)', backgroundColor: 'var(--background)', minHeight: '100%' }}>
       <PageHeader
-        title={routedTable ? `KOT — Table ${routedTable.no}` : 'Kitchen Order Tickets'}
+        title="Kitchen Order Tickets"
         breadcrumbs={['Restaurant', 'View KOT']}
-        showBack={!!routedTable}
+        showBack={false}
       />
 
-      {/* Filter pills */}
+      {/* Status Filter pills */}
       <div style={{ display: 'flex', gap: '8px', margin: '20px 0 16px', flexWrap: 'wrap', alignItems: 'center' }}>
-        {selectedTableFilter && (
-          <button
-            onClick={() => setSelectedTableFilter(null)}
-            style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', border: '1.5px solid #0e7490', background: '#0e7490', color: '#fff' }}
-          >
-            Table T{selectedTableFilter.no} ✕ (Show All Tables)
-          </button>
-        )}
         {['All', ...STATUSES].map(s => {
           const cfg = STATUS_CONFIG[s] || { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
           const active = filterStatus === s;
@@ -257,8 +217,8 @@ const ViewKOTPage = () => {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <td style={{ padding: '14px 18px' }}>
-                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#f0fdfa', border: '1.5px solid #99f6e4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '14px', color: '#0f766e' }}>
-                      {kot.tableId}
+                    <div style={{ minWidth: '46px', width: 'fit-content', height: '36px', padding: '0 8px', borderRadius: '10px', background: '#f0fdfa', border: '1.5px solid #99f6e4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '13px', color: '#0f766e', whiteSpace: 'nowrap' }}>
+                      {formatTableNoDisplay(kot.tableId)}
                     </div>
                   </td>
                   <td style={{ padding: '14px 18px', fontSize: '14px', fontWeight: '800', color: '#244E5F' }}>{kot.id}</td>

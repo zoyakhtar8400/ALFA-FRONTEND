@@ -8,6 +8,7 @@ import { restaurantApi } from '../../../api/restaurantApi';
 
 // KOT Engine & Printer data
 import { ALL_FOOD_ITEMS } from '../constants/printerData';
+import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { groupItemsByPrinter, generateKOTPayload } from '../services/kotEngine';
 
 // Presentation splits & layout
@@ -23,32 +24,56 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const searchInputRef = React.useRef(null);
 
   const [loadingMenu, setLoadingMenu] = useState(true);
-  const [allMenuItems, setAllMenuItems] = useState([]);
+  const [allMenuItems, setAllMenuItems] = useState(() =>
+    MOCK_MENU_ITEMS.map(item => ({
+      id: item.id,
+      name: item.name,
+      shortCode: String(item.id),
+      category: item.category || 'FOOD',
+      foodType: item.isVeg === false ? 'Non-Veg' : 'Veg',
+      isVeg: item.isVeg !== false,
+      price: Number(item.price || item.rate || 0),
+      active: 'Yes',
+      variants: item.variants || [],
+      areaPrices: {}
+    }))
+  );
 
   // Shared menu loader — used on mount AND when storage/focus events fire
   const loadRealMenu = useCallback(async () => {
     try {
       const res = await menuService.getMenu();
-      const rawItems = res?.data?.items || res?.items || [];
+      const rawItems = (
+        res?.data?.items ||
+        res?.items ||
+        res?.catalouge?.items ||
+        res?.data?.catalouge?.items ||
+        (Array.isArray(res?.data) && res.data.length > 0 ? res.data : null) ||
+        (Array.isArray(res) && res.length > 0 ? res : null) ||
+        []
+      );
       if (Array.isArray(rawItems) && rawItems.length > 0) {
         console.log('✅ Loaded live PostgreSQL menu items:', rawItems);
         const mapped = rawItems.map(item => ({
           id: item.item_id || item.id,
-          name: item.title,
-          shortCode: item.short_code || String(item.item_id || ''),
+          name: item.title || item.name || item.item_name || 'Item',
+          shortCode: item.short_code || String(item.item_id || item.id || ''),
           category: item['mpos_category.category_name']
             ? item['mpos_category.category_name'].toUpperCase()
-            : 'FOOD',
+            : (item.category ? String(item.category).toUpperCase() : (item.category_name ? String(item.category_name).toUpperCase() : 'FOOD')),
           foodType: item.food_type === 2 ? 'Non-Veg' : 'Veg',
           isVeg: item.food_type !== 2,
-          price: Number(item.sale_price || 0),
+          price: Number(item.sale_price || item.price || item.rate || 0),
           active: item.active === 0 ? 'No' : 'Yes',
+          variants: item.variants || [],
           areaPrices: {}
         }));
         setAllMenuItems(mapped);
       }
     } catch (err) {
       console.warn('Real menu loading fallback:', err);
+    } finally {
+      setLoadingMenu(false);
     }
   }, []);
 
@@ -70,7 +95,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   const availableCategories = useMemo(() => {
     const activeItems = allMenuItems.filter(i => i.active !== 'No');
-    const catSet = new Set(activeItems.map(i => i.category || 'FOOD'));
+    const catSet = new Set(activeItems.map(i => (i.category ? String(i.category).toUpperCase() : 'FOOD')));
     if (catSet.size === 0) return ['FOOD', 'BANQUET'];
     const cats = Array.from(catSet);
     cats.sort((a, b) => (a === 'FOOD' ? -1 : b === 'FOOD' ? 1 : a.localeCompare(b)));
@@ -83,7 +108,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const preselectedTableNumber = location.state?.tableNumber || null;
 
   // Tables List for Assignment
-  const { tables: tablesList, setTables: setTablesList, orderItemsMap = {} } = useRestaurant();
+  const { tables: tablesList, setTables: setTablesList, orderItemsMap = {}, setOrderItemsMap } = useRestaurant();
 
   // Context persistence for Table / Order selection across page navigations and refreshes
   const savedContextRef = React.useRef(null);
@@ -154,8 +179,32 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [kotPayloads, setKotPayloads] = useState([]);
   const kotSuccessCallbackRef = React.useRef(null);
 
+  // Compute initial fallback rows from navigation state, sessionStorage, or context
+  const initialFallbackRows = useMemo(() => {
+    const tableKey = restoredTableId || restoredTable?.id || restoredTable?.no;
+    const fromLocation = location.state?.rows || location.state?.orderRows;
+    if (Array.isArray(fromLocation) && fromLocation.length > 0) return fromLocation;
+
+    const fromSaved = savedContextRef.current?.rows;
+    if (Array.isArray(fromSaved) && fromSaved.length > 0) return fromSaved;
+
+    if (tableKey && orderItemsMap) {
+      if (orderItemsMap[tableKey] && orderItemsMap[tableKey].length > 0) return orderItemsMap[tableKey];
+      if (restoredTable?.no && orderItemsMap[restoredTable.no] && orderItemsMap[restoredTable.no].length > 0) return orderItemsMap[restoredTable.no];
+      if (restoredTable?.no && orderItemsMap[String(restoredTable.no)] && orderItemsMap[String(restoredTable.no)].length > 0) return orderItemsMap[String(restoredTable.no)];
+      if (restoredTable?.no && orderItemsMap[Number(restoredTable.no)] && orderItemsMap[Number(restoredTable.no)].length > 0) return orderItemsMap[Number(restoredTable.no)];
+    }
+
+    if (restoredTable?.kots && Array.isArray(restoredTable.kots) && restoredTable.kots.length > 0) {
+      const kotItems = restoredTable.kots.flatMap(k => k.items || []);
+      if (kotItems.length > 0) return kotItems;
+    }
+
+    return INITIAL_ROWS;
+  }, [location.state, restoredTable, restoredTableId, orderItemsMap]);
+
   // Table rows for right-side billing
-  const [rows, setRows] = useState(INITIAL_ROWS);
+  const [rows, setRows] = useState(initialFallbackRows);
   const [isSettling, setIsSettling] = useState(false);
 
   // Check if opened for a specific KOT (KOT-specific Billing View)
@@ -180,18 +229,18 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             setRemarks(kotObj.remark || kotObj.remarks || '');
             setRows((kotObj.items || []).map((item, idx) => ({
               lineId: item.lineId || `kot-item-${idx}`,
-              itemId: item.itemId || item.id || idx,
-              itemName: item.itemName || item.name || '',
-              name: item.itemName || item.name || '',
+              itemId: item.itemId || item.item_id || item.id || idx,
+              itemName: item.itemName || item.title || item.name || item.item_name || '',
+              name: item.itemName || item.title || item.name || item.item_name || '',
               variantId: item.variantId || '',
               variantName: item.variantName || item.variant || '',
               variant: item.variantName || item.variant || '',
-              qty: item.qty || 1,
-              unitPrice: item.unitPrice || item.price || item.rate || 0,
-              price: item.unitPrice || item.price || item.rate || 0,
-              rate: item.unitPrice || item.price || item.rate || 0,
-              total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
-              remark: item.remark || item.remarks || ''
+              qty: Number(item.qty || item.quantity || 1),
+              unitPrice: Number(item.unitPrice || item.price || item.rate || 0),
+              price: Number(item.unitPrice || item.price || item.rate || 0),
+              rate: Number(item.unitPrice || item.price || item.rate || 0),
+              total: Number(item.total || ((item.qty || item.quantity || 1) * (item.unitPrice || item.price || 0))),
+              remark: item.remark || item.remarks || item.item_note || ''
             })));
             return;
           }
@@ -201,22 +250,42 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
 
       setKotViewData(null);
+      const activeTableId = assignedTableId || restoredTableId;
       const currentTable = tablesList.find(
-        t => String(t.id) === String(assignedTableId) || String(t.no) === String(assignedTableId)
+        t => String(t.id) === String(activeTableId) || String(t.no) === String(activeTableId)
       ) || restoredTable;
 
       const isBlank = !currentTable || currentTable.status === 'Blank' || currentTable.status === 'AVAILABLE';
 
       if (isBlank) {
-        setRows([]);
+        if (!isNewBooking && (!location.state?.rows || location.state.rows.length === 0)) {
+          setRows([]);
+        }
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
         if (currentTable?.captain) setCaptain(currentTable.captain);
         return;
       }
 
-      // Running table: always fetch all active KOT items from PostgreSQL
-      if (!currentTable) return;
+      // Collect best available fallback rows from frontend state / context / sessionStorage / kots
+      const fallbackRows = (
+        (location.state?.rows && location.state.rows.length > 0 ? location.state.rows : null) ||
+        (location.state?.orderRows && location.state.orderRows.length > 0 ? location.state.orderRows : null) ||
+        (savedContextRef.current?.rows && savedContextRef.current.rows.length > 0 ? savedContextRef.current.rows : null) ||
+        (currentTable?.id && orderItemsMap[currentTable.id] && orderItemsMap[currentTable.id].length > 0 ? orderItemsMap[currentTable.id] : null) ||
+        (currentTable?.no && orderItemsMap[currentTable.no] && orderItemsMap[currentTable.no].length > 0 ? orderItemsMap[currentTable.no] : null) ||
+        (currentTable?.no && orderItemsMap[String(currentTable.no)] && orderItemsMap[String(currentTable.no)].length > 0 ? orderItemsMap[String(currentTable.no)] : null) ||
+        (currentTable?.no && orderItemsMap[Number(currentTable.no)] && orderItemsMap[Number(currentTable.no)].length > 0 ? orderItemsMap[Number(currentTable.no)] : null) ||
+        (currentTable?.kots && currentTable.kots.length > 0 ? currentTable.kots.flatMap(k => k.items || []) : null) ||
+        []
+      );
+
+      if (!currentTable) {
+        if (fallbackRows.length > 0) setRows(fallbackRows);
+        return;
+      }
+
+      // Fetch active KOT / order items from backend PostgreSQL API
       try {
         const orderRes = await restaurantApi.getOrders({
           tableId: currentTable.id,
@@ -225,37 +294,58 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         });
         const activeOrder = orderRes?.orderdata || (Array.isArray(orderRes?.orders) ? orderRes.orders[0] : null);
         if (activeOrder && Array.isArray(activeOrder.items) && activeOrder.items.length > 0) {
-          setRows(activeOrder.items.map((item, idx) => ({
+          const apiRows = activeOrder.items.map((item, idx) => ({
             lineId: item.lineId || `item-${idx}`,
-            itemId: item.itemId || item.id || idx,
-            itemName: item.itemName || item.name || '',
-            name: item.itemName || item.name || '',
+            itemId: item.itemId || item.item_id || item.id || idx,
+            itemName: item.itemName || item.title || item.name || item.item_name || '',
+            name: item.itemName || item.title || item.name || item.item_name || '',
             variantId: item.variantId || '',
             variantName: item.variantName || item.variant || '',
             variant: item.variantName || item.variant || '',
-            qty: item.qty || 1,
-            unitPrice: item.unitPrice || item.price || item.rate || 0,
-            price: item.unitPrice || item.price || item.rate || 0,
-            rate: item.unitPrice || item.price || item.rate || 0,
-            total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
-            remark: item.remark || item.remarks || ''
-          })));
+            qty: Number(item.qty || item.quantity || 1),
+            unitPrice: Number(item.unitPrice || item.price || item.rate || 0),
+            price: Number(item.unitPrice || item.price || item.rate || 0),
+            rate: Number(item.unitPrice || item.price || item.rate || 0),
+            total: Number(item.total || ((item.qty || item.quantity || 1) * (item.unitPrice || item.price || 0))),
+            remark: item.remark || item.remarks || item.item_note || ''
+          }));
+          setRows(apiRows);
           if (activeOrder.customer_name) setCustomerName(activeOrder.customer_name);
           if (activeOrder.waiter_name) setWaiter(activeOrder.waiter_name);
         } else {
-          setRows([]);
+          if (fallbackRows.length > 0) {
+            setRows(fallbackRows);
+          }
         }
       } catch (err) {
         console.warn('Error fetching active KOT items from PostgreSQL:', err);
-        setRows([]);
+        if (fallbackRows.length > 0) {
+          setRows(fallbackRows);
+        }
       }
+
       if (currentTable.customer) setCustomerName(currentTable.customer);
       if (currentTable.waiter) setWaiter(currentTable.waiter);
       if (currentTable.captain) setCaptain(currentTable.captain);
     }
 
     loadActiveTableData();
-  }, [assignedTableId, targetKotId, tablesList, restoredTable]);
+  }, [assignedTableId, restoredTableId, targetKotId]);
+
+  // Sync changes in rows to orderItemsMap in context & localStorage
+  useEffect(() => {
+    const tableKey = assignedTableId || restoredTableId || routedTable?.id;
+    if (tableKey && setOrderItemsMap && Array.isArray(rows)) {
+      const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+      if (activeRows.length > 0) {
+        setOrderItemsMap(prev => ({
+          ...prev,
+          [tableKey]: activeRows,
+          ...(routedTable?.no ? { [routedTable.no]: activeRows } : {})
+        }));
+      }
+    }
+  }, [rows, assignedTableId, restoredTableId, routedTable, setOrderItemsMap]);
 
   // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
@@ -440,7 +530,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const q = searchItem.toLowerCase().trim();
     const activeItems = allMenuItems.filter(item => item.active !== 'No');
     if (!q) {
-      return activeItems.filter(item => item.category === category);
+      return activeItems.filter(item => {
+        const itemCat = item.category ? String(item.category).toUpperCase() : 'FOOD';
+        return itemCat === category.toUpperCase();
+      });
     }
     return activeItems.filter(item => {
       const matchesName = (item.name || '').toLowerCase().includes(q);
@@ -476,22 +569,26 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const addOrUpdateItemRow = (foodItem, variant) => {
     const variantId = variant ? variant.id : '';
     const variantName = variant ? variant.name : '';
-    const rawPrice = variant ? variant.price : (foodItem.price || 0);
+    const rawPrice = variant ? variant.price : (foodItem.price || foodItem.rate || 0);
     const price = getAreaAdjustedPrice(foodItem, rawPrice);
     const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
+    const itemName = foodItem.name || foodItem.title || 'Item';
 
     setRows(prev => {
       const emptyIndex = prev.findIndex(r => !r.itemName && !r.name);
-      const existingIndex = prev.findIndex(r =>
-        (r.itemId === foodItem.id || r.itemName === foodItem.name || r.name === foodItem.name) &&
-        (r.variantId === variantId)
-      );
+      const existingIndex = prev.findIndex(r => {
+        const sameId = foodItem.id && r.itemId && String(r.itemId) === String(foodItem.id);
+        const sameName = (r.itemName || r.name || '').toLowerCase() === itemName.toLowerCase();
+        const sameVariant = String(r.variantId || '') === String(variantId || '') || String(r.variantName || r.variant || '') === String(variantName || '');
+        return (sameId || sameName) && sameVariant;
+      });
 
       if (existingIndex !== -1) {
         return prev.map((r, i) => {
           if (i === existingIndex) {
-            const nextQty = r.qty + 1;
-            return { ...r, qty: nextQty, total: nextQty * r.unitPrice };
+            const nextQty = (r.qty || 1) + 1;
+            const unitPrice = r.unitPrice || price;
+            return { ...r, qty: nextQty, total: nextQty * unitPrice };
           }
           return r;
         });
@@ -502,8 +599,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               ...r,
               lineId,
               itemId: foodItem.id,
-              itemName: foodItem.name,
-              name: foodItem.name,
+              itemName: itemName,
+              name: itemName,
               variantId,
               variantName,
               variant: variantName,
@@ -523,8 +620,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           {
             lineId,
             itemId: foodItem.id,
-            itemName: foodItem.name,
-            name: foodItem.name,
+            itemName: itemName,
+            name: itemName,
             variantId,
             variantName,
             variant: variantName,
@@ -538,6 +635,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         ];
       }
     });
+    toast(`Added: ${itemName}${variantName ? ` (${variantName})` : ''}`);
   };
 
   useEffect(() => {

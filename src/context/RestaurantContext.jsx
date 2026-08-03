@@ -9,6 +9,7 @@ const AUTO_RESET_MS = 30000; // 30 seconds after paid → reset to Blank
 
 export const RestaurantProvider = ({ children }) => {
   const [tables, setTables] = useState([]);
+  const [tablesLoaded, setTablesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [orderItemsMap, setOrderItemsMap] = useState(() => {
@@ -44,48 +45,72 @@ export const RestaurantProvider = ({ children }) => {
     fetchStaticData();
   }, []);
 
-  // Fetch live tables status from Express Backend API with 10s polling interval
-  useEffect(() => {
-    async function fetchTablesData() {
-      try {
-        const tableRes = await tableService.getTables();
-        const rawTables = tableRes?.tables || tableRes?.data || [];
-        if (Array.isArray(rawTables) && rawTables.length > 0) {
-          const mapped = rawTables.map(t => ({
-            id: t.id,
-            table_id: t.table_id || t.id,
-            no: String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '').padStart(2, '0') || String(t.id).padStart(2, '0'),
-            table_name: t.table_name || `Table ${t.no}`,
-            seats: Number(t.seats || t.max_person) || 4,
-            status: t.status || t.order_state || 'AVAILABLE',
-            current_order_id: t.current_order_id || 0,
-            payment_status: t.payment_status || 'UNPAID',
-            kot_status: t.kot_status || 'NONE',
-            payment_completed_at: t.payment_completed_at || null,
-            cleanup_after_seconds: t.cleanup_after_seconds || 60,
-            remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 0,
-            color: t.color || 'white',
-            available_actions: Array.isArray(t.available_actions) ? t.available_actions : [],
-            amount: Number(t.amount || 0),
-            waiter: t.waiter || null,
-            customer: t.customer || 'Walk-in',
-            floor: t.floor || 'Ground',
-            section: t.section || 'Main Area',
-            kots: [],
-            kotCount: 0
-          }));
-          setTables(mapped);
-        }
-      } catch (err) {
-        console.warn('Backend API connection fallback:', err.message);
-      } finally {
-        setLoading(false);
+  // Map raw table API response to normalized table object
+  function mapTable(t) {
+    const rawStatus = t.status || t.order_state || 'AVAILABLE';
+    let color = (t.color || '').toLowerCase();
+    if (!color || color === 'white') {
+      if (rawStatus === 'Running' || rawStatus === 'KOT_CUT' || rawStatus === 'ORDERED' || (t.amount && t.amount > 0)) {
+        color = 'orange';
+      } else if (rawStatus === 'Paid' || rawStatus === 'PAYMENT_COMPLETED' || rawStatus === 'CLEANUP_RUNNING') {
+        color = 'green';
+      } else {
+        color = 'white';
       }
     }
+    return {
+      id: t.id,
+      table_id: t.table_id || t.id,
+      no: String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '').padStart(2, '0') || String(t.id).padStart(2, '0'),
+      table_name: t.table_name || `Table ${t.no}`,
+      seats: Number(t.seats || t.max_person) || 4,
+      status: rawStatus,
+      current_order_id: t.current_order_id || 0,
+      payment_status: t.payment_status || 'UNPAID',
+      kot_status: t.kot_status || 'NONE',
+      payment_completed_at: t.payment_completed_at || null,
+      cleanup_after_seconds: t.cleanup_after_seconds || 60,
+      remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 0,
+      color: color,
+      available_actions: Array.isArray(t.available_actions) ? t.available_actions : [],
+      amount: Number(t.amount || 0),
+      waiter: t.waiter || null,
+      customer: t.customer || 'Walk-in',
+      floor: t.floor || 'Ground',
+      section: t.section || 'Main Area',
+      kots: [],
+      kotCount: 0
+    };
+  }
 
-    fetchTablesData();
-    const interval = setInterval(fetchTablesData, 10000);
-    return () => clearInterval(interval);
+  // refreshTables — call this manually after any table-changing action (KOT, payment, etc.)
+  const refreshTables = React.useCallback(async () => {
+    try {
+      const tableRes = await tableService.getTables();
+      const rawTables = tableRes?.tables || tableRes?.data || [];
+      if (Array.isArray(rawTables) && rawTables.length > 0) {
+        const mapped = rawTables.map(mapTable);
+        setTables(prev => {
+          if (!prev || prev.length === 0) return mapped;
+          return mapped.map(t => {
+            const existing = prev.find(p => String(p.id) === String(t.id));
+            if (existing && existing.updatedAt && (Date.now() - existing.updatedAt < 3000)) {
+              return { ...t, ...existing };
+            }
+            return t;
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('refreshTables error:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch tables ONCE on mount — no polling
+  useEffect(() => {
+    refreshTables().then(() => setTablesLoaded(true));
   }, []);
 
   // Auto-reset Cleaning / Paid tables to Blank after countdown expires (45 seconds)

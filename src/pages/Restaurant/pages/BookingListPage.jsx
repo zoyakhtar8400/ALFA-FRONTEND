@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaArrowLeft, FaSearch, FaUndo, FaPrint, FaEye, FaEdit, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { FaArrowLeft, FaSearch, FaUndo, FaPrint, FaEye, FaEdit, FaSort, FaSortUp, FaSortDown, FaPlus, FaTimes } from 'react-icons/fa';
+import { reservationService } from '../../../services/reservationService';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
 const STATUS_COLORS = {
@@ -19,54 +20,149 @@ const PAGE_SIZE = 10;
 const BookingListPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { tables, tableHistory = [] } = useRestaurant();
+  const { tables } = useRestaurant();
 
+  // Use a ref so loadBookings has access to latest tables without being recreated on every poll
+  const tablesRef = React.useRef(tables);
+  useEffect(() => { tablesRef.current = tables; }, [tables]);
+
+  const [allBookings, setAllBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [sortField, setSortField] = useState('no');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('id');
+  const [sortDir, setSortDir] = useState('desc');
   const [page, setPage] = useState(1);
 
-  // Build flat booking rows from tables + their KOTs + archived history
-  const allBookings = useMemo(() => {
-    const rows = [];
+  // Add Booking modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({ tableId: '', customerName: '', phone: '', persons: 2, occasion: '', checkIn: '' });
+  const [addError, setAddError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-    const processTable = (t, isArchived = false) => {
-      if (!t.kots || t.kots.length === 0) {
-        rows.push({
-          bookingNo: `BK-T${t.no}-000`,
-          tableNo: t.no,
-          customer: t.customer || 'Walk-in',
-          phone: t.mobile || '—',
-          date: t.openedAt ? new Date(t.openedAt).toLocaleDateString('en-IN') : '—',
-          time: t.openedAt ? new Date(t.openedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—',
-          status: isArchived ? 'Paid' : t.status,
-          amount: t.amount || 0,
-          waiter: t.waiter || '—',
+  // Load bookings: active tables from context + reservations from backend
+  const loadBookings = useCallback(async () => {
+    try {
+      setLoadingBookings(true);
+
+      // Build active table rows from the already-fetched tables context (always available)
+      const currentTables = tablesRef.current || [];
+      const tableRows = currentTables
+        .filter(t => {
+          const s = (t.status || '').toUpperCase();
+          const c = (t.color || '').toLowerCase();
+          return s !== 'AVAILABLE' && s !== 'BLANK' && c !== 'white' && c !== '';
+        })
+        .map(t => ({
+          id: `tbl-${t.id}`,
+          bookingNo: `T-${String(t.no).padStart(2, '0')}`,
           tableId: t.id,
-        });
-      } else {
-        t.kots.forEach((kot, ki) => {
-          rows.push({
-            bookingNo: kot.id || `BK-T${t.no}-${ki + 1}`,
-            tableNo: t.no,
-            customer: t.customer || 'Walk-in',
-            phone: t.mobile || '—',
-            date: t.openedAt ? new Date(t.openedAt).toLocaleDateString('en-IN') : '—',
-            time: kot.time || (t.openedAt ? new Date(t.openedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'),
-            status: isArchived ? 'Paid' : (kot.status || t.status),
-            amount: kot.amount || t.amount || 0,
-            waiter: t.waiter || '—',
-            tableId: t.id,
-          });
-        });
-      }
-    };
+          tableNo: String(t.no || t.id),
+          tableName: t.table_name || `Table ${t.no}`,
+          customer: t.customer || 'Walk-in',
+          phone: '—',
+          persons: t.seats || 2,
+          occasion: '',
+          date: t.openedAt ? new Date(t.openedAt).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+          time: t.openedAt ? new Date(t.openedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—',
+          status: (() => {
+            const s = (t.status || '').toUpperCase();
+            if (s === 'KOT_CUT' || s === 'ORDERED') return 'KOT Generated';
+            if (s === 'PAYMENT_COMPLETED') return 'Paid';
+            return t.status || 'Running';
+          })(),
+          waiter: t.waiter || '—',
+          amount: t.amount || 0,
+          isTableRow: true,
+        }));
 
-    tables.forEach(t => processTable(t, false));
-    tableHistory.forEach(t => processTable(t, true));
-    return rows;
-  }, [tables, tableHistory]);
+      // Try to also fetch reservations from backend
+      let reservationRows = [];
+      try {
+        const res = await reservationService.getReservations();
+        const raw = res?.reservations || res?.data || (Array.isArray(res) ? res : []);
+        if (Array.isArray(raw) && raw.length > 0) {
+          reservationRows = raw.map(r => ({
+            id: r.id,
+            bookingNo: r.reservation_id || r.reservationId || `RES-${r.id}`,
+            tableId: r.table_id || r.tableId,
+            tableNo: String(r.table_name || r.tableName || r.table_id || '').replace(/[^0-9]/g, '') || String(r.table_id || r.tableId || ''),
+            tableName: r.table_name || r.tableName || `Table ${r.table_id || r.tableId}`,
+            customer: r.name || r.customerName || 'Walk-in',
+            phone: r.phone || '—',
+            persons: r.persons || 1,
+            occasion: r.occasion || '',
+            checkIn: r.check_in || r.checkIn || null,
+            checkOut: r.check_out || r.checkOut || null,
+            date: (r.check_in || r.checkIn || r.created_at || r.createdAt)
+              ? new Date(r.check_in || r.checkIn || r.created_at || r.createdAt).toLocaleDateString('en-IN')
+              : '—',
+            time: (r.check_in || r.checkIn)
+              ? new Date(r.check_in || r.checkIn).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+              : '—',
+            status: r.status || 'Reserved',
+            waiter: '—',
+            amount: 0,
+          }));
+        }
+      } catch (resErr) {
+        // Reservation API not yet available — that's fine, we show table rows
+        console.warn('Reservation API unavailable (may need backend restart):', resErr.message);
+      }
+
+      // Merge: reservations first, then table rows (dedup by tableId)
+      const usedTableIds = new Set(reservationRows.map(r => String(r.tableId)));
+      const filteredTableRows = tableRows.filter(r => !usedTableIds.has(String(r.tableId)));
+      setAllBookings([...reservationRows, ...filteredTableRows]);
+    } finally {
+      setLoadingBookings(false);
+    }
+  }, []); // stable — uses tablesRef for table data
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
+
+
+  // Cancel a reservation
+  const handleCancel = async (booking) => {
+    if (!booking.id || booking.bookingNo?.startsWith('TBL-')) return;
+    try {
+      await reservationService.patchReservation(booking.id, { status: 'Cancelled' });
+      setAllBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: 'Cancelled' } : b));
+    } catch (err) {
+      console.error('Error cancelling reservation:', err);
+    }
+  };
+
+  // Save new booking
+  const handleAddSave = async () => {
+    if (!addForm.tableId) return setAddError('Please select a table.');
+    if (!addForm.customerName) return setAddError('Customer name is required.');
+    setSaving(true);
+    setAddError('');
+    try {
+      const selectedTable = tables.find(t => String(t.id) === String(addForm.tableId));
+      await reservationService.createReservation({
+        tableId: Number(addForm.tableId),
+        tableName: selectedTable?.table_name || `Table ${addForm.tableId}`,
+        tableNo: selectedTable?.no || addForm.tableId,
+        customerName: addForm.customerName,
+        phone: addForm.phone,
+        persons: Number(addForm.persons || 2),
+        occasion: addForm.occasion,
+        checkIn: addForm.checkIn || null,
+        status: 'Reserved'
+      });
+      setShowAddModal(false);
+      setAddForm({ tableId: '', customerName: '', phone: '', persons: 2, occasion: '', checkIn: '' });
+      await loadBookings();
+    } catch (err) {
+      setAddError(err.message || 'Failed to create reservation');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const statuses = useMemo(() => ['All', ...new Set(allBookings.map(b => b.status))], [allBookings]);
 
@@ -123,9 +219,8 @@ const BookingListPage = () => {
     window.print();
   };
 
-  const handleView = (booking) => {
-    const table = tables.find(t => t.id === booking.tableId);
-    if (table) navigate('/restaurant/view-kot', { state: { table } });
+  const handleView = () => {
+    navigate('/restaurant/view-kot');
   };
 
   const handleEdit = (booking) => {
@@ -153,10 +248,29 @@ const BookingListPage = () => {
         >
           <FaArrowLeft size={12} /> Back
         </button>
-        <div>
+        <div style={{ flex: 1 }}>
           <h1 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: '#0f172a' }}>Booking List</h1>
-          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''} found</p>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+            {loadingBookings ? 'Loading from database...' : `${filtered.length} record${filtered.length !== 1 ? 's' : ''} found`}
+          </p>
         </div>
+        <button
+          onClick={() => { setShowAddModal(true); setAddError(''); }}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: 'none', background: '#0e7490', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#0c6280'}
+          onMouseLeave={e => e.currentTarget.style.background = '#0e7490'}
+        >
+          <FaPlus size={11} /> New Booking
+        </button>
+        <button
+          onClick={loadBookings}
+          title="Refresh from database"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+        >
+          <FaUndo size={11} />
+        </button>
       </div>
 
       {/* Filters */}
@@ -266,6 +380,13 @@ const BookingListPage = () => {
                           onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                         ><FaPrint size={12} /></button>
+                        {b.status === 'Reserved' && b.id && !String(b.bookingNo).startsWith('TBL-') && (
+                          <button title="Cancel Booking" onClick={() => handleCancel(b)}
+                            style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #fca5a5', background: '#fff', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                          ><FaTimes size={11} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -308,6 +429,70 @@ const BookingListPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Booking Modal */}
+      {showAddModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '28px', width: '420px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#0f172a' }}>New Booking</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.2rem' }}><FaTimes /></button>
+            </div>
+
+            {addError && <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fee2e2', color: '#dc2626', fontSize: '0.8rem', marginBottom: '14px' }}>{addError}</div>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Table *</label>
+                <select value={addForm.tableId} onChange={e => setAddForm(f => ({ ...f, tableId: e.target.value }))}
+                  style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}>
+                  <option value="">Select Table...</option>
+                  {tables.filter(t => t.status === 'AVAILABLE' || t.status === 'Blank' || t.status === 'white').map(t => (
+                    <option key={t.id} value={t.id}>T{parseInt(t.no, 10)} — {t.seats} seats</option>
+                  ))}
+                  {tables.filter(t => !['AVAILABLE', 'Blank', 'white'].includes(t.status)).map(t => (
+                    <option key={t.id} value={t.id}>T{parseInt(t.no, 10)} ({t.status})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Customer Name *</label>
+                <input type="text" value={addForm.customerName} onChange={e => setAddForm(f => ({ ...f, customerName: e.target.value }))} placeholder="Customer name"
+                  style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Phone</label>
+                  <input type="text" value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="Phone"
+                    style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Persons</label>
+                  <input type="number" min={1} value={addForm.persons} onChange={e => setAddForm(f => ({ ...f, persons: e.target.value }))}
+                    style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Check-In Time</label>
+                <input type="datetime-local" value={addForm.checkIn} onChange={e => setAddForm(f => ({ ...f, checkIn: e.target.value }))}
+                  style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>Occasion</label>
+                <input type="text" value={addForm.occasion} onChange={e => setAddForm(f => ({ ...f, occasion: e.target.value }))} placeholder="Birthday, Anniversary..."
+                  style={{ width: '100%', marginTop: '4px', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowAddModal(false)} style={{ padding: '9px 20px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleAddSave} disabled={saving} style={{ padding: '9px 24px', borderRadius: '8px', border: 'none', background: '#0e7490', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                {saving ? 'Saving...' : 'Save Booking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -42,12 +42,13 @@ export const useTableOperations = (location, navigate) => {
   const [selectedCaptain, setSelectedCaptain] = useState('');
 
   // Sync returned route state values
+  // Sync returned route state values with instant color conversion
   useEffect(() => {
     if (location.state?.settledTableId) {
       const settledId = location.state.settledTableId;
       setTables(prev => prev.map(t => {
-        if (t.id === settledId) {
-          return { ...t, status: 'Paid', paidAt: Date.now() };
+        if (t.id === settledId || String(t.no) === String(settledId)) {
+          return { ...t, status: 'Paid', color: 'green', paidAt: Date.now(), updatedAt: Date.now() };
         }
         return t;
       }));
@@ -63,10 +64,14 @@ export const useTableOperations = (location, navigate) => {
           (ut.tableNo && String(t.no) === String(ut.tableNo))
         ) {
           const hasItems = ur.length > 0 || (ut.amount && ut.amount > 0);
+          const nextStatus = hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : 'Blank';
+          const nextColor = nextStatus === 'Running' || nextStatus === 'KOT_CUT' || nextStatus === 'ORDERED' ? 'orange' : nextStatus === 'Paid' ? 'green' : 'white';
           return {
             ...t,
             ...ut,
-            status: hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : t.status,
+            status: nextStatus,
+            color: nextColor,
+            updatedAt: Date.now(),
             openedAt: t.openedAt || Date.now()
           };
         }
@@ -673,9 +678,73 @@ export const useTableOperations = (location, navigate) => {
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
-      selectedKots.forEach(kotId => {
-        executeMoveKOT(kotId, dstId);
+      const destTable = tables.find(t => t.id === dstId);
+      const srcTable = tables.find(t => t.id === srcId);
+
+      // Call backend API for each selected KOT
+      const movePromises = selectedKots.map(async kotId => {
+        try {
+          const { kotService } = await import('../../../services/kotService');
+          await kotService.moveKOT(kotId, {
+            toTableId: dstId,
+            toTableNo: destTable?.no
+          });
+        } catch (err) {
+          console.error(`Error moving KOT ${kotId}:`, err.message);
+        }
       });
+
+      Promise.all(movePromises).then(async () => {
+        // Optimistic update: move KOTs visually
+        setTables(prev => prev.map(t => {
+          if (t.id === srcId) {
+            const remainingKots = (t.kots || []).filter(k => !selectedKots.includes(k.id));
+            return {
+              ...t,
+              kots: remainingKots,
+              kotCount: remainingKots.length,
+              status: remainingKots.length === 0 ? 'Blank' : t.status,
+              color: remainingKots.length === 0 ? 'white' : t.color,
+              amount: remainingKots.length === 0 ? 0 : t.amount,
+              updatedAt: Date.now()
+            };
+          }
+          if (t.id === dstId) {
+            const movedKots = (srcTable?.kots || []).filter(k => selectedKots.includes(k.id));
+            return {
+              ...t,
+              kots: [...(t.kots || []), ...movedKots],
+              kotCount: (t.kots || []).length + movedKots.length,
+              status: 'KOT_CUT',
+              color: 'orange',
+              updatedAt: Date.now()
+            };
+          }
+          return t;
+        }));
+
+        // Re-fetch tables from backend after 500ms to sync real DB state
+        setTimeout(async () => {
+          try {
+            const { tableService } = await import('../../../services/tableService');
+            const res = await tableService.getTables();
+            const rawTables = res?.tables || res?.data || [];
+            if (rawTables.length > 0) {
+              setTables(rawTables.map(t => {
+                const rawStatus = t.status || t.order_state || 'AVAILABLE';
+                let color = (t.color || '').toLowerCase();
+                if (!color || color === 'white') {
+                  color = (rawStatus === 'Running' || rawStatus === 'KOT_CUT') ? 'orange' : rawStatus === 'Paid' ? 'green' : 'white';
+                }
+                return { ...t, color, updatedAt: Date.now() };
+              }));
+            }
+          } catch (e) { /* silent */ }
+        }, 600);
+
+        toast(`Moved ${selectedKots.length} KOT(s) from T${srcTable?.no} to T${destTable?.no}.`);
+      });
+
       setSelectedTransferKots({});
       setShowQuickSwitch(false);
     }

@@ -122,13 +122,20 @@ const BillingPanel = ({
         overflowY: 'auto'
       };
 
+  const currentAssignedTable = tablesList.find(t =>
+    String(t.id) === String(assignedTableId) ||
+    String(t.no) === String(assignedTableId) ||
+    (t.no && assignedTableId && String(assignedTableId).replace(/[^0-9]/g, '') === String(t.no).replace(/[^0-9]/g, ''))
+  ) || routedTable;
+  const resolvedAssignedTableNo = currentAssignedTable?.no || assignedTableId || routedTable?.no || '';
+
   return (
     <div className="pos-billing-section" style={containerStyle}>
       <POSHeader
         isBillingDesk={isBillingDesk}
         serviceType={serviceType}
         setServiceType={setServiceType}
-        assignedTableNo={assignedTableId ? tablesList.find(t => t.id === assignedTableId)?.no : routedTable?.no}
+        assignedTableNo={resolvedAssignedTableNo}
         customerName={customerName}
         paxCount={paxCount}
         hasRemarks={!!remarks}
@@ -156,7 +163,10 @@ const BillingPanel = ({
           </thead>
           <tbody>
             {rows.map((row, index) => {
-              const matchItem = allMenuItems.find(f => f.id === row.itemId || f.name === row.itemName || f.name === row.name);
+              const matchItem = allMenuItems.find(f =>
+                (f.id && row.itemId && String(f.id) === String(row.itemId)) ||
+                (f.name && (row.itemName || row.name || row.title) && String(f.name).toLowerCase() === String(row.itemName || row.name || row.title).toLowerCase())
+              );
               return (
                 <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
                   <td style={{ padding: '4px 2px', textAlign: 'center' }}>
@@ -172,19 +182,41 @@ const BillingPanel = ({
                     </button>
                   </td>
                   <td style={{ padding: '4px 2px' }}>
-                    <select
-                      data-row={index}
-                      data-col={1}
-                      onKeyDown={e => handleGridKeyDown(e, index, 1)}
-                      value={row.itemName || row.name || ''}
-                      onChange={e => updateRowField(index, 'itemName', e.target.value)}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem', fontWeight: 600 }}
-                    >
-                      <option value="">SELECT ITEM...</option>
-                      {allMenuItems.filter(item => item.active !== 'No').map((item, idx) => (
-                        <option key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx} value={item.name}>{item.name}</option>
-                      ))}
-                    </select>
+                    {(() => {
+                      const rawName = row.itemName || row.name || row.title || row.item_name || '';
+                      let selectedVal = '';
+                      if (rawName) {
+                        const exactMatch = allMenuItems.find(i => i.name === rawName);
+                        if (exactMatch) {
+                          selectedVal = exactMatch.name;
+                        } else {
+                          const ciMatch = allMenuItems.find(i => (i.name || '').toLowerCase() === rawName.toLowerCase());
+                          selectedVal = ciMatch ? ciMatch.name : rawName;
+                        }
+                      }
+                      const hasSelectedInOptions = allMenuItems.some(i => i.name === selectedVal);
+
+                      return (
+                        <select
+                          data-row={index}
+                          data-col={1}
+                          onKeyDown={e => handleGridKeyDown(e, index, 1)}
+                          value={selectedVal}
+                          onChange={e => updateRowField(index, 'itemName', e.target.value)}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem', fontWeight: 600 }}
+                        >
+                          <option value="">SELECT ITEM...</option>
+                          {selectedVal && !hasSelectedInOptions && (
+                            <option value={selectedVal}>{selectedVal}</option>
+                          )}
+                          {allMenuItems.filter(item => item.active !== 'No').map((item, idx) => (
+                            <option key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx} value={item.name}>
+                              {item.name}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    })()}
 
                     {matchItem?.variants && matchItem.variants.length > 0 && (
                       <div style={{ display: 'flex', gap: '6px', marginTop: '2px', fontSize: '0.65rem', flexWrap: 'wrap' }}>
