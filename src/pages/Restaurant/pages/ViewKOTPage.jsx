@@ -6,13 +6,7 @@ import PageHeader from '../../../components/common/PageHeader';
 import CommonModal from '../../../components/common/CommonModal';
 import { useRestaurant } from '../../../context/RestaurantContext';
 import { printKitchenKOT, printTaxInvoice } from '../utils/printInvoice';
-
-const INITIAL_KOTS = [
-  { id: 'KOT-402', tableId: '02', status: 'Cooking', time: '12:40 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Garlic Naan', variantName: '', qty: 3, unitPrice: 100, total: 300 }] },
-  { id: 'KOT-403', tableId: '03', status: 'Sent to Kitchen', time: '12:45 PM', items: [{ itemName: 'Chicken Biryani', variantName: '', qty: 1, unitPrice: 400, total: 400 }, { itemName: 'Cold Drink', variantName: '500 ML', qty: 2, unitPrice: 70, total: 140 }] },
-  { id: 'KOT-404', tableId: '06', status: 'Ready', time: '12:35 PM', items: [{ itemName: 'Dal Makhani', variantName: 'Half', qty: 1, unitPrice: 160, total: 160 }, { itemName: 'Jeera Rice', variantName: '', qty: 2, unitPrice: 200, total: 400 }] },
-  { id: 'KOT-405', tableId: '09', status: 'Served', time: '12:50 PM', items: [{ itemName: 'Butter Chicken', variantName: 'Full', qty: 1, unitPrice: 450, total: 450 }, { itemName: 'Tandoori Roti', variantName: '', qty: 3, unitPrice: 30, total: 90 }] },
-];
+import { kotService } from '../../../services/kotService';
 
 const STATUS_CONFIG = {
   'Sent to Kitchen': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
@@ -22,14 +16,73 @@ const STATUS_CONFIG = {
 };
 
 const STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
+
 const ViewKOTPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { tables, setTables } = useRestaurant();
-  const routedTable = location.state?.table;
+  const routedTable = location.state?.table || null;
+  useEffect(() => {
+    if (routedTable) {
+      try { sessionStorage.setItem('alfa_view_kot_selected_table', JSON.stringify(routedTable)); } catch {}
+    }
+  }, [routedTable]);
+
+  // Read table filter from location.state, URL search params, or sessionStorage
+  const queryParams = new URLSearchParams(location.search);
+  const urlTableId = queryParams.get('tableId') || queryParams.get('table_id') || queryParams.get('table_no');
+
+  const [selectedTableFilter, setSelectedTableFilter] = useState(() => {
+    if (routedTable) return routedTable;
+    if (urlTableId) return { id: urlTableId, no: String(urlTableId).replace(/[^0-9]/g, '') || urlTableId };
+    try {
+      const savedViewKot = sessionStorage.getItem('alfa_view_kot_selected_table');
+      if (savedViewKot) return JSON.parse(savedViewKot);
+      const savedPosTable = sessionStorage.getItem('alfa_selected_pos_table');
+      if (savedPosTable) {
+        const parsed = JSON.parse(savedPosTable);
+        return parsed.table || { id: parsed.tableId, no: parsed.tableNumber ? String(parsed.tableNumber).replace(/[^0-9]/g, '') : parsed.tableId };
+      }
+    } catch {}
+    return null;
+  });
+
   const [selected, setSelected] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
   const [loadingKots, setLoadingKots] = useState(false);
+  const [dbKots, setDbKots] = useState([]);
+
+  useEffect(() => {
+    if (location.state?.table) {
+      setSelectedTableFilter(location.state.table);
+    } else if (urlTableId) {
+      setSelectedTableFilter({ id: urlTableId, no: String(urlTableId).replace(/[^0-9]/g, '') || urlTableId });
+    }
+  }, [location.state, location.search]);
+
+  useEffect(() => {
+    async function loadBackendKots() {
+      try {
+        setLoadingKots(true);
+        const params = selectedTableFilter ? {
+          tableId: selectedTableFilter.id,
+          table_id: selectedTableFilter.id,
+          table_no: selectedTableFilter.no
+        } : {};
+        const res = await kotService.getKOTList(params);
+        const rawKots = res?.kots || res?.data || [];
+        if (Array.isArray(rawKots)) {
+          console.log('✅ Loaded live PostgreSQL KOTs for selected table:', rawKots);
+          setDbKots(rawKots);
+        }
+      } catch (err) {
+        console.warn('Error loading KOT list from backend:', err);
+      } finally {
+        setLoadingKots(false);
+      }
+    }
+    loadBackendKots();
+  }, [selectedTableFilter]);
 
   useEffect(() => {
     const styleId = 'spinner-style';
@@ -46,42 +99,45 @@ const ViewKOTPage = () => {
   }, []);
 
   const kots = useMemo(() => {
-    const list = [];
-    tables.forEach(t => {
-      (t.kots || []).forEach(k => {
-        list.push({ id: k.id, tableId: t.no, status: k.status || 'Sent to Kitchen', time: k.time || '—', items: k.items || [] });
-      });
-    });
-    let result = list.length === 0 ? [...INITIAL_KOTS] : list;
-
-    // Sort recent KOTs at top (newest first)
-    result.reverse();
-
-    if (routedTable) result = result.filter(k => String(k.tableId) === String(routedTable.no));
+    let result = [...dbKots];
+    if (selectedTableFilter) {
+      result = result.filter(k => String(k.tableId) === String(selectedTableFilter.no) || String(k.tableId) === String(selectedTableFilter.id));
+    }
     if (filterStatus !== 'All') result = result.filter(k => k.status === filterStatus);
     return result;
-  }, [tables, routedTable, filterStatus]);
+  }, [dbKots, selectedTableFilter, filterStatus]);
 
-  const handleStatusChange = (kotId, nextStatus) => {
-    setLoadingKots(true);
-    setTimeout(() => {
+  const handleStatusChange = async (kotId, nextStatus) => {
+    try {
+      setLoadingKots(true);
+      await kotService.updateKOTStatus(kotId, { status: nextStatus });
+      setDbKots(prev => prev.map(k => k.id === kotId ? { ...k, status: nextStatus } : k));
       setTables(prev => prev.map(t => ({
         ...t,
         kots: (t.kots || []).map(k => k.id === kotId ? { ...k, status: nextStatus } : k),
       })));
-      setLoadingKots(false);
       window.showToast?.(`KOT ${kotId} updated to ${nextStatus}`, 'success');
-    }, 500);
+    } catch (err) {
+      console.error('Error updating status:', err);
+      window.showToast?.(`Failed to update KOT status`, 'error');
+    } finally {
+      setLoadingKots(false);
+    }
   };
 
-  const handleDelete = (kotId) => {
+  const handleDelete = async (kotId) => {
     if (window.confirm(`Are you sure you want to delete KOT ${kotId}?`)) {
-      setLoadingKots(true);
-      setTimeout(() => {
+      try {
+        setLoadingKots(true);
+        await kotService.deleteKOT(kotId);
+        setDbKots(prev => prev.filter(k => k.id !== kotId));
         setTables(prev => prev.map(t => ({ ...t, kots: (t.kots || []).filter(k => k.id !== kotId) })));
+        window.showToast?.(`KOT ${kotId} deleted from database`, 'info');
+      } catch (err) {
+        console.error('Error deleting KOT:', err);
+      } finally {
         setLoadingKots(false);
-        window.showToast?.(`KOT ${kotId} deleted`, 'info');
-      }, 500);
+      }
     }
   };
 
@@ -107,11 +163,14 @@ const ViewKOTPage = () => {
 
   const handleOpenPOSBilling = (kot) => {
     const matchedTable = tables.find(t => String(t.no) === String(kot.tableId)) || { no: kot.tableId, id: kot.tableId };
-    navigate('/restaurant/pos-billing', {
+    const kotIdVal = kot.kotId || kot.id;
+    navigate(`/restaurant/pos-billing?kotId=${kotIdVal}`, {
       state: {
         table: matchedTable,
         tableId: matchedTable.id,
         tableNumber: matchedTable.no,
+        kotId: kotIdVal,
+        isKotView: true,
         kot: kot,
         rows: kot.items
       }
@@ -119,12 +178,11 @@ const ViewKOTPage = () => {
   };
 
   const counts = useMemo(() => {
-    const all = tables.flatMap(t => t.kots || []).length || INITIAL_KOTS.length;
     return {
-      All: all,
-      ...Object.fromEntries(STATUSES.map(s => [s, (tables.flatMap(t => t.kots || []).filter(k => k.status === s).length || INITIAL_KOTS.filter(k => k.status === s).length)])),
+      All: dbKots.length,
+      ...Object.fromEntries(STATUSES.map(s => [s, dbKots.filter(k => k.status === s).length])),
     };
-  }, [tables]);
+  }, [dbKots]);
 
   return (
     <div style={{ padding: '24px', fontFamily: 'var(--font-family)', backgroundColor: 'var(--background)', minHeight: '100%' }}>
@@ -135,7 +193,15 @@ const ViewKOTPage = () => {
       />
 
       {/* Filter pills */}
-      <div style={{ display: 'flex', gap: '8px', margin: '20px 0 16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', margin: '20px 0 16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        {selectedTableFilter && (
+          <button
+            onClick={() => setSelectedTableFilter(null)}
+            style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', border: '1.5px solid #0e7490', background: '#0e7490', color: '#fff' }}
+          >
+            Table T{selectedTableFilter.no} ✕ (Show All Tables)
+          </button>
+        )}
         {['All', ...STATUSES].map(s => {
           const cfg = STATUS_CONFIG[s] || { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
           const active = filterStatus === s;

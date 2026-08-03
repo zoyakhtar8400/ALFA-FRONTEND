@@ -3,7 +3,7 @@ import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
 export const useTableOperations = (location, navigate) => {
-  const { tables, setTables, orderItemsMap, setOrderItemsMap } = useRestaurant();
+  const { tables, setTables, orderItemsMap, setOrderItemsMap, loading } = useRestaurant();
 
   // Modal open states
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
@@ -695,6 +695,7 @@ export const useTableOperations = (location, navigate) => {
 
   return {
     tables,
+    loading,
     setTables,
     orderItemsMap,
     setOrderItemsMap,

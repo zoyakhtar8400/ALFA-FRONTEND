@@ -11,14 +11,75 @@ const MenuPanel = ({
   category,
   setCategory,
   onPreviousBookingsClick,
-  toast
+  toast,
+  isBillingDesk = false
 }) => {
   return (
-    <div className="pos-menu-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #cbd5e1', background: '#fff' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0e7490', margin: 0, letterSpacing: '0.5px' }}>
-          RESTAURANT POS
-        </h2>
+    <div className="pos-menu-section" style={{ flex: 1, flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
+      <style>{`
+        .pos-menu-body {
+          display: flex;
+          flex: 1;
+          overflow: hidden;
+        }
+        .category-sidebar-desktop {
+          width: 180px;
+          background: #fff;
+          border-right: 1px solid #cbd5e1;
+          display: flex;
+          flex-direction: column;
+          padding-top: 12px;
+        }
+        .category-pills-mobile {
+          display: none;
+        }
+        .items-grid-container {
+          flex: 1;
+          padding: 20px;
+          overflow-y: auto;
+          background: #fff;
+        }
+
+        @media (max-width: 767px) {
+          .pos-menu-body {
+            flex-direction: column !important;
+          }
+          .category-sidebar-desktop {
+            display: none !important;
+          }
+          .category-pills-mobile {
+            display: flex !important;
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding: 8px 12px !important;
+            gap: 8px !important;
+            background: #f8fafc !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+          .category-pills-mobile::-webkit-scrollbar {
+            display: none;
+          }
+          .items-grid-container {
+            padding: 12px !important;
+          }
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #cbd5e1', background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 900, color: isBillingDesk ? '#047857' : '#0e7490', margin: 0, letterSpacing: '0.5px' }}>
+            {isBillingDesk ? 'RESTAURANT BILLING DESK' : 'RESTAURANT POS'}
+          </h2>
+          <span style={{
+            fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '12px',
+            background: isBillingDesk ? '#ecfdf5' : '#ecfeff',
+            color: isBillingDesk ? '#047857' : '#0e7490',
+            border: isBillingDesk ? '1px solid #a7f3d0' : '1px solid #a5f3fc'
+          }}>
+            {isBillingDesk ? 'Cashier & Settlement' : 'Point of Sale'}
+          </span>
+        </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             onClick={onPreviousBookingsClick}
@@ -58,8 +119,31 @@ const MenuPanel = ({
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div style={{ width: '180px', background: '#fff', borderRight: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column', paddingTop: '20px' }}>
+      {/* Horizontal Scrollable Category Pills Bar for Mobile View */}
+      <div className="category-pills-mobile">
+        {availableCategories.map(cat => {
+          const isSelected = category === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              style={{
+                padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800,
+                border: isSelected ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
+                background: isSelected ? '#0e7490' : '#ffffff',
+                color: isSelected ? '#ffffff' : '#475569',
+                cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s'
+              }}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="pos-menu-body">
+        {/* Desktop Vertical Category Sidebar */}
+        <div className="category-sidebar-desktop">
           {availableCategories.map(cat => {
             const isSelected = category === cat;
             return (
@@ -83,11 +167,12 @@ const MenuPanel = ({
           })}
         </div>
 
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', background: '#fff' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+        {/* Food Items Grid (100% width on Mobile) */}
+        <div className="items-grid-container">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
             {filteredGridItems.map((item, idx) => (
               <button
-                key={item.id || item.name}
+                key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx}
                 className="grid-item-btn"
                 data-index={idx}
                 onClick={() => handleGridItemClick(item)}
@@ -119,20 +204,20 @@ const MenuPanel = ({
                   }
                 }}
                 style={{
-                  padding: '20px 12px', borderRadius: '8px',
+                  padding: '16px 10px', borderRadius: '8px',
                   border: item.isVeg === false ? '2px solid #ef4444' : '2px solid #16a34a',
                   background: '#fff', textAlign: 'center', cursor: 'pointer',
-                  fontSize: '0.8rem', fontWeight: 800, color: '#334155',
+                  fontSize: '0.78rem', fontWeight: 800, color: '#334155',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex',
                   flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  minHeight: '85px', textTransform: 'uppercase', transition: 'all 0.15s ease'
+                  minHeight: '80px', textTransform: 'uppercase', transition: 'all 0.15s ease'
                 }}
                 onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'none'}
               >
                 <span>{item.name}</span>
                 {item.variants && item.variants.length > 0 && (
-                  <span style={{ fontSize: '0.65rem', color: '#0e7490', marginTop: '4px', fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.62rem', color: '#0e7490', marginTop: '4px', fontWeight: 700 }}>
                     {item.variants.length} Variants Available
                   </span>
                 )}

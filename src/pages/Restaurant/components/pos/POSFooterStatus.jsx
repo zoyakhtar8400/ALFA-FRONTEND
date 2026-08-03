@@ -16,10 +16,19 @@ const POSFooterStatus = ({ billNo = 'BILL-000123', cashierName = 'Admin', outlet
 
   return (
     <div style={{
+      position: 'sticky',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 50,
+      width: '100%',
+      boxSizing: 'border-box',
       display: 'flex',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '4px 16px',
+      gap: '4px 12px',
+      padding: '6px 12px',
       background: 'linear-gradient(90deg, #A16207, #CA8A04)',
       color: '#ffffff',
       fontSize: '0.68rem',
@@ -27,10 +36,11 @@ const POSFooterStatus = ({ billNo = 'BILL-000123', cashierName = 'Admin', outlet
       fontFamily: 'monospace',
       borderTop: '1px solid #a16207',
       userSelect: 'none',
-      height: '24px'
+      minHeight: '28px',
+      height: 'auto'
     }}>
       {/* Left info */}
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <span>Bill: {billNo}</span>
         <span style={{ opacity: 0.8 }}>|</span>
         <span>Cashier: {cashierName}</span>

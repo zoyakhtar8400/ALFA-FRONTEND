@@ -1,74 +1,42 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React from 'react';
 import { FaPrint, FaEye } from 'react-icons/fa';
 
-const STATUS_CONFIG = {
-  Running: { bg: '#f5c518', text: '#1a0f00', border: '1px solid #d4a800' },
-  Reserved: { bg: '#fb923c', text: '#fff', border: '1px solid #ea7c1e' },
-  Paid: { bg: '#22c55e', text: '#fff', border: '1px solid #16a34a' },
-  Cleaning: { bg: '#f1f5f9', text: '#334155', border: '1px solid #cbd5e1' },
-  'KOT Generated': { bg: '#f5c518', text: '#1a0f00', border: '1px solid #d4a800' },
-  'Food Served': { bg: '#4ade80', text: '#14532d', border: '1px solid #22c55e' },
-  'Bill Generated': { bg: '#22c55e', text: '#fff', border: '1px solid #16a34a' },
-  Blank: { bg: '#ffffff', text: '#6b7280', border: '1px solid #d1d5db' },
+const COLOR_MAP = {
+  white: { bg: '#ffffff', text: '#6b7280', border: '1px solid #d1d5db' },
+  orange: { bg: '#f5c518', text: '#1a0f00', border: '1px solid #d4a800' },
+  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' }
 };
 
-const TableCard = React.memo(({ table, onClick, onSave, onView, onOpenOps, isSelected }) => {
-  const cfg = STATUS_CONFIG[table.status] || STATUS_CONFIG.Blank;
-  const isBlank = table.status === 'Blank';
-  const isCleaning = table.status === 'Cleaning';
-  const isPaid = table.status === 'Paid' || table.status === 'Bill Generated';
-  const isRunning = !isBlank && !isCleaning && !isPaid;
+const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) => {
+  // Determine color theme strictly from backend attributes
+  const colorKey = (
+    table.color ||
+    (table.status === 'PAYMENT_COMPLETED' || table.status === 'CLEANUP_RUNNING' ? 'green' :
+     table.status === 'KOT_CUT' || table.status === 'ORDERED' || table.status === 'Running' ? 'orange' : 'white')
+  ).toLowerCase();
 
-  // Stable fallback timestamp if no table timestamp exists
-  const fallbackStartTime = useMemo(() => {
-    return Date.now() - (table.initialElapsed || (parseInt(table.no || '1', 10) * 45) || 120) * 1000;
-  }, [table.no, table.initialElapsed]);
+  const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
+  const isAvailable = colorKey === 'white' || table.status === 'AVAILABLE' || table.status === 'Blank';
+  const isPaymentCompleted = colorKey === 'green' || table.status === 'PAYMENT_COMPLETED' || table.status === 'CLEANUP_RUNNING';
 
-  const [elapsed, setElapsed] = useState(0);
+  // Backend controls available actions:
+  // Green table -> ['print_kot'] (View KOT is REMOVED!)
+  // Orange table -> ['print_kot', 'view_kot']
+  // White table -> []
+  const actions = Array.isArray(table.available_actions)
+    ? table.available_actions
+    : (isPaymentCompleted ? ['print_kot'] : !isAvailable ? ['print_kot', 'view_kot'] : []);
 
-  useEffect(() => {
-    if (isBlank) {
-      setElapsed(0);
-      return;
-    }
-
-    const baseTime = table.cleanedAt || table.paidAt || table.openedAt || table.updatedAt || fallbackStartTime;
-
-    const tick = () => {
-      const diff = Math.max(0, Math.floor((Date.now() - baseTime) / 1000));
-      setElapsed(diff);
-    };
-
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [table.status, table.openedAt, table.paidAt, table.cleanedAt, table.updatedAt, isBlank, fallbackStartTime]);
-
-  // Compute display timer badge text without emojis
-  const getTimerLabel = () => {
-    if (isBlank) return null;
-
-    if (isCleaning) {
-      const cleanDuration = 45; // 45 seconds clean window
-      const remaining = Math.max(0, cleanDuration - (elapsed % cleanDuration));
-      return `Clears in ${remaining}s`;
-    }
-
-    if (isPaid) {
-      const remaining = Math.max(0, 30 - (elapsed % 30));
-      return `Clears in ${remaining}s`;
-    }
-
-    // Running table timer: NO SECONDS, ONLY MINUTES / HOURS
-    const mins = Math.floor(elapsed / 60);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    const remMins = mins % 60;
-    return remMins > 0 ? `${hrs}h ${remMins}m ago` : `${hrs}h ago`;
+  // Format backend remaining_seconds into 00:SS or MM:SS
+  const formatTimer = (totalSec) => {
+    if (totalSec === undefined || totalSec === null || totalSec <= 0) return null;
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const relativeTime = getTimerLabel();
-  const showActions = !isBlank;
+  const timerText = isPaymentCompleted ? formatTimer(table.remaining_seconds) : null;
+  const showActions = actions.length > 0;
 
   return (
     <div
@@ -86,27 +54,27 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onOpenOps, isSel
         alignItems: 'center',
         justifyContent: 'center',
         height: '105px',
-        position: 'relative',      /* anchor for absolute children */
+        position: 'relative',
         textAlign: 'center',
         outline: 'none',
         userSelect: 'none',
-        boxShadow: isBlank ? 'none' : '0 1px 4px rgba(0,0,0,0.12)',
+        boxShadow: isAvailable ? 'none' : '0 1px 4px rgba(0,0,0,0.12)',
         transition: 'transform 100ms ease, box-shadow 100ms ease',
-        overflow: 'visible',       /* let badges bleed outside */
+        overflow: 'visible',
       }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.18)'; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isBlank ? 'none' : '0 1px 4px rgba(0,0,0,0.12)'; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isAvailable ? 'none' : '0 1px 4px rgba(0,0,0,0.12)'; }}
     >
-      {/* ── Timer badge — overlaps top-left corner ── */}
-      {relativeTime && (
+      {/* ── Timer badge (backend calculated remaining_seconds) ── */}
+      {timerText && (
         <div style={{
           position: 'absolute',
           top: '-9px',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: isCleaning ? '#0284c7' : isPaid ? '#16a34a' : elapsed > 3600 ? '#dc2626' : 'rgba(15, 23, 42, 0.85)',
+          background: '#15803d',
           color: '#fff',
-          fontSize: '0.6rem',
+          fontSize: '0.65rem',
           fontWeight: 800,
           lineHeight: 1,
           padding: '3px 8px',
@@ -115,23 +83,23 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onOpenOps, isSel
           zIndex: 5,
           boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
         }}>
-          {relativeTime}
+          {timerText}
         </div>
       )}
 
       {/* ── Table number ── */}
       <div style={{ fontSize: '1.1rem', fontWeight: 800, lineHeight: 1 }}>
-        T{parseInt(table.no, 10)}
+        T{parseInt(table.no || table.table_no || '1', 10)}
       </div>
 
       {/* ── Amount ── */}
-      {!isBlank && table.amount > 0 && (
+      {!isAvailable && !isPaymentCompleted && table.amount > 0 && (
         <div style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '5px', lineHeight: 1 }}>
           ₹{table.amount.toLocaleString('en-IN')}
         </div>
       )}
 
-      {/* ── Icons — overlaps bottom edge ── */}
+      {/* ── Backend Driven Action Icons ── */}
       {showActions && (
         <div
           onClick={e => e.stopPropagation()}
@@ -150,21 +118,15 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onOpenOps, isSel
             zIndex: 5,
           }}
         >
-          {isPaid ? (
-            <Btn title="Print Bill" onClick={onSave} color="#374151">
+          {actions.includes('print_kot') && (
+            <Btn title="Print KOT" onClick={onSave} color="#374151">
               <FaPrint size={15} />
             </Btn>
-          ) : (
-            <>
-              {isRunning && (
-                <Btn title="Print KOT" onClick={onSave} color="#374151">
-                  <FaPrint size={15} />
-                </Btn>
-              )}
-              <Btn title="View / Edit Order" onClick={onView} color="#374151">
-                <FaEye size={15} />
-              </Btn>
-            </>
+          )}
+          {actions.includes('view_kot') && (
+            <Btn title="View / Edit Order" onClick={onView} color="#374151">
+              <FaEye size={15} />
+            </Btn>
           )}
         </div>
       )}

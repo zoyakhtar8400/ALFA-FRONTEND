@@ -3,112 +3,56 @@ import { FaPrint, FaFileInvoiceDollar } from 'react-icons/fa';
 import CommonTable from '../../../components/common/CommonTable';
 import CommonModal from '../../../components/common/CommonModal';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
-
-const MOCK_BILLS = [
-  {
-    id: 1,
-    billNo: '1',
-    tableNo: 'T1',
-    billType: 'DINE_IN',
-    billDate: '05-05-2026',
-    orderNo: '1',
-    amount: 140.0,
-    customerName: 'Walk-in',
-    mobileNo: '—',
-    items: [
-      { itemId: 106, itemName: 'Cold Drink', name: 'Cold Drink', variantId: '500ml', variantName: '500 ML', variant: '500 ML', qty: 2, unitPrice: 70, rate: 70, price: 70, total: 140.0 }
-    ]
-  },
-  {
-    id: 2,
-    billNo: '2',
-    tableNo: 'T2',
-    billType: 'DINE_IN',
-    billDate: '08-06-2026',
-    orderNo: '1',
-    amount: 360.0,
-    customerName: 'Walk-in',
-    mobileNo: '—',
-    items: [
-      { itemId: 102, itemName: 'Paneer Tikka', name: 'Paneer Tikka', variantId: 'half', variantName: 'Half', variant: 'Half', qty: 1, unitPrice: 180, rate: 180, price: 180, total: 180 },
-      { itemId: 108, itemName: 'Tandoori Roti', name: 'Tandoori Roti', variantId: '', variantName: '', variant: '', qty: 6, unitPrice: 30, rate: 30, price: 30, total: 180 }
-    ]
-  },
-  {
-    id: 3,
-    billNo: '3',
-    tableNo: 'T3',
-    billType: 'DINE_IN',
-    billDate: '11-06-2026',
-    orderNo: '2',
-    amount: 560.0,
-    customerName: 'Rahul Sharma',
-    mobileNo: '9876543210',
-    items: [
-      { itemId: 101, itemName: 'Chicken Tandoori', name: 'Chicken Tandoori', variantId: 'full', variantName: 'Full', variant: 'Full', qty: 1, unitPrice: 520, rate: 520, price: 520, total: 520 },
-      { itemId: 106, itemName: 'Cold Drink', name: 'Cold Drink', variantId: '250ml', variantName: '250 ML', variant: '250 ML', qty: 1, unitPrice: 40, rate: 40, price: 40, total: 40 }
-    ]
-  },
-  {
-    id: 4,
-    billNo: '4',
-    tableNo: 'T4',
-    billType: 'DINE_IN',
-    billDate: '27-06-2026',
-    orderNo: '3,4',
-    amount: 400.0,
-    customerName: 'Walk-in',
-    mobileNo: '—',
-    items: [
-      { itemId: 118, itemName: 'Butter Naan', name: 'Butter Naan', variantId: '', variantName: '', variant: '', qty: 3, unitPrice: 80, rate: 80, price: 80, total: 240 },
-      { itemId: 107, itemName: 'Dal Makhani', name: 'Dal Makhani', variantId: 'half', variantName: 'Half', variant: 'Half', qty: 1, unitPrice: 160, rate: 160, price: 160, total: 160 }
-    ]
-  },
-  {
-    id: 5,
-    billNo: '5',
-    tableNo: '103',
-    billType: 'DINE_IN',
-    billDate: '07-07-2026',
-    orderNo: '10',
-    amount: 1200.0,
-    customerName: 'Jane Doe',
-    mobileNo: '9888877777',
-    items: [
-      { itemId: 101, itemName: 'Butter Chicken', name: 'Butter Chicken', variantId: 'full', variantName: 'Full', variant: 'Full', qty: 2, unitPrice: 450, rate: 450, price: 450, total: 900 },
-      { itemId: 104, itemName: 'Garlic Naan', name: 'Garlic Naan', variantId: '', variantName: '', variant: '', qty: 3, unitPrice: 100, rate: 100, price: 100, total: 300 }
-    ]
-  },
-  {
-    id: 6,
-    billNo: '6',
-    tableNo: 'T9',
-    billType: 'DINE_IN',
-    billDate: '08-07-2026',
-    orderNo: '11',
-    amount: 140.0,
-    customerName: 'Walk-in',
-    mobileNo: '—',
-    items: [
-      { itemId: 122, itemName: 'French Fries', name: 'French Fries', variantId: '', variantName: '', variant: '', qty: 1, unitPrice: 140, rate: 140, price: 140, total: 140 }
-    ]
-  }
-];
+import { orderService } from '../../../services/orderService';
 
 const OrderDetailsPage = ({ showToast }) => {
-  const [data, setData] = useState(MOCK_BILLS);
+  const [data, setData] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  React.useEffect(() => {
+    async function loadOrders() {
+      try {
+        const res = await orderService.getOrders();
+        const rawOrders = res?.orders || res?.data || [];
+        if (Array.isArray(rawOrders)) {
+          const mapped = rawOrders.map(o => ({
+            id: o.id,
+            billNo: String(o.billNo || o.id),
+            tableNo: o.tableNo || o.table_name || `T${o.table_id || o.id}`,
+            billType: o.billType || o.order_type || 'DINE_IN',
+            billDate: new Date(o.createdAt || o.billDate || Date.now()).toLocaleDateString(),
+            orderNo: String(o.orderNo || o.order_number || o.id),
+            amount: Number(o.amount || o.total_amount || 0),
+            customerName: o.customerName || o.customer_name || 'Walk-in',
+            mobileNo: o.mobileNo || o.customer_phone || '—',
+            items: o.items || []
+          }));
+          setData(mapped);
+        }
+      } catch (err) {
+        console.warn('Error loading live orders:', err);
+      }
+    }
+    loadOrders();
+  }, []);
 
   const handleMenuClick = (bill) => {
     setSelectedBill(bill);
     setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
-    setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
-    if (showToast) showToast('Order entry deleted successfully.');
+  const handleDelete = async () => {
+    if (deleteModal.row) {
+      try {
+        await orderService.deleteOrder(deleteModal.row.id);
+        setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
+        if (showToast) showToast('Order entry deleted from database successfully.', 'success');
+      } catch (err) {
+        console.error('Error deleting order from database:', err);
+      }
+    }
     setDeleteModal({ open: false, row: null });
   };
 

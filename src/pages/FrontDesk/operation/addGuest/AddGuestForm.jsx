@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
-import { FaUser, FaBed } from 'react-icons/fa';
+import { FaUser, FaBed, FaQrcode } from 'react-icons/fa';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
+import AadhaarScannerModal from '../../../../components/aadhaar/AadhaarScannerModal';
+import { useHardwareScanner } from '../../../../hooks/useHardwareScanner';
 
 const F = ({ label, type = 'text', placeholder, required, disabled, children, value, onChange, style, inputStyle, inputClassName }) => (
   <div className="form-field" style={{ marginBottom: '4px', ...style }}>
@@ -50,6 +52,29 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel, existingRecords = [
     temperature: initialData?.temperature || '',
     remark: initialData?.remark || '',
   });
+
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [guestPhoto, setGuestPhoto] = useState(null);
+
+  const handleAadhaarScanned = (scannedData) => {
+    setForm(f => ({
+      ...f,
+      guestName: scannedData.name || f.guestName,
+      gender: scannedData.gender || f.gender,
+      age: scannedData.age || f.age,
+      address: scannedData.fullAddress || (scannedData.address ? `${scannedData.address.house || ''} ${scannedData.address.street || ''}`.trim() : '') || f.address,
+      city: scannedData.address?.vtc || scannedData.address?.district || f.city,
+      idProof: 'Aadhaar Card',
+      idProofNo: scannedData.last4 || scannedData.referenceId || f.idProofNo
+    }));
+
+    if (scannedData.photoDataUrl) {
+      setGuestPhoto(scannedData.photoDataUrl);
+    }
+  };
+
+  // Hands-free USB 2D Barcode Scanner listener
+  useHardwareScanner(handleAadhaarScanned);
 
   const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
     existingRecords,
@@ -136,7 +161,47 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel, existingRecords = [
 
           {/* Right Column: Guest Information */}
           <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-            {sectionTitle(<FaUser />, 'Guest Information')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ flex: 1 }}>
+                {sectionTitle(<FaUser />, 'Guest Information')}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '6px 14px', borderRadius: '6px',
+                  background: '#0e7490', color: '#ffffff',
+                  fontSize: '0.8rem', fontWeight: 800, border: 'none',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  boxShadow: '0 2px 4px rgba(14,116,144,0.2)'
+                }}
+              >
+                <FaQrcode size={14} /> Scan Aadhaar QR
+              </button>
+            </div>
+
+            {guestPhoto && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px',
+                background: '#ecfeff', border: '1px solid #a5f3fc', borderRadius: '8px', marginBottom: '10px'
+              }}>
+                <img
+                  src={guestPhoto}
+                  alt="Aadhaar Guest Biometric Photo"
+                  style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #0e7490' }}
+                />
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0e7490', display: 'block' }}>
+                    ✓ Aadhaar Biometric Photo Extracted
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                    Identity verification completed via offline WASM engine
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="form-grid-2">
               <div style={{ gridColumn: 'span 2' }}>
                 <F label="Guest Name" required value={form.guestName} onChange={set('guestName')} placeholder="Full name" />
@@ -165,6 +230,7 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel, existingRecords = [
               <F label="ID Proof">
                 <select className="form-select" value={form.idProof} onChange={set('idProof')} style={{ fontSize: '0.9rem', padding: '4px 8px', height: '34px' }}>
                   <option value="">Select ID Proof</option>
+                  <option value="Aadhaar Card">Aadhaar Card</option>
                   <option value="PAN Card">PAN Card</option>
                   <option value="Passport">Passport</option>
                   <option value="Driving License">Driving License</option>
@@ -193,6 +259,13 @@ const AddGuestForm = ({ mode, initialData, onSave, onCancel, existingRecords = [
         />
         <DuplicateModal />
       </form>
+
+      {/* Aadhaar Scanner Modal */}
+      <AadhaarScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleAadhaarScanned}
+      />
     </div>
   );
 };

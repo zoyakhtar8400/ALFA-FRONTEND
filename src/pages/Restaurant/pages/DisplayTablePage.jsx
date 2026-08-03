@@ -16,6 +16,7 @@ import CommonModal from '../../../components/common/CommonModal';
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
 import { printTaxInvoice } from '../utils/printInvoice';
+import { tableService } from '../../../services/tableService';
 
 const DisplayTablePage = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const DisplayTablePage = () => {
   // Use modular table operations hook
   const {
     tables,
+    loading,
     setTables,
     orderItemsMap,
     setOrderItemsMap,
@@ -86,25 +88,15 @@ const DisplayTablePage = () => {
   } = useTableOperations(location, navigate);
 
   const [filter, setFilter] = useState('All');
-  const [service, setService] = useState('Restaurant');
+  const [service, setService] = useState('All');
   const [search, setSearch] = useState('');
   const [activeRestaurant, setActiveRestaurant] = useState('Main Dining Room');
   const [focusedTableIndex, setFocusedTableIndex] = useState(-1);
   const [isKeyboardNav, setIsKeyboardNav] = useState(false); // only show selection ring during keyboard nav
   const [previewTable, setPreviewTable] = useState(null);
 
-  // On mount: reload tables from localStorage in case TableMaster synced since last render
+  // Listen for live sync events while this page is open
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('alfa_restaurant_tables');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTables(parsed);
-        }
-      }
-    } catch {}
-    // Also listen for live sync events while this page is open
     const handleSync = (e) => {
       if (e.detail && Array.isArray(e.detail.tables)) {
         setTables(e.detail.tables);
@@ -239,6 +231,17 @@ const DisplayTablePage = () => {
 
   // Card triggers & routing
   const handleTableCardClick = (table) => {
+    const isBlankTable = table.status === 'Blank' || table.status === 'AVAILABLE';
+    const tableRows = isBlankTable ? [] : (orderItemsMap[table.id] || orderItemsMap[table.no] || orderItemsMap[String(table.no)] || orderItemsMap[Number(table.no)] || []);
+    try {
+      sessionStorage.setItem('alfa_selected_pos_table', JSON.stringify({
+        table,
+        tableId: table.id,
+        tableNumber: `T${table.no}`,
+        rows: tableRows
+      }));
+    } catch (e) {}
+
     if (isBookingMode) {
       if (table.status !== 'Blank') {
         toast("Please select a Blank table for booking!");
@@ -247,8 +250,10 @@ const DisplayTablePage = () => {
       setIsBookingMode(false);
       navigate('/restaurant/pos-billing', {
         state: {
+          table,
           tableId: table.id,
           tableNumber: `T${table.no}`,
+          rows: tableRows,
           isNewBooking: true
         }
       });
@@ -261,8 +266,10 @@ const DisplayTablePage = () => {
       if (table.status === 'Blank') {
         navigate('/restaurant/pos-billing', {
           state: {
+            table,
             tableId: table.id,
             tableNumber: `T${table.no}`,
+            rows: tableRows,
             isNewBooking: true
           }
         });
@@ -271,7 +278,9 @@ const DisplayTablePage = () => {
         navigate('/restaurant/pos-billing', {
           state: {
             table,
-            orderRows: orderItemsMap[table.id] || []
+            tableId: table.id,
+            tableNumber: `T${table.no}`,
+            rows: tableRows
           }
         });
       }
@@ -292,8 +301,13 @@ const DisplayTablePage = () => {
     setDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (tableToDelete) {
+      try {
+        await tableService.patchTableStatus(tableToDelete.id, { status: 'Blank' });
+      } catch (err) {
+        console.warn('Error resetting table status in PostgreSQL:', err);
+      }
       setTables(prev => prev.map(t => {
         if (t.id === tableToDelete.id) {
           return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
@@ -304,7 +318,7 @@ const DisplayTablePage = () => {
         ...prev,
         [tableToDelete.id]: []
       }));
-      toast(`Table T${tableToDelete.no} reset to Blank.`);
+      toast(`Table T${tableToDelete.no} reset to Blank in PostgreSQL.`);
     }
     setDeleteModalOpen(false);
     setTableToDelete(null);
@@ -319,7 +333,7 @@ const DisplayTablePage = () => {
     setAddTableModalOpen(true);
   };
 
-  const handleSaveNewTable = (e) => {
+  const handleSaveNewTable = async (e) => {
     e.preventDefault();
     if (!newTableNo.trim()) {
       setNewTableError("Table number is required!");
@@ -339,28 +353,42 @@ const DisplayTablePage = () => {
       return;
     }
 
-    const newTable = {
-      id: tables.length + 1,
-      no: String(tableNum).padStart(2, '0'),
-      seats: parseInt(newTableSeats) || 4,
-      status: 'Blank',
-      amount: 0,
-      waiter: null,
-      customer: 'Walk-in',
-      floor: newTableFloor,
-      section: newTableSection,
-      kots: [],
-      kotCount: 0
-    };
+    try {
+      const res = await tableService.createTable({
+        table_name: `Table ${tableNum}`,
+        max_person: String(newTableSeats),
+        department: 1,
+        store_id: 'STORE_1'
+      });
 
-    setTables(prev => [...prev, newTable]);
-    setOrderItemsMap(prev => ({
-      ...prev,
-      [newTable.id]: []
-    }));
+      const createdRecord = res?.table || res?.data || {};
 
-    toast(`Table T${newTable.no} added successfully!`);
-    setAddTableModalOpen(false);
+      const newTable = {
+        id: createdRecord.id || Date.now(),
+        no: String(tableNum).padStart(2, '0'),
+        seats: parseInt(newTableSeats) || 4,
+        status: 'Blank',
+        amount: 0,
+        waiter: null,
+        customer: 'Walk-in',
+        floor: newTableFloor,
+        section: newTableSection,
+        kots: [],
+        kotCount: 0
+      };
+
+      setTables(prev => [...prev, newTable]);
+      setOrderItemsMap(prev => ({
+        ...prev,
+        [newTable.id]: []
+      }));
+
+      toast(`Table T${newTable.no} added successfully to PostgreSQL!`);
+      setAddTableModalOpen(false);
+    } catch (err) {
+      console.error('Error adding table to PostgreSQL:', err);
+      toast("Failed to add table to database.");
+    }
   };
 
   // Sections and filters
@@ -371,7 +399,7 @@ const DisplayTablePage = () => {
     const matchesSearch = t.no.includes(search) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
     const matchesSection = filter === 'All' || t.floor === filter || t.section === filter;
     let matchesStatus = true;
-    if (service !== 'All') {
+    if (service !== 'All' && service !== 'Restaurant') {
       if (service === 'Blank') matchesStatus = t.status === 'Blank';
       else if (service === 'Running') matchesStatus = (t.status !== 'Blank' && t.status !== 'Paid' && t.status !== 'Cleaning' && t.status !== 'Reserved');
       else if (service === 'Reserved') matchesStatus = t.status === 'Reserved';
@@ -618,58 +646,86 @@ const DisplayTablePage = () => {
       </div>
 
       {/* 3. Main Tables grid */}
-      <div className="pos-table-grid" style={{
-        flex: 1,
-        padding: '20px 20px 36px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-        gap: '26px 14px',
-        alignContent: 'start',
-        overflowY: 'auto',
-      }}>
-        {filteredData.map((table, idx) => {
-          const isBlank = table.status === 'Blank';
-          const isHighlighted = isBookingMode && isBlank;
-          const isFaded = isBookingMode && !isBlank;
-          return (
-            <div key={table.id} style={{
-              position: 'relative',
-              borderRadius: '8px',
-              border: isHighlighted ? '3px solid #ea580c' : 'none',
-              boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
-              transform: isHighlighted ? 'scale(1.02)' : 'none',
-              opacity: isFaded ? 0.4 : 1,
-              pointerEvents: isFaded ? 'none' : 'auto',
-              transition: 'all 0.2s ease-in-out'
-            }}>
-              <TableCard
-                table={table}
-                isSelected={isKeyboardNav && focusedTableIndex === idx}
-                onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
-                onView={(e) => {
-                  e?.stopPropagation?.();
-                  navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: orderItemsMap[table.id] || [] } });
-                }}
-                onSave={(e) => {
-                  e?.stopPropagation?.();
-                  printTaxInvoice({
-                    tableNo: table.no,
-                    kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    items: orderItemsMap[table.id] || [],
-                    status: table.status
-                  });
-                }}
-              />
-            </div>
-          );
-        })}
+      {loading ? (
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '55vh',
+          gap: '16px'
+        }}>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            border: '4px solid #e2e8f0',
+            borderTop: '4px solid #0f172a',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite'
+          }} />
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#475569' }}>Loading Tables & Backend Data...</span>
+        </div>
+      ) : (
+        <div className="pos-table-grid" style={{
+          flex: 1,
+          padding: '20px 20px 36px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+          gap: '26px 14px',
+          alignContent: 'start',
+          overflowY: 'auto',
+        }}>
+          {filteredData.map((table, idx) => {
+            const isBlank = table.status === 'Blank';
+            const isHighlighted = isBookingMode && isBlank;
+            const isFaded = isBookingMode && !isBlank;
+            return (
+              <div key={`table-${table.id}-${idx}`} style={{
+                position: 'relative',
+                borderRadius: '8px',
+                border: isHighlighted ? '3px solid #ea580c' : 'none',
+                boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
+                transform: isHighlighted ? 'scale(1.02)' : 'none',
+                opacity: isFaded ? 0.4 : 1,
+                pointerEvents: isFaded ? 'none' : 'auto',
+                transition: 'all 0.2s ease-in-out'
+              }}>
+                <TableCard
+                  table={table}
+                  isSelected={isKeyboardNav && focusedTableIndex === idx}
+                  onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
+                  onView={(e) => {
+                    e?.stopPropagation?.();
+                    navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: orderItemsMap[table.id] || [] } });
+                  }}
+                  onSave={(e) => {
+                    e?.stopPropagation?.();
+                    printTaxInvoice({
+                      tableNo: table.no,
+                      kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+                      items: orderItemsMap[table.id] || [],
+                      status: table.status
+                    });
+                  }}
+                />
+              </div>
+            );
+          })}
 
-        {filteredData.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.85rem' }}>
-            No tables match the selected filter.
-          </div>
-        )}
-      </div>
+          {filteredData.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.85rem' }}>
+              No tables match the selected filter.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 4. Operations modal wrapper */}
       <TableOperationsModal

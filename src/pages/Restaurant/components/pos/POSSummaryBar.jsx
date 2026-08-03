@@ -8,8 +8,7 @@ const POSSummaryBar = ({ totalBill, discountAmt = 0, originalBill, onSplitClick 
       background: '#ffffff',
       borderTop: '2px solid #cbd5e1',
       boxShadow: '0 -2px 10px rgba(0,0,0,0.03)',
-      position: 'sticky',
-      bottom: 0,
+      position: 'relative',
       zIndex: 10
     }}>
       {/* Discount breakdown row — shown only when discount is active */}

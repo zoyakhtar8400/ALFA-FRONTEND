@@ -1,6 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useRestaurant } from '../../../context/RestaurantContext';
+import { menuService } from '../../../services/menuService';
+import { kotService } from '../../../services/kotService';
+import { orderService } from '../../../services/orderService';
+import { restaurantApi } from '../../../api/restaurantApi';
 
 // KOT Engine & Printer data
 import { ALL_FOOD_ITEMS } from '../constants/printerData';
@@ -11,124 +15,58 @@ import BillingLayout from '../components/pos/BillingLayout';
 import MenuPanel from '../components/pos/MenuPanel';
 import BillingPanel from '../components/pos/BillingPanel';
 
-const loadUnifiedMenuItems = () => {
-  const mergedMap = new Map();
-
-  // 1. Default fallback from ALL_FOOD_ITEMS
-  ALL_FOOD_ITEMS.forEach(item => {
-    const key = item.name.trim().toLowerCase();
-    mergedMap.set(key, {
-      id: item.id,
-      name: item.name,
-      shortCode: String(item.id),
-      category: (item.category || 'FOOD').toUpperCase(),
-      foodType: item.isVeg === false ? 'Non-Veg' : 'Veg',
-      isVeg: item.isVeg !== false,
-      price: Number(item.price || 0),
-      variants: item.variants || [],
-      productionCategory: item.productionCategory || 'pc1',
-      active: 'Yes',
-      areaPrices: {}
-    });
-  });
-
-  // 2. Load POS Master Menu Items (hms_pos_menu_items)
-  try {
-    const posItems = JSON.parse(localStorage.getItem('hms_pos_menu_items') || '[]');
-    if (Array.isArray(posItems)) {
-      posItems.forEach(item => {
-        if (!item.name) return;
-        const key = item.name.trim().toLowerCase();
-        const existing = mergedMap.get(key) || {};
-        const rawCat = (item.mainGroup || item.itemGroup || existing.category || 'FOOD').toUpperCase();
-        const isVeg = item.category === 'Veg' || item.category === 'VEG' || existing.isVeg !== false;
-        mergedMap.set(key, {
-          id: item.id || existing.id || Date.now(),
-          name: item.name,
-          shortCode: item.dispCode || item.shortCode || existing.shortCode || String(item.id || ''),
-          category: rawCat.includes('BANQUET') ? 'BANQUET' : (rawCat.includes('BEVERAGE') ? 'BEVERAGE' : rawCat),
-          foodType: item.category || (isVeg ? 'Veg' : 'Non-Veg'),
-          isVeg,
-          price: Number(item.price || existing.price || 0),
-          variants: existing.variants || [],
-          productionCategory: existing.productionCategory || 'pc1',
-          active: item.status === 'Inactive' || item.active === 'No' ? 'No' : 'Yes',
-          areaPrices: existing.areaPrices || {}
-        });
-      });
-    }
-  } catch (e) {
-    console.error('Error reading hms_pos_menu_items', e);
-  }
-
-  // 3. Load Common Settings Menu Items (alfa_menu_items) - HIGHEST PRIORITY
-  try {
-    const rawSetting = localStorage.getItem('alfa_menu_items');
-    let settingItems = [];
-    if (rawSetting) {
-      settingItems = JSON.parse(rawSetting);
-    } else {
-      settingItems = [
-        { id: 101, name: 'CHICKEN TANDOORI', shortCode: '101', category: 'FOOD', foodType: 'Non-Veg', price: '280.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '280.00', 'Rooftop': '320.00' } },
-        { id: 102, name: 'PANEER TIKKA', shortCode: '102', category: 'FOOD', foodType: 'Veg', price: '180.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '180.00', 'Rooftop': '210.00' } },
-        { id: 103, name: 'DAL MAKHANI', shortCode: '103', category: 'FOOD', foodType: 'Veg', price: '160.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '160.00', 'Rooftop': '190.00' } },
-        { id: 104, name: 'PANEER BUTTER MASALA', shortCode: '104', category: 'FOOD', foodType: 'Veg', price: '260.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '260.00', 'Rooftop': '300.00' } },
-        { id: 105, name: 'COLD DRINK (500ML)', shortCode: '105', category: 'BEVERAGE', foodType: 'Veg', price: '70.00', active: 'Yes', areaPrices: { 'Restaurant Dining': '70.00', 'Rooftop': '80.00' } }
-      ];
-      try { localStorage.setItem('alfa_menu_items', JSON.stringify(settingItems)); } catch (e) {}
-    }
-
-    if (Array.isArray(settingItems)) {
-      settingItems.forEach(item => {
-        if (!item.name) return;
-        const key = item.name.trim().toLowerCase();
-        const existing = mergedMap.get(key) || {};
-        const isVeg = item.foodType ? item.foodType === 'Veg' : (existing.isVeg !== false);
-        mergedMap.set(key, {
-          id: item.id || existing.id || Date.now(),
-          name: item.name,
-          shortCode: item.shortCode || item.dispCode || existing.shortCode || String(item.id || ''),
-          category: (item.category || existing.category || 'FOOD').toUpperCase(),
-          foodType: item.foodType || (isVeg ? 'Veg' : 'Non-Veg'),
-          isVeg,
-          price: Number(item.price || existing.price || 0),
-          variants: existing.variants || [],
-          productionCategory: existing.productionCategory || 'pc1',
-          active: item.active === 'No' ? 'No' : 'Yes',
-          areaPrices: item.areaPrices || existing.areaPrices || {}
-        });
-      });
-    }
-  } catch (e) {
-    console.error('Error reading alfa_menu_items', e);
-  }
-
-  return Array.from(mergedMap.values());
-};
-
-const INITIAL_ROWS = [
-  { lineId: 'initial-row-1', itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }
-];
+const INITIAL_ROWS = [];
 
 const POSBillingPage = ({ isBillingDesk = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = React.useRef(null);
 
-  // Dynamic Unified Menu Items State from Common Settings & POS Masters
-  const [allMenuItems, setAllMenuItems] = useState(loadUnifiedMenuItems);
+  const [loadingMenu, setLoadingMenu] = useState(true);
+  const [allMenuItems, setAllMenuItems] = useState([]);
 
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setAllMenuItems(loadUnifiedMenuItems());
-    };
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleStorageChange);
-    };
+  // Shared menu loader — used on mount AND when storage/focus events fire
+  const loadRealMenu = useCallback(async () => {
+    try {
+      const res = await menuService.getMenu();
+      const rawItems = res?.data?.items || res?.items || [];
+      if (Array.isArray(rawItems) && rawItems.length > 0) {
+        console.log('✅ Loaded live PostgreSQL menu items:', rawItems);
+        const mapped = rawItems.map(item => ({
+          id: item.item_id || item.id,
+          name: item.title,
+          shortCode: item.short_code || String(item.item_id || ''),
+          category: item['mpos_category.category_name']
+            ? item['mpos_category.category_name'].toUpperCase()
+            : 'FOOD',
+          foodType: item.food_type === 2 ? 'Non-Veg' : 'Veg',
+          isVeg: item.food_type !== 2,
+          price: Number(item.sale_price || 0),
+          active: item.active === 0 ? 'No' : 'Yes',
+          areaPrices: {}
+        }));
+        setAllMenuItems(mapped);
+      }
+    } catch (err) {
+      console.warn('Real menu loading fallback:', err);
+    }
   }, []);
+
+  // Re-load menu when storage or window focus changes (e.g. menu updated in settings)
+  useEffect(() => {
+    window.addEventListener('storage', loadRealMenu);
+    window.addEventListener('focus', loadRealMenu);
+    return () => {
+      window.removeEventListener('storage', loadRealMenu);
+      window.removeEventListener('focus', loadRealMenu);
+    };
+  }, [loadRealMenu]);
+
+  // Load menu on first render
+  useEffect(() => {
+    loadRealMenu();
+  }, [loadRealMenu]);
+
 
   const availableCategories = useMemo(() => {
     const activeItems = allMenuItems.filter(i => i.active !== 'No');
@@ -144,11 +82,20 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const preselectedTableId = location.state?.tableId || null;
   const preselectedTableNumber = location.state?.tableNumber || null;
 
-  // Retrieve routed parameters
-  const routedTable = location.state?.table || null;
-
   // Tables List for Assignment
-  const { tables: tablesList, setTables: setTablesList } = useRestaurant();
+  const { tables: tablesList, setTables: setTablesList, orderItemsMap = {} } = useRestaurant();
+
+  // Context persistence for Table / Order selection across page navigations and refreshes
+  const savedContextRef = React.useRef(null);
+  if (savedContextRef.current === null) {
+    try {
+      const saved = sessionStorage.getItem('alfa_selected_pos_table');
+      if (saved) savedContextRef.current = JSON.parse(saved);
+    } catch (e) {}
+  }
+  const restoredTable = location.state?.table || savedContextRef.current?.table || null;
+  const routedTable = restoredTable;
+  const restoredTableId = preselectedTableId || restoredTable?.id || savedContextRef.current?.tableId || savedContextRef.current?.table?.id || '';
 
   // Component states
   const [category, setCategory] = useState('FOOD');
@@ -163,13 +110,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [serviceType, setServiceType] = useState('Dine In');
 
   // Customer Information inputs
-  const [customerName, setCustomerName] = useState(routedTable?.customer || '');
-  const [mobileNumber, setMobileNumber] = useState(routedTable?.mobile || '');
-  const [paxCount, setPaxCount] = useState(routedTable?.seats || 1);
-  const [paxAdults, setPaxAdults] = useState(routedTable?.seats || 1);
+  const [customerName, setCustomerName] = useState(restoredTable?.customer || '');
+  const [mobileNumber, setMobileNumber] = useState(restoredTable?.mobile || '');
+  const [paxCount, setPaxCount] = useState(restoredTable?.seats || 1);
+  const [paxAdults, setPaxAdults] = useState(restoredTable?.seats || 1);
   const [paxChildren, setPaxChildren] = useState(0);
-  const [waiter, setWaiter] = useState(routedTable?.waiter || '');
-  const [captain, setCaptain] = useState(routedTable?.captain || '');
+  const [waiter, setWaiter] = useState(restoredTable?.waiter || '');
+  const [captain, setCaptain] = useState(restoredTable?.captain || '');
   const [remarks, setRemarks] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
 
@@ -199,7 +146,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [kotCreated, setKotCreated] = useState(false);
   const [generatedKotNo, setGeneratedKotNo] = useState('');
   const [showKotAlert, setShowKotAlert] = useState(false);
-  const [assignedTableId, setAssignedTableId] = useState(preselectedTableId || routedTable?.id || '');
+  const [assignedTableId, setAssignedTableId] = useState(restoredTableId);
 
   // KOT Print Modal states (multi-printer routing)
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
@@ -211,27 +158,104 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [rows, setRows] = useState(INITIAL_ROWS);
   const [isSettling, setIsSettling] = useState(false);
 
-  // Sync items when opened from ViewKOT or TableCard
+  // Check if opened for a specific KOT (KOT-specific Billing View)
+  const queryParams = new URLSearchParams(location.search);
+  const targetKotId = queryParams.get('kotId') || location.state?.kotId;
+  const [kotViewData, setKotViewData] = useState(null);
+
+  // Sync active table data & rows when assignedTableId or location.state changes
   useEffect(() => {
-    const passedRows = location.state?.rows || location.state?.kot?.items;
-    if (passedRows && Array.isArray(passedRows) && passedRows.length > 0) {
-      setRows(passedRows.map((item, idx) => ({
-        lineId: item.lineId || `kot-item-${idx}`,
-        itemId: item.itemId || item.id || idx,
-        itemName: item.itemName || item.name || '',
-        name: item.itemName || item.name || '',
-        variantId: item.variantId || '',
-        variantName: item.variantName || item.variant || '',
-        variant: item.variantName || item.variant || '',
-        qty: item.qty || 1,
-        unitPrice: item.unitPrice || item.price || item.rate || 0,
-        price: item.unitPrice || item.price || item.rate || 0,
-        rate: item.unitPrice || item.price || item.rate || 0,
-        total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
-        remark: item.remark || item.remarks || ''
-      })));
+    async function loadActiveTableData() {
+      // 1. Single KOT view mode
+      if (targetKotId) {
+        try {
+          const singleKotRes = await kotService.getKOTById(targetKotId);
+          const kotObj = singleKotRes?.kot || singleKotRes?.data;
+          if (kotObj) {
+            setKotViewData(kotObj);
+            if (kotObj.tableNo || kotObj.tableId) setAssignedTableId(kotObj.tableNo || kotObj.tableId);
+            setCustomerName(kotObj.customer?.name || kotObj.customer_name || 'Walk-in');
+            setMobileNumber(kotObj.customer?.mobile || kotObj.mobile_number || '');
+            setWaiter(kotObj.waiter || '');
+            setRemarks(kotObj.remark || kotObj.remarks || '');
+            setRows((kotObj.items || []).map((item, idx) => ({
+              lineId: item.lineId || `kot-item-${idx}`,
+              itemId: item.itemId || item.id || idx,
+              itemName: item.itemName || item.name || '',
+              name: item.itemName || item.name || '',
+              variantId: item.variantId || '',
+              variantName: item.variantName || item.variant || '',
+              variant: item.variantName || item.variant || '',
+              qty: item.qty || 1,
+              unitPrice: item.unitPrice || item.price || item.rate || 0,
+              price: item.unitPrice || item.price || item.rate || 0,
+              rate: item.unitPrice || item.price || item.rate || 0,
+              total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
+              remark: item.remark || item.remarks || ''
+            })));
+            return;
+          }
+        } catch (err) {
+          console.warn('Error fetching single KOT:', err);
+        }
+      }
+
+      setKotViewData(null);
+      const currentTable = tablesList.find(
+        t => String(t.id) === String(assignedTableId) || String(t.no) === String(assignedTableId)
+      ) || restoredTable;
+
+      const isBlank = !currentTable || currentTable.status === 'Blank' || currentTable.status === 'AVAILABLE';
+
+      if (isBlank) {
+        setRows([]);
+        if (currentTable?.customer) setCustomerName(currentTable.customer);
+        if (currentTable?.waiter) setWaiter(currentTable.waiter);
+        if (currentTable?.captain) setCaptain(currentTable.captain);
+        return;
+      }
+
+      // Running table: always fetch all active KOT items from PostgreSQL
+      if (!currentTable) return;
+      try {
+        const orderRes = await restaurantApi.getOrders({
+          tableId: currentTable.id,
+          table_id: currentTable.id,
+          table_no: currentTable.no
+        });
+        const activeOrder = orderRes?.orderdata || (Array.isArray(orderRes?.orders) ? orderRes.orders[0] : null);
+        if (activeOrder && Array.isArray(activeOrder.items) && activeOrder.items.length > 0) {
+          setRows(activeOrder.items.map((item, idx) => ({
+            lineId: item.lineId || `item-${idx}`,
+            itemId: item.itemId || item.id || idx,
+            itemName: item.itemName || item.name || '',
+            name: item.itemName || item.name || '',
+            variantId: item.variantId || '',
+            variantName: item.variantName || item.variant || '',
+            variant: item.variantName || item.variant || '',
+            qty: item.qty || 1,
+            unitPrice: item.unitPrice || item.price || item.rate || 0,
+            price: item.unitPrice || item.price || item.rate || 0,
+            rate: item.unitPrice || item.price || item.rate || 0,
+            total: item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0)),
+            remark: item.remark || item.remarks || ''
+          })));
+          if (activeOrder.customer_name) setCustomerName(activeOrder.customer_name);
+          if (activeOrder.waiter_name) setWaiter(activeOrder.waiter_name);
+        } else {
+          setRows([]);
+        }
+      } catch (err) {
+        console.warn('Error fetching active KOT items from PostgreSQL:', err);
+        setRows([]);
+      }
+      if (currentTable.customer) setCustomerName(currentTable.customer);
+      if (currentTable.waiter) setWaiter(currentTable.waiter);
+      if (currentTable.captain) setCaptain(currentTable.captain);
     }
-  }, [location.state]);
+
+    loadActiveTableData();
+  }, [assignedTableId, targetKotId, tablesList, restoredTable]);
 
   // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
@@ -389,25 +413,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     }
   }, [isTableModalOpen, isCustomerDrawerOpen, isPaxModalOpen, isRemarksModalOpen, isGstModalOpen, isSettingsModalOpen, isClearModalOpen, showVariantModal]);
 
-  // Load existing items if editing
-  useEffect(() => {
-    if (!isNewBooking && routedTable) {
-      if (location.state?.orderRows) {
-        setRows(location.state.orderRows);
-      } else if (routedTable.id === 2) {
-        setRows([
-          { lineId: 'row-2-1', itemId: 121, itemName: 'CLUB SANDWICH', name: 'CLUB SANDWICH', variantId: '', variantName: '', variant: '', remark: 'Medium Spicy', qty: 1, unitPrice: 180, price: 180, rate: 180, total: 180 },
-          { lineId: 'row-2-2', itemId: 123, itemName: 'COLD COFFEE', name: 'COLD COFFEE', variantId: '', variantName: '', variant: '', remark: 'With Ice Cream', qty: 2, unitPrice: 120, price: 120, rate: 120, total: 240 },
-          { lineId: 'row-2-3', itemId: 104, itemName: 'GARLIC NAAN', name: 'GARLIC NAAN', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 100, price: 100, rate: 100, total: 100 }
-        ]);
-      } else if (routedTable.id === 3) {
-        setRows([
-          { lineId: 'row-3-1', itemId: 109, itemName: 'MOCKTAILS', name: 'MOCKTAILS', variantId: '', variantName: '', variant: '', remark: '', qty: 3, unitPrice: 150, price: 150, rate: 150, total: 450 },
-          { lineId: 'row-3-2', itemId: 116, itemName: 'SPRING ROLLS', name: 'SPRING ROLLS', variantId: '', variantName: '', variant: '', remark: 'Crispy', qty: 2, unitPrice: 180, price: 180, rate: 180, total: 360 }
-        ]);
-      }
-    }
-  }, [location.state, routedTable, isNewBooking]);
+
 
   const toast = (msg) => {
     if (window.showToast) {
@@ -754,7 +760,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   const netBill = totalBill - totalDiscountAmt;
 
-  const handleAddKOT = () => {
+  const handleAddKOT = async () => {
     const activeRows = rows.filter(r => r.name || r.itemName);
     if (activeRows.length === 0) {
       toast('Please add at least one item before generating KOT.');
@@ -765,7 +771,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       return;
     }
 
-    const kotSeq = String(Date.now()).slice(-4);
+    const kotSeq = String(Date.now()).slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
     const newKotNo = `KOT-${kotSeq}`;
     setGeneratedKotNo(newKotNo);
     setKotCreated(true);
@@ -790,6 +796,35 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
     setKotGroups(groups);
     setKotPayloads(payloads);
+
+    // Call backend APIs to persist KOT, Table status, and Order into PostgreSQL
+    try {
+      await kotService.createKOT({
+        kotNo: newKotNo,
+        tableId: resolvedTableId,
+        tableNo,
+        customerName: customerName || 'Walk-in',
+        waiter: waiter || 'Staff',
+        items: activeRows
+      });
+      console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
+    } catch (err) {
+      console.warn('Error calling KOT API:', err);
+    }
+
+    if (resolvedTableId) {
+      try {
+        await restaurantApi.patchTableStatus(resolvedTableId, {
+          order_state: 'Running',
+          amount: activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0),
+          waiter: waiter || 'Staff',
+          customer: customerName || 'Walk-in'
+        });
+        console.log(`✅ Table T${tableNo} status updated to Running in PostgreSQL`);
+      } catch (err) {
+        console.warn('Error updating table status in PostgreSQL:', err);
+      }
+    }
 
     kotSuccessCallbackRef.current = () => {
       if (!resolvedTable) {
@@ -828,94 +863,134 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     toast(`KOT ${newKotNo} → ${groups.length} printer station${groups.length > 1 ? 's' : ''}`);
   };
 
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     if (!assignedTableId) {
       alert("Please select a table to assign!");
       return;
     }
     const targetTable = tablesList.find(t => t.id === assignedTableId);
-    const activeRows = rows.filter(r => r.name !== '');
-    const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * r.price), 0);
+    const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+    const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
 
-    const updatedTable = {
-      ...targetTable,
-      status: 'Running',
-      customer: customerName || 'Rahul Sharma',
-      mobile: mobileNumber || '9876543210',
-      waiter: waiter || 'Rakesh',
-      captain: captain || 'Amit',
-      remarks: remarks || '',
-      amount: finalAmt,
-      openedAt: Date.now() - 5 * 60 * 1000,
-      kots: [{ id: generatedKotNo, amount: finalAmt, items: activeRows }],
-      kotCount: 1
-    };
+    const timeNo = Date.now().toString().slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
+    const newKotNo = `KOT-${timeNo}`;
 
-    toast(`Table T${targetTable.no} assigned successfully!`);
-    navigate('/restaurant/display-table', {
-      state: {
-        updatedTable,
-        updatedRows: activeRows
-      }
-    });
+    // 1. Create KOT in PostgreSQL
+    try {
+      await kotService.createKOT({
+        kotNo: newKotNo,
+        tableId: assignedTableId,
+        tableNo: targetTable?.no || String(assignedTableId),
+        customerName: customerName || 'Walk-in',
+        waiter: waiter || 'Staff',
+        items: activeRows
+      });
+      console.log('✅ KOT created in PostgreSQL for assigned table');
+    } catch (err) {
+      console.warn('Error creating KOT:', err);
+    }
+
+    // 2. Update Table status in PostgreSQL
+    try {
+      await restaurantApi.patchTableStatus(assignedTableId, {
+        order_state: 'Running',
+        amount: finalAmt,
+        waiter: waiter || 'Staff',
+        customer: customerName || 'Walk-in'
+      });
+    } catch (err) {}
+
+    toast(`Table T${targetTable?.no || assignedTableId} assigned successfully!`);
+    navigate('/restaurant/display-table');
   };
 
-  const handleSaveAndPrint = () => {
+  const handleSaveAndPrint = async () => {
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
     const targetTableId = assignedTableId || routedTable?.id || preselectedTableId;
     const targetTableNo = preselectedTableNumber || routedTable?.no;
 
-    const resolvedTable = tablesList.find(t =>
-      (targetTableId && String(t.id) === String(targetTableId)) ||
-      (targetTableNo && String(t.no) === String(targetTableNo))
-    ) || routedTable || {};
+    const timeNo = Date.now().toString().slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
+    const newKotNo = `KOT-${timeNo}`;
 
-    const updatedTable = {
-      ...resolvedTable,
-      id: resolvedTable.id || targetTableId || 1,
-      no: resolvedTable.no || targetTableNo || '1',
-      amount: finalAmt,
-      status: activeRows.length > 0 ? 'Running' : 'Blank',
-      openedAt: resolvedTable.openedAt || Date.now()
-    };
+    // 1. Create KOT in PostgreSQL if items exist
+    if (activeRows.length > 0) {
+      try {
+        await kotService.createKOT({
+          kotNo: newKotNo,
+          tableId: targetTableId || 1,
+          tableNo: targetTableNo || '1',
+          customerName: customerName || 'Walk-in',
+          waiter: waiter || 'Staff',
+          items: activeRows
+        });
+      } catch (err) {}
+    }
 
-    setTablesList(prev => prev.map(t => {
-      if (
-        (updatedTable.id && String(t.id) === String(updatedTable.id)) ||
-        (updatedTable.no && String(t.no) === String(updatedTable.no))
-      ) {
-        return { ...t, ...updatedTable };
-      }
-      return t;
-    }));
+    // 2. Update Table status in PostgreSQL
+    if (targetTableId) {
+      try {
+        await restaurantApi.patchTableStatus(targetTableId, {
+          order_state: activeRows.length > 0 ? 'Running' : 'Blank',
+          amount: finalAmt,
+          waiter: waiter || 'Staff',
+          customer: customerName || 'Walk-in'
+        });
+      } catch (err) {}
+    }
 
-    toast(`Saved and printed KOT for Table T${updatedTable.no || '?'}.`);
-    navigate('/restaurant/display-table', {
-      state: {
-        updatedTable,
-        updatedRows: activeRows
-      }
-    });
+    toast(`Saved and printed KOT for Table T${targetTableNo || '?'}.`);
+    navigate('/restaurant/display-table');
   };
 
-  const handleDirectComplete = () => {
+  const handleDirectComplete = async () => {
     const resolvedId = assignedTableId || routedTable?.id || null;
+    const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     setIsSettling(true);
-    setTimeout(() => {
-      setIsSettling(false);
+
+    try {
+      const orderRes = await orderService.createOrder({
+        tableId: resolvedId || 1,
+        tableNo: preselectedTableNumber || routedTable?.no || '1',
+        customerName: customerName || 'Walk-in',
+        mobileNo: mobileNumber || '—',
+        waiter: waiter || 'Staff',
+        status: 'completed',
+        items: activeRows
+      });
+
+      const createdOrderId = orderRes?.order?.order_id || orderRes?.data?.order_id || orderRes?.order?.id || orderRes?.data?.id;
+      if (createdOrderId) {
+        await orderService.processPayment({
+          orderId: createdOrderId,
+          paymentMethod: 'Cash',
+          amount: netBill
+        });
+      }
       if (resolvedId) {
+        try {
+          await tableService.patchTableStatus(resolvedId, {
+            status: 'Cleaning',
+            amount: 0,
+            customer: 'Walk-in',
+            waiter: null
+          });
+        } catch (err) {}
         setTablesList(prev => prev.map(t =>
-          t.id === resolvedId ? { ...t, status: 'Paid', paidAt: Date.now() } : t
+          t.id === resolvedId ? { ...t, status: 'Cleaning', amount: 0, cleanedAt: Date.now() } : t
         ));
       }
-      toast(`${serviceType} order settled successfully!`);
+      toast(`${serviceType} order settled! Table T${preselectedTableNumber || resolvedId} status changed to Cleaning (Green).`);
+    } catch (err) {
+      console.warn('Error settling order in PostgreSQL:', err);
+    } finally {
+      setIsSettling(false);
       navigate('/restaurant/display-table');
-    }, 2000);
+    }
   };
 
   return (
-    <BillingLayout showMenu={!isBillingDesk}>
+    <BillingLayout showMenu={!isBillingDesk} isBillingDesk={isBillingDesk}>
       {!isBillingDesk && (
         <MenuPanel
           searchInputRef={searchInputRef}
@@ -928,9 +1003,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           setCategory={setCategory}
           onPreviousBookingsClick={() => navigate('/restaurant/booking-list', { state: { fromPOS: true, tableId: assignedTableId, rows, waiter, customerName, mobileNumber, paxCount, remarks, serviceType } })}
           toast={toast}
+          isBillingDesk={isBillingDesk}
         />
       )}
       <BillingPanel
+        isBillingDesk={isBillingDesk}
         isFullWidth={isBillingDesk}
         serviceType={serviceType}
         setServiceType={setServiceType}

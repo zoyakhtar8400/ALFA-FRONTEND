@@ -1,11 +1,76 @@
+import { useState } from 'react';
 import F from '../../../../../components/common/F';
 import SearchDropdown from '../../../../../components/common/SearchDropdown';
-import { FaUser } from 'react-icons/fa';
+import { FaUser, FaQrcode } from 'react-icons/fa';
+import AadhaarScannerModal from '../../../../../components/aadhaar/AadhaarScannerModal';
+import { useHardwareScanner } from '../../../../../hooks/useHardwareScanner';
 
 const GuestInfoSection = ({ form, set, setForm, sectionTitle }) => {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [guestPhoto, setGuestPhoto] = useState(null);
+
+  const handleAadhaarScanned = (scannedData) => {
+    setForm(f => ({
+      ...f,
+      name: scannedData.name || f.name,
+      prefix: scannedData.gender === 'Female' ? 'Mrs.' : 'Mr.',
+      address: scannedData.fullAddress || (scannedData.address ? `${scannedData.address.house || ''} ${scannedData.address.street || ''}`.trim() : '') || f.address,
+      city: scannedData.address?.vtc || scannedData.address?.district || f.city,
+      state: scannedData.address?.state || f.state,
+      idProof: 'Aadhaar Card',
+      idProofNo: scannedData.last4 || scannedData.referenceId || f.idProofNo
+    }));
+
+    if (scannedData.photoDataUrl) {
+      setGuestPhoto(scannedData.photoDataUrl);
+    }
+  };
+
+  useHardwareScanner(handleAadhaarScanned);
+
   return (
     <div style={{ background: 'var(--card-bg, #fff)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px' }}>
-      {sectionTitle(<FaUser />, 'Guest Information')}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div style={{ flex: 1 }}>
+          {sectionTitle(<FaUser />, 'Guest Information')}
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsScannerOpen(true)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '6px 14px', borderRadius: '6px',
+            background: '#0e7490', color: '#ffffff',
+            fontSize: '0.8rem', fontWeight: 800, border: 'none',
+            cursor: 'pointer', transition: 'all 0.15s',
+            boxShadow: '0 2px 4px rgba(14,116,144,0.2)'
+          }}
+        >
+          <FaQrcode size={14} /> Scan Aadhaar QR
+        </button>
+      </div>
+
+      {guestPhoto && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px',
+          background: '#ecfeff', border: '1px solid #a5f3fc', borderRadius: '8px', marginBottom: '10px'
+        }}>
+          <img
+            src={guestPhoto}
+            alt="Aadhaar Guest Biometric Photo"
+            style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #0e7490' }}
+          />
+          <div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0e7490', display: 'block' }}>
+              ✓ Aadhaar Biometric Photo Extracted
+            </span>
+            <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+              Identity verification completed via offline WASM engine
+            </span>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 8px', alignItems: 'start' }}>
 
         {/* Row 1: Name (full width) */}
@@ -76,6 +141,7 @@ const GuestInfoSection = ({ form, set, setForm, sectionTitle }) => {
           <F label="Id Proof" required>
             <select className="form-select" value={form.idProof} onChange={set('idProof')} style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }} required>
               <option value="">Select ID Proof</option>
+              <option value="Aadhaar Card">Aadhaar Card</option>
               <option value="PAN Card">PAN Card</option>
               <option value="Passport">Passport</option>
               <option value="Driving License">Driving License</option>
@@ -86,6 +152,12 @@ const GuestInfoSection = ({ form, set, setForm, sectionTitle }) => {
         </div>
 
       </div>
+
+      <AadhaarScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleAadhaarScanned}
+      />
     </div>
   );
 };

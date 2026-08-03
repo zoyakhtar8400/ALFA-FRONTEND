@@ -23,7 +23,10 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
       <div style={{
         display: 'flex',
         gap: '8px',
-        width: '100%'
+        width: '100%',
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: '4px'
       }}>
         {PAYMENT_MODES.map(mode => {
           const isSelected = activeMode === mode.id;
@@ -34,7 +37,8 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
               type="button"
               onClick={() => onSelectMode(mode.id)}
               style={{
-                flex: 1,
+                flex: '1 0 auto',
+                minWidth: '55px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',

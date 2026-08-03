@@ -17,74 +17,140 @@ const HeaderActions = ({
 }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-      {/* Row 1: Table, Customer, PAX, Remarks */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+      {/* Single Horizontal Row: Table, Customer, PAX, Remarks */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+        gap: '6px',
+        boxSizing: 'border-box'
+      }}>
         <button
           type="button"
           onClick={onTableClick}
           style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-            padding: '8px 4px', border: '1px solid #cbd5e1', borderRadius: '8px',
-            background: '#ffffff', color: '#0e7490', fontWeight: 800, fontSize: '0.68rem',
-            cursor: 'pointer', transition: 'all 0.15s'
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '6px 4px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            background: '#ffffff',
+            color: '#0e7490',
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            boxSizing: 'border-box',
+            height: '36px'
           }}
           onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
           onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
         >
-          <FaUtensils size={14} />
-          <span>{assignedTableNo ? `Table: T${assignedTableNo}` : 'Select Table'}</span>
+          <FaUtensils size={11} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {assignedTableNo ? `T${assignedTableNo}` : 'Table'}
+          </span>
         </button>
 
         <button
           type="button"
           onClick={onCustomerClick}
           style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-            padding: '8px 4px', border: '1px solid #cbd5e1', borderRadius: '8px',
-            background: '#ffffff', color: '#0e7490', fontWeight: 800, fontSize: '0.68rem',
-            cursor: 'pointer', transition: 'all 0.15s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '6px 4px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            background: '#ffffff',
+            color: '#0e7490',
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            boxSizing: 'border-box',
+            height: '36px'
           }}
           onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
           onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
         >
-          <FaUser size={14} />
-          <span>{customerName ? `${customerName}` : 'Customer'}</span>
+          <FaUser size={11} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {customerName ? `${customerName}` : 'Customer'}
+          </span>
         </button>
 
         <button
           type="button"
           onClick={onPaxClick}
           style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-            padding: '8px 4px', border: '1px solid #cbd5e1', borderRadius: '8px',
-            background: '#ffffff', color: '#0e7490', fontWeight: 800, fontSize: '0.68rem',
-            cursor: 'pointer', transition: 'all 0.15s'
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '6px 4px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            background: '#ffffff',
+            color: '#0e7490',
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            boxSizing: 'border-box',
+            height: '36px'
           }}
           onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
           onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
         >
-          <FaUsers size={14} />
-          <span>{paxCount > 0 ? `PAX: ${paxCount}` : 'Set PAX'}</span>
+          <FaUsers size={11} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {paxCount > 0 ? `PAX:${paxCount}` : 'PAX:1'}
+          </span>
         </button>
 
         <button
           type="button"
           onClick={onRemarksClick}
           style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-            padding: '8px 4px', border: '1px solid #cbd5e1', borderRadius: '8px',
-            background: '#ffffff', color: '#0e7490', fontWeight: 800, fontSize: '0.68rem',
-            cursor: 'pointer', transition: 'all 0.15s', position: 'relative'
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '6px 4px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            background: '#ffffff',
+            color: '#0e7490',
+            fontWeight: 800,
+            fontSize: '0.68rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            position: 'relative',
+            boxSizing: 'border-box',
+            height: '36px'
           }}
           onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
           onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
         >
-          <FaCommentAlt size={14} />
-          <span>Remarks</span>
+          <FaCommentAlt size={11} style={{ flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Remarks</span>
           {hasRemarks && (
             <span style={{
-              position: 'absolute', top: '6px', right: '16px',
-              width: '6px', height: '6px', background: '#ef4444',
+              position: 'absolute', top: '3px', right: '4px',
+              width: '5px', height: '5px', background: '#ef4444',
               borderRadius: '50%'
             }} />
           )}
