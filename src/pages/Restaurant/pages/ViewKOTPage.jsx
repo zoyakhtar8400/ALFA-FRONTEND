@@ -134,13 +134,17 @@ const ViewKOTPage = () => {
   };
 
   const handleOpenPOSBilling = (kot) => {
+    // Use the numeric kot_id for the backend query (/kot/:id), not the custom_bill_number string.
+    // kot.kotId is the numeric DB primary key; kot.id is the custom_bill_number display string.
     const kotIdVal = kot.kotId || kot.id;
+    // Pass items directly so POSBillingPage fast-path (location.state.rows) is used
+    // and no secondary API call is needed. Items are already loaded in this list.
     navigate(`/restaurant/pos-billing?kotId=${kotIdVal}`, {
       state: {
         kotId: kotIdVal,
         isKotView: true,
         kot: kot,
-        rows: kot.items
+        rows: kot.items   // exact items for this KOT only
       }
     });
   };

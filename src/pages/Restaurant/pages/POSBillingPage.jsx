@@ -4,6 +4,7 @@ import { useRestaurant } from '../../../context/RestaurantContext';
 import { menuService } from '../../../services/menuService';
 import { kotService } from '../../../services/kotService';
 import { orderService } from '../../../services/orderService';
+import { tableService } from '../../../services/tableService';
 import { restaurantApi } from '../../../api/restaurantApi';
 
 // KOT Engine & Printer data
@@ -24,20 +25,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const searchInputRef = React.useRef(null);
 
   const [loadingMenu, setLoadingMenu] = useState(true);
-  const [allMenuItems, setAllMenuItems] = useState(() =>
-    MOCK_MENU_ITEMS.map(item => ({
-      id: item.id,
-      name: item.name,
-      shortCode: String(item.id),
-      category: item.category || 'FOOD',
-      foodType: item.isVeg === false ? 'Non-Veg' : 'Veg',
-      isVeg: item.isVeg !== false,
-      price: Number(item.price || item.rate || 0),
-      active: 'Yes',
-      variants: item.variants || [],
-      areaPrices: {}
-    }))
-  );
+  const [allMenuItems, setAllMenuItems] = useState([]);
 
   // Shared menu loader — used on mount AND when storage/focus events fire
   const loadRealMenu = useCallback(async () => {
@@ -108,7 +96,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const preselectedTableNumber = location.state?.tableNumber || null;
 
   // Tables List for Assignment
-  const { tables: tablesList, setTables: setTablesList, orderItemsMap = {}, setOrderItemsMap } = useRestaurant();
+  const { tables: tablesList, setTables: setTablesList, refreshTables, orderItemsMap = {}, setOrderItemsMap } = useRestaurant();
 
   // Context persistence for Table / Order selection across page navigations and refreshes
   const savedContextRef = React.useRef(null);
@@ -140,7 +128,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [paxCount, setPaxCount] = useState(restoredTable?.seats || 1);
   const [paxAdults, setPaxAdults] = useState(restoredTable?.seats || 1);
   const [paxChildren, setPaxChildren] = useState(0);
-  const [waiter, setWaiter] = useState(restoredTable?.waiter || '');
+  const [waiter, setWaiter] = useState(restoredTable?.waiter || 'Staff');
   const [captain, setCaptain] = useState(restoredTable?.captain || '');
   const [remarks, setRemarks] = useState('');
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
@@ -167,11 +155,45 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [variantModalItem, setVariantModalItem] = useState(null);
 
+  // Find recent running table automatically for Billing Desk (most recently updated running table)
+  const recentRunningTable = useMemo(() => {
+    if (!tablesList || tablesList.length === 0) return null;
+    const runningTables = tablesList.filter(t =>
+      t.color === 'orange' || t.status === 'Running' || t.status === 'KOT_CUT' ||
+      (t.amount && t.amount > 0 && t.status !== 'PAYMENT_COMPLETED' && t.status !== 'Blank')
+    );
+    if (runningTables.length > 0) {
+      const sorted = [...runningTables].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      return sorted[0];
+    }
+    return null;
+  }, [tablesList]);
+
+  // Stable effective table ID — memoized so it doesn't change every render
+  const effectiveTableId = useMemo(() => {
+    return preselectedTableId || restoredTableId ||
+      (isBillingDesk ? recentRunningTable?.id : null) ||
+      recentRunningTable?.id ||
+      (tablesList.length > 0 ? tablesList[0].id : 1);
+  // Only recalculate when table list first loads or billing-desk table selection changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedTableId, restoredTableId, isBillingDesk, recentRunningTable?.id]);
+
+  const [assignedTableId, setAssignedTableId] = useState(restoredTableId || null);
+
+  // Set assignedTableId once effective table is resolved (only if not already set)
+  useEffect(() => {
+    if (!assignedTableId && effectiveTableId) {
+      setAssignedTableId(effectiveTableId);
+    }
+  // Only run when effectiveTableId first resolves
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveTableId]);
+
   // KOT states
   const [kotCreated, setKotCreated] = useState(false);
   const [generatedKotNo, setGeneratedKotNo] = useState('');
   const [showKotAlert, setShowKotAlert] = useState(false);
-  const [assignedTableId, setAssignedTableId] = useState(restoredTableId);
 
   // KOT Print Modal states (multi-printer routing)
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
@@ -179,81 +201,97 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [kotPayloads, setKotPayloads] = useState([]);
   const kotSuccessCallbackRef = React.useRef(null);
 
-  // Compute initial fallback rows from navigation state, sessionStorage, or context
-  const initialFallbackRows = useMemo(() => {
-    const tableKey = restoredTableId || restoredTable?.id || restoredTable?.no;
-    const fromLocation = location.state?.rows || location.state?.orderRows;
-    if (Array.isArray(fromLocation) && fromLocation.length > 0) return fromLocation;
+  // Resolved ONCE at mount — must not change on re-renders
+  const queryParams = new URLSearchParams(location.search);
+  const targetKotId = queryParams.get('kotId') || location.state?.kotId || null;
 
-    const fromSaved = savedContextRef.current?.rows;
-    if (Array.isArray(fromSaved) && fromSaved.length > 0) return fromSaved;
-
-    if (tableKey && orderItemsMap) {
-      if (orderItemsMap[tableKey] && orderItemsMap[tableKey].length > 0) return orderItemsMap[tableKey];
-      if (restoredTable?.no && orderItemsMap[restoredTable.no] && orderItemsMap[restoredTable.no].length > 0) return orderItemsMap[restoredTable.no];
-      if (restoredTable?.no && orderItemsMap[String(restoredTable.no)] && orderItemsMap[String(restoredTable.no)].length > 0) return orderItemsMap[String(restoredTable.no)];
-      if (restoredTable?.no && orderItemsMap[Number(restoredTable.no)] && orderItemsMap[Number(restoredTable.no)].length > 0) return orderItemsMap[Number(restoredTable.no)];
-    }
-
-    if (restoredTable?.kots && Array.isArray(restoredTable.kots) && restoredTable.kots.length > 0) {
-      const kotItems = restoredTable.kots.flatMap(k => k.items || []);
-      if (kotItems.length > 0) return kotItems;
-    }
-
-    return INITIAL_ROWS;
-  }, [location.state, restoredTable, restoredTableId, orderItemsMap]);
+  // Always start with empty rows — loadActiveTableData fetches the correct items from PostgreSQL.
+  // Never pre-populate from orderItemsMap or location.state.rows to avoid stale/accumulated data.
+  const initialFallbackRows = INITIAL_ROWS;
 
   // Table rows for right-side billing
   const [rows, setRows] = useState(initialFallbackRows);
   const [isSettling, setIsSettling] = useState(false);
 
-  // Check if opened for a specific KOT (KOT-specific Billing View)
-  const queryParams = new URLSearchParams(location.search);
-  const targetKotId = queryParams.get('kotId') || location.state?.kotId;
   const [kotViewData, setKotViewData] = useState(null);
 
   // Sync active table data & rows when assignedTableId or location.state changes
   useEffect(() => {
     async function loadActiveTableData() {
-      // 1. Single KOT view mode
+      // ─────────────────────────────────────────────────────────────────────
+      // 1. SINGLE KOT VIEW MODE — must NEVER fall through to table-level query
+      // ─────────────────────────────────────────────────────────────────────
       if (targetKotId) {
+        // A. Fast path: ViewKOTPage already passed the KOT items via location.state.rows
+        const stateRows = location.state?.rows;
+        const stateKot = location.state?.kot;
+        if (Array.isArray(stateRows) && stateRows.length > 0) {
+          const mappedRows = stateRows.map((item, idx) => ({
+            lineId: item.lineId || `kot-${idx}`,
+            itemId: item.itemId || item.id || idx,
+            itemName: item.itemName || item.name || '',
+            name: item.itemName || item.name || '',
+            variantId: item.variantId || '',
+            variantName: item.variantName || item.variant || '',
+            qty: Number(item.qty || item.quantity || 1),
+            unitPrice: Number(item.unitPrice || item.price || 0),
+            price: Number(item.unitPrice || item.price || 0),
+            total: Number(item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0))),
+            remark: item.remark || item.remarks || item.item_note || ''
+          }));
+          setRows(mappedRows);
+          if (stateKot) {
+            setKotViewData(stateKot);
+            if (stateKot.tableId) setAssignedTableId(stateKot.tableId);
+            if (stateKot.customer_name) setCustomerName(stateKot.customer_name);
+            if (stateKot.waiter) setWaiter(stateKot.waiter);
+          }
+          return; // HARD STOP — do not load table-level data
+        }
+
+        // B. Slow path: fetch only this KOT from the backend
         try {
-          const singleKotRes = await kotService.getKOTById(targetKotId);
-          const kotObj = singleKotRes?.kot || singleKotRes?.data;
-          if (kotObj) {
-            setKotViewData(kotObj);
-            if (kotObj.tableNo || kotObj.tableId) setAssignedTableId(kotObj.tableNo || kotObj.tableId);
-            setCustomerName(kotObj.customer?.name || kotObj.customer_name || 'Walk-in');
-            setMobileNumber(kotObj.customer?.mobile || kotObj.mobile_number || '');
-            setWaiter(kotObj.waiter || '');
-            setRemarks(kotObj.remark || kotObj.remarks || '');
-            setRows((kotObj.items || []).map((item, idx) => ({
-              lineId: item.lineId || `kot-item-${idx}`,
-              itemId: item.itemId || item.item_id || item.id || idx,
-              itemName: item.itemName || item.title || item.name || item.item_name || '',
-              name: item.itemName || item.title || item.name || item.item_name || '',
-              variantId: item.variantId || '',
+          const res = await kotService.getKOTById(targetKotId);
+          const singleKot = res?.kot || res?.data;
+          if (singleKot && Array.isArray(singleKot.items) && singleKot.items.length > 0) {
+            setKotViewData(singleKot);
+            if (singleKot.tableNo || singleKot.tableId) setAssignedTableId(singleKot.tableNo || singleKot.tableId);
+            setCustomerName(singleKot.customer?.name || singleKot.customer_name || 'Walk-in');
+            setMobileNumber(singleKot.customer?.mobile || singleKot.mobile_number || '');
+            setWaiter(singleKot.waiter || '');
+            setRemarks(singleKot.remark || singleKot.remarks || '');
+            setRows(singleKot.items.map((item, idx) => ({
+              lineId: item.lineId || `kot-${idx}`,
+              itemId: item.itemId || item.id || idx,
+              itemName: item.itemName || item.name || '',
+              name: item.itemName || item.name || '',
+              variantId: '',
               variantName: item.variantName || item.variant || '',
-              variant: item.variantName || item.variant || '',
               qty: Number(item.qty || item.quantity || 1),
-              unitPrice: Number(item.unitPrice || item.price || item.rate || 0),
-              price: Number(item.unitPrice || item.price || item.rate || 0),
-              rate: Number(item.unitPrice || item.price || item.rate || 0),
-              total: Number(item.total || ((item.qty || item.quantity || 1) * (item.unitPrice || item.price || 0))),
+              unitPrice: Number(item.unitPrice || item.price || 0),
+              price: Number(item.unitPrice || item.price || 0),
+              total: Number(item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0))),
               remark: item.remark || item.remarks || item.item_note || ''
             })));
-            return;
+            return; // HARD STOP — do not load table-level data
           }
         } catch (err) {
-          console.warn('Error fetching single KOT:', err);
+          console.warn('Error fetching single KOT from backend:', err);
         }
+        // If KOT fetch fails completely — show empty rows, still do NOT load all table items
+        setRows([]);
+        setKotViewData(null);
+        return; // HARD STOP
       }
 
+      // ─────────────────────────────────────────────────────────────────────
+      // 2. NORMAL TABLE MODE — load by table ID
+      // ─────────────────────────────────────────────────────────────────────
       setKotViewData(null);
-      const activeTableId = assignedTableId || restoredTableId;
+      const activeTableId = assignedTableId || effectiveTableId || restoredTableId;
       const currentTable = tablesList.find(
         t => String(t.id) === String(activeTableId) || String(t.no) === String(activeTableId)
-      ) || restoredTable;
+      ) || restoredTable || recentRunningTable;
 
       const isBlank = !currentTable || currentTable.status === 'Blank' || currentTable.status === 'AVAILABLE';
 
@@ -267,61 +305,47 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         return;
       }
 
-      // Collect best available fallback rows from frontend state / context / sessionStorage / kots
-      const fallbackRows = (
-        (location.state?.rows && location.state.rows.length > 0 ? location.state.rows : null) ||
-        (location.state?.orderRows && location.state.orderRows.length > 0 ? location.state.orderRows : null) ||
-        (savedContextRef.current?.rows && savedContextRef.current.rows.length > 0 ? savedContextRef.current.rows : null) ||
-        (currentTable?.id && orderItemsMap[currentTable.id] && orderItemsMap[currentTable.id].length > 0 ? orderItemsMap[currentTable.id] : null) ||
-        (currentTable?.no && orderItemsMap[currentTable.no] && orderItemsMap[currentTable.no].length > 0 ? orderItemsMap[currentTable.no] : null) ||
-        (currentTable?.no && orderItemsMap[String(currentTable.no)] && orderItemsMap[String(currentTable.no)].length > 0 ? orderItemsMap[String(currentTable.no)] : null) ||
-        (currentTable?.no && orderItemsMap[Number(currentTable.no)] && orderItemsMap[Number(currentTable.no)].length > 0 ? orderItemsMap[Number(currentTable.no)] : null) ||
-        (currentTable?.kots && currentTable.kots.length > 0 ? currentTable.kots.flatMap(k => k.items || []) : null) ||
-        []
-      );
-
       if (!currentTable) {
-        if (fallbackRows.length > 0) setRows(fallbackRows);
+        setRows([]);
         return;
       }
 
-      // Fetch active KOT / order items from backend PostgreSQL API
+      // Always fetch fresh from PostgreSQL — never use stale localStorage/orderItemsMap cache.
+      // orderItemsMap accumulates across sessions and causes duplicate/mixed items.
       try {
-        const orderRes = await restaurantApi.getOrders({
+        // Fetch the most recent active KOTs for this table directly from the DB
+        const kotRes = await restaurantApi.getKOTList({
           tableId: currentTable.id,
           table_id: currentTable.id,
           table_no: currentTable.no
         });
-        const activeOrder = orderRes?.orderdata || (Array.isArray(orderRes?.orders) ? orderRes.orders[0] : null);
-        if (activeOrder && Array.isArray(activeOrder.items) && activeOrder.items.length > 0) {
-          const apiRows = activeOrder.items.map((item, idx) => ({
-            lineId: item.lineId || `item-${idx}`,
-            itemId: item.itemId || item.item_id || item.id || idx,
-            itemName: item.itemName || item.title || item.name || item.item_name || '',
-            name: item.itemName || item.title || item.name || item.item_name || '',
-            variantId: item.variantId || '',
-            variantName: item.variantName || item.variant || '',
-            variant: item.variantName || item.variant || '',
-            qty: Number(item.qty || item.quantity || 1),
-            unitPrice: Number(item.unitPrice || item.price || item.rate || 0),
-            price: Number(item.unitPrice || item.price || item.rate || 0),
-            rate: Number(item.unitPrice || item.price || item.rate || 0),
-            total: Number(item.total || ((item.qty || item.quantity || 1) * (item.unitPrice || item.price || 0))),
-            remark: item.remark || item.remarks || item.item_note || ''
-          }));
-          setRows(apiRows);
-          if (activeOrder.customer_name) setCustomerName(activeOrder.customer_name);
-          if (activeOrder.waiter_name) setWaiter(activeOrder.waiter_name);
-        } else {
-          if (fallbackRows.length > 0) {
-            setRows(fallbackRows);
+        const kotList = kotRes?.kots || kotRes?.data || (Array.isArray(kotRes) ? kotRes : []);
+        if (Array.isArray(kotList) && kotList.length > 0) {
+          // Aggregate items from all active KOTs for this table
+          const kotItems = kotList.flatMap(k => k.items || []);
+          if (kotItems.length > 0) {
+            setRows(kotItems.map((item, idx) => ({
+              lineId: item.lineId || `kot-item-${idx}`,
+              itemId: item.itemId || item.id || idx,
+              itemName: item.itemName || item.name || '',
+              name: item.itemName || item.name || '',
+              variantId: item.variantId || '',
+              variantName: item.variantName || '',
+              qty: Number(item.qty || 1),
+              unitPrice: Number(item.unitPrice || item.price || 0),
+              price: Number(item.unitPrice || item.price || 0),
+              rate: Number(item.unitPrice || item.price || 0),
+              total: Number(item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0))),
+              remark: item.remark || ''
+            })));
+            return;
           }
         }
+        // No active KOTs found — table is effectively blank
+        setRows([]);
       } catch (err) {
-        console.warn('Error fetching active KOT items from PostgreSQL:', err);
-        if (fallbackRows.length > 0) {
-          setRows(fallbackRows);
-        }
+        console.warn('Error fetching KOT items from PostgreSQL:', err);
+        setRows([]);
       }
 
       if (currentTable.customer) setCustomerName(currentTable.customer);
@@ -330,10 +354,15 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     }
 
     loadActiveTableData();
-  }, [assignedTableId, restoredTableId, targetKotId]);
+  // Only re-run when the table selection or KOT view changes — NOT on every ticker tick
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignedTableId, targetKotId]);
 
-  // Sync changes in rows to orderItemsMap in context & localStorage
+
+  // Sync changes in rows to orderItemsMap in context & localStorage.
+  // Skip in KOT view mode — we must never write single-KOT items into the table-level cache.
   useEffect(() => {
+    if (targetKotId) return; // KOT view mode: do not pollute table cache
     const tableKey = assignedTableId || restoredTableId || routedTable?.id;
     if (tableKey && setOrderItemsMap && Array.isArray(rows)) {
       const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
@@ -345,7 +374,18 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         }));
       }
     }
-  }, [rows, assignedTableId, restoredTableId, routedTable, setOrderItemsMap]);
+  }, [rows, assignedTableId, restoredTableId, routedTable, setOrderItemsMap, targetKotId]);
+
+  // Ref for active shortcut handlers to prevent TDZ / closure errors
+  const handlersRef = React.useRef({});
+  useEffect(() => {
+    handlersRef.current = {
+      handleConfirmBooking,
+      handleSaveAndPrint,
+      handleDirectComplete,
+      handleAddKOT
+    };
+  });
 
   // Global Shortcuts Hook for F5-F10 + Escape + +/- keys + Alt key combos + F3 Focus Cart
   useEffect(() => {
@@ -433,27 +473,27 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           break;
         case 'F5':
           e.preventDefault();
-          handleConfirmBooking();
+          handlersRef.current.handleConfirmBooking?.();
           break;
         case 'F6':
           e.preventDefault();
-          handleSaveAndPrint();
+          handlersRef.current.handleSaveAndPrint?.();
           break;
         case 'F7':
           e.preventDefault();
-          handleDirectComplete();
+          handlersRef.current.handleDirectComplete?.();
           break;
         case 'F8':
           e.preventDefault();
-          handleAddKOT();
+          handlersRef.current.handleAddKOT?.();
           break;
         case 'F9':
           e.preventDefault();
-          handleSaveAndPrint();
+          handlersRef.current.handleSaveAndPrint?.();
           break;
         case 'F10':
           e.preventDefault();
-          handleConfirmBooking();
+          handlersRef.current.handleConfirmBooking?.();
           break;
         case '+':
           if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
@@ -485,7 +525,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     };
     window.addEventListener('keydown', handleShortcuts);
     return () => window.removeEventListener('keydown', handleShortcuts);
-  }, [rows, assignedTableId, customerName, mobileNumber, waiter, captain, remarks, paymentMode, isPaid, gstin, serviceType]);
+  }, []);
 
   // Auto-focus search bar on mount
   useEffect(() => {
@@ -864,19 +904,16 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       toast('Please add at least one item before generating KOT.');
       return;
     }
-    if (!waiter) {
-      toast('Please select a waiter.');
-      return;
-    }
+    const activeWaiter = waiter || 'Staff';
 
     const kotSeq = String(Date.now()).slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
     const newKotNo = `KOT-${kotSeq}`;
     setGeneratedKotNo(newKotNo);
     setKotCreated(true);
 
-    const resolvedTableId = assignedTableId || routedTable?.id || null;
-    const resolvedTable = tablesList.find(t => t.id === resolvedTableId) || routedTable;
-    const tableNo = resolvedTable?.no || resolvedTableId || '??';
+    const resolvedTableId = assignedTableId || restoredTableId || (tablesList.length > 0 ? tablesList[0].id : 1);
+    const resolvedTable = tablesList.find(t => t.id === resolvedTableId) || routedTable || { id: 1, no: '01' };
+    const tableNo = resolvedTable?.no || resolvedTableId || '01';
 
     const groups = groupItemsByPrinter(activeRows, allMenuItems);
 
@@ -886,8 +923,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableId: resolvedTableId,
         kotNo: newKotNo,
         group,
-        customerName,
-        waiter,
+        customerName: customerName || 'Walk-in',
+        waiter: activeWaiter,
         captain,
       })
     );
@@ -896,65 +933,61 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     setKotPayloads(payloads);
 
     // Call backend APIs to persist KOT, Table status, and Order into PostgreSQL
+    const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
+    const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
+    const targetNum = normalizeNum(tableNo || resolvedTableId);
+
+    // Optimistic immediate table status update in context state!
+    setTablesList(prev => prev.map(t => {
+      const curNum = normalizeNum(t.no || t.table_no || t.id);
+      if (String(t.id) === String(resolvedTableId) || (targetNum !== '00' && curNum === targetNum)) {
+        return {
+          ...t,
+          status: 'KOT_CUT',
+          color: 'orange',
+          amount: finalAmt,
+          waiter: activeWaiter,
+          customer: customerName || 'Walk-in',
+          updatedAt: Date.now()
+        };
+      }
+      return t;
+    }));
+
     try {
       await kotService.createKOT({
         kotNo: newKotNo,
         tableId: resolvedTableId,
         tableNo,
         customerName: customerName || 'Walk-in',
-        waiter: waiter || 'Staff',
+        waiter: activeWaiter,
         items: activeRows
       });
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
+      // Re-fetch tables from PostgreSQL immediately after KOT saved so DisplayTablePage shows orange
+      if (typeof refreshTables === 'function') refreshTables();
     } catch (err) {
       console.warn('Error calling KOT API:', err);
     }
 
-    if (resolvedTableId) {
-      try {
-        await restaurantApi.patchTableStatus(resolvedTableId, {
-          order_state: 'Running',
-          amount: activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0),
-          waiter: waiter || 'Staff',
-          customer: customerName || 'Walk-in'
-        });
-        console.log(`✅ Table T${tableNo} status updated to Running in PostgreSQL`);
-      } catch (err) {
-        console.warn('Error updating table status in PostgreSQL:', err);
-      }
-    }
+    const finalRows = rows.filter(r => r.name || r.itemName);
+    const updatedTableForNav = {
+      ...(resolvedTable || { id: resolvedTableId, no: tableNo }),
+      status: 'KOT_CUT',
+      color: 'orange',
+      updatedAt: Date.now(),
+      customer: customerName || resolvedTable?.customer || 'Walk-in',
+      mobile: mobileNumber || resolvedTable?.mobile || '',
+      waiter: activeWaiter,
+      captain: captain || resolvedTable?.captain || '',
+      remarks: remarks || resolvedTable?.remarks || '',
+      amount: finalAmt,
+      openedAt: resolvedTable?.openedAt || Date.now(),
+    };
 
     kotSuccessCallbackRef.current = () => {
-      if (!resolvedTable) {
-        navigate('/restaurant/display-table');
-        return;
-      }
-      const finalRows = rows.filter(r => r.name || r.itemName);
-      const finalAmt = finalRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
-      const updatedTable = {
-        ...resolvedTable,
-        status: 'Running',
-        customer: customerName || resolvedTable.customer || 'Walk-in',
-        mobile: mobileNumber || resolvedTable.mobile || '',
-        waiter: waiter || resolvedTable.waiter || '',
-        captain: captain || resolvedTable.captain || '',
-        remarks: remarks || resolvedTable.remarks || '',
-        amount: finalAmt,
-        openedAt: resolvedTable.openedAt || Date.now(),
-        kots: [
-          ...(resolvedTable.kots || []),
-          {
-            id: newKotNo,
-            amount: finalAmt,
-            items: finalRows,
-            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-            status: 'Sent to Kitchen',
-          }
-        ],
-        kotCount: (resolvedTable.kotCount || 0) + 1,
-      };
-      toast(`Table T${resolvedTable.no} → Running`);
-      navigate('/restaurant/display-table', { state: { updatedTable, updatedRows: finalRows } });
+      toast(`Table T${resolvedTable?.no || tableNo} → Running`);
+      navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: finalRows } });
     };
 
     setShowKotPrintModal(true);
@@ -962,11 +995,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   };
 
   const handleConfirmBooking = async () => {
-    if (!assignedTableId) {
-      alert("Please select a table to assign!");
-      return;
-    }
-    const targetTable = tablesList.find(t => t.id === assignedTableId);
+    const resolvedTableId = assignedTableId || restoredTableId || (tablesList.length > 0 ? tablesList[0].id : 1);
+    const targetTable = tablesList.find(t => t.id === resolvedTableId) || { id: 1, no: '01' };
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
 
@@ -991,15 +1021,27 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     // 2. Update Table status in PostgreSQL
     try {
       await restaurantApi.patchTableStatus(assignedTableId, {
-        order_state: 'Running',
+        status: 'KOT_CUT',
         amount: finalAmt,
         waiter: waiter || 'Staff',
         customer: customerName || 'Walk-in'
       });
     } catch (err) {}
 
+    // Refresh tables from PostgreSQL so DisplayTablePage shows updated color
+    if (typeof refreshTables === 'function') refreshTables();
+
+    const updatedTableConf = {
+      ...(targetTable || { id: assignedTableId, no: String(assignedTableId) }),
+      status: 'KOT_CUT',
+      color: 'orange',
+      amount: finalAmt,
+      waiter: waiter || 'Staff',
+      customer: customerName || 'Walk-in',
+      updatedAt: Date.now()
+    };
     toast(`Table T${targetTable?.no || assignedTableId} assigned successfully!`);
-    navigate('/restaurant/display-table');
+    navigate('/restaurant/display-table', { state: { updatedTable: updatedTableConf, updatedRows: activeRows } });
   };
 
   const handleSaveAndPrint = async () => {
@@ -1029,7 +1071,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     if (targetTableId) {
       try {
         await restaurantApi.patchTableStatus(targetTableId, {
-          order_state: activeRows.length > 0 ? 'Running' : 'Blank',
+          status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE',
           amount: finalAmt,
           waiter: waiter || 'Staff',
           customer: customerName || 'Walk-in'
@@ -1037,8 +1079,20 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       } catch (err) {}
     }
 
+    // Refresh tables from PostgreSQL so DisplayTablePage shows updated color
+    if (typeof refreshTables === 'function') refreshTables();
+
+    const savedTable = tablesList.find(t => String(t.id) === String(targetTableId)) || routedTable;
+    const updatedTableSaved = savedTable ? {
+      ...savedTable,
+      status: activeRows.length > 0 ? 'KOT_CUT' : 'Blank',
+      color: activeRows.length > 0 ? 'orange' : 'white',
+      amount: finalAmt,
+      updatedAt: Date.now()
+    } : null;
+
     toast(`Saved and printed KOT for Table T${targetTableNo || '?'}.`);
-    navigate('/restaurant/display-table');
+    navigate('/restaurant/display-table', updatedTableSaved ? { state: { updatedTable: updatedTableSaved, updatedRows: activeRows } } : {});
   };
 
   const handleDirectComplete = async () => {
@@ -1068,22 +1122,40 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       if (resolvedId) {
         try {
           await tableService.patchTableStatus(resolvedId, {
-            status: 'Cleaning',
+            status: 'PAYMENT_COMPLETED',
             amount: 0,
             customer: 'Walk-in',
             waiter: null
           });
         } catch (err) {}
-        setTablesList(prev => prev.map(t =>
-          t.id === resolvedId ? { ...t, status: 'Cleaning', amount: 0, cleanedAt: Date.now() } : t
-        ));
+        const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
+        const targetSettledNum = normalizeNum(resolvedId);
+
+        setTablesList(prev => prev.map(t => {
+          const curNum = normalizeNum(t.no || t.table_no || t.id);
+          if (t.id === resolvedId || String(t.id) === String(resolvedId) || (targetSettledNum !== '00' && curNum === targetSettledNum)) {
+            return {
+              ...t,
+              status: 'PAYMENT_COMPLETED',
+              color: 'green',
+              amount: 0,
+              paidAt: Date.now(),
+              payment_completed_at: Date.now(),
+              remaining_seconds: 60,
+              cleanup_after_seconds: 60,
+              updatedAt: Date.now()
+            };
+          }
+          return t;
+        }));
       }
-      toast(`${serviceType} order settled! Table T${preselectedTableNumber || resolvedId} status changed to Cleaning (Green).`);
+      refreshTables();
+      toast(`${serviceType} order settled! Table T${preselectedTableNumber || resolvedId} status changed to PAYMENT_COMPLETED (Green).`);
     } catch (err) {
       console.warn('Error settling order in PostgreSQL:', err);
     } finally {
       setIsSettling(false);
-      navigate('/restaurant/display-table');
+      navigate('/restaurant/display-table', { state: { settledTableId: resolvedId } });
     }
   };
 
@@ -1102,6 +1174,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           onPreviousBookingsClick={() => navigate('/restaurant/booking-list', { state: { fromPOS: true, tableId: assignedTableId, rows, waiter, customerName, mobileNumber, paxCount, remarks, serviceType } })}
           toast={toast}
           isBillingDesk={isBillingDesk}
+          loadingMenu={loadingMenu}
         />
       )}
       <BillingPanel

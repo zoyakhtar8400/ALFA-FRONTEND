@@ -8,16 +8,17 @@ const COLOR_MAP = {
 };
 
 const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) => {
-  // Determine color theme strictly from backend attributes
+  // Determine color theme strictly and instantly from backend/frontend status attributes
+  const statusUpper = (table.status || table.order_state || '').toUpperCase();
   const colorKey = (
-    table.color ||
-    (table.status === 'PAYMENT_COMPLETED' || table.status === 'CLEANUP_RUNNING' ? 'green' :
-     table.status === 'KOT_CUT' || table.status === 'ORDERED' || table.status === 'Running' ? 'orange' : 'white')
+    (['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper)) ? 'green' :
+    (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (table.amount && table.amount > 0)) ? 'orange' :
+    (table.color || 'white')
   ).toLowerCase();
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
-  const isAvailable = colorKey === 'white' || table.status === 'AVAILABLE' || table.status === 'Blank';
-  const isPaymentCompleted = colorKey === 'green' || table.status === 'PAYMENT_COMPLETED' || table.status === 'CLEANUP_RUNNING';
+  const isAvailable = colorKey === 'white' || statusUpper === 'AVAILABLE' || statusUpper === 'BLANK';
+  const isPaymentCompleted = colorKey === 'green' || statusUpper === 'PAYMENT_COMPLETED' || statusUpper === 'CLEANUP_RUNNING' || statusUpper === 'CLEANING' || statusUpper === 'PAID';
 
   // Backend controls available actions:
   // Green table -> ['print_kot'] (View KOT is REMOVED!)
@@ -27,7 +28,7 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) =>
     ? table.available_actions
     : (isPaymentCompleted ? ['print_kot'] : !isAvailable ? ['print_kot', 'view_kot'] : []);
 
-  // Format backend remaining_seconds into 00:SS or MM:SS
+  // Format remaining_seconds into 00:SS or MM:SS
   const formatTimer = (totalSec) => {
     if (totalSec === undefined || totalSec === null || totalSec <= 0) return null;
     const mins = Math.floor(totalSec / 60);
@@ -35,7 +36,12 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) =>
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const timerText = isPaymentCompleted ? formatTimer(table.remaining_seconds) : null;
+  const startTime = table.payment_completed_at || table.cleanedAt || table.paidAt || table.updatedAt;
+  const computedRemaining = (table.remaining_seconds !== undefined && table.remaining_seconds > 0)
+    ? table.remaining_seconds
+    : (startTime ? Math.max(0, 60 - Math.floor((Date.now() - startTime) / 1000)) : 60);
+
+  const timerText = isPaymentCompleted && computedRemaining > 0 ? formatTimer(computedRemaining) : null;
   const showActions = actions.length > 0;
 
   return (

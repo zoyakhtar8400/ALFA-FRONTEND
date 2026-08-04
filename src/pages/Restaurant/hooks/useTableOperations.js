@@ -3,7 +3,7 @@ import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
 export const useTableOperations = (location, navigate) => {
-  const { tables, setTables, orderItemsMap, setOrderItemsMap, loading } = useRestaurant();
+  const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading } = useRestaurant();
 
   // Modal open states
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
@@ -46,9 +46,13 @@ export const useTableOperations = (location, navigate) => {
   useEffect(() => {
     if (location.state?.settledTableId) {
       const settledId = location.state.settledTableId;
+      const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
+      const targetSettledNum = normalizeNum(settledId);
+
       setTables(prev => prev.map(t => {
-        if (t.id === settledId || String(t.no) === String(settledId)) {
-          return { ...t, status: 'Paid', color: 'green', paidAt: Date.now(), updatedAt: Date.now() };
+        const curNum = normalizeNum(t.no || t.table_no || t.id);
+        if (t.id === settledId || String(t.id) === String(settledId) || (targetSettledNum !== '00' && curNum === targetSettledNum)) {
+          return { ...t, status: 'PAYMENT_COMPLETED', color: 'green', paidAt: Date.now(), payment_completed_at: Date.now(), remaining_seconds: 60, cleanup_after_seconds: 60, updatedAt: Date.now() };
         }
         return t;
       }));
@@ -57,15 +61,18 @@ export const useTableOperations = (location, navigate) => {
       const ut = location.state.updatedTable;
       const ur = location.state.updatedRows || [];
 
+      const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
+      const targetNum = normalizeNum(ut.no || ut.tableNo || ut.id || ut.table_id);
+
       setTables(prev => prev.map(t => {
-        if (
-          (ut.id && String(t.id) === String(ut.id)) ||
-          (ut.no && String(t.no) === String(ut.no)) ||
-          (ut.tableNo && String(t.no) === String(ut.tableNo))
-        ) {
+        const curNum = normalizeNum(t.no || t.table_no || t.id);
+        const matchId = (ut.id && String(t.id) === String(ut.id)) || (ut.table_id && String(t.table_id) === String(ut.table_id));
+
+        if (matchId || (targetNum !== '00' && curNum === targetNum)) {
           const hasItems = ur.length > 0 || (ut.amount && ut.amount > 0);
-          const nextStatus = hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : 'Blank';
-          const nextColor = nextStatus === 'Running' || nextStatus === 'KOT_CUT' || nextStatus === 'ORDERED' ? 'orange' : nextStatus === 'Paid' ? 'green' : 'white';
+          const nextStatus = hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : (ut.status || 'Blank');
+          const statusUp = String(nextStatus).toUpperCase();
+          const nextColor = ['RUNNING', 'KOT_CUT', 'ORDERED', 'KOT GENERATED', 'OCCUPIED'].includes(statusUp) || (hasItems && statusUp !== 'PAID' && statusUp !== 'PAYMENT_COMPLETED' && statusUp !== 'CLEANING') ? 'orange' : ['PAID', 'PAYMENT_COMPLETED', 'CLEANING', 'CLEANUP_RUNNING', 'BILL GENERATED'].includes(statusUp) ? 'green' : 'white';
           return {
             ...t,
             ...ut,
@@ -766,6 +773,7 @@ export const useTableOperations = (location, navigate) => {
     tables,
     loading,
     setTables,
+    refreshTables,
     orderItemsMap,
     setOrderItemsMap,
     showQuickSwitch,

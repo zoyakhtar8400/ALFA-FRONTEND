@@ -8,18 +8,18 @@ const RestaurantContext = createContext(null);
 const AUTO_RESET_MS = 30000; // 30 seconds after paid → reset to Blank
 
 export const RestaurantProvider = ({ children }) => {
-  const [tables, setTables] = useState([]);
+  const [tables, setTables] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfa_restaurant_tables');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [tablesLoaded, setTablesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [orderItemsMap, setOrderItemsMap] = useState(() => {
-    try {
-      const saved = localStorage.getItem('alfa_restaurant_orders');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [orderItemsMap, setOrderItemsMap] = useState({});
 
   const [tableHistory, setTableHistory] = useState(() => {
     try {
@@ -48,16 +48,16 @@ export const RestaurantProvider = ({ children }) => {
   // Map raw table API response to normalized table object
   function mapTable(t) {
     const rawStatus = t.status || t.order_state || 'AVAILABLE';
-    let color = (t.color || '').toLowerCase();
-    if (!color || color === 'white') {
-      if (rawStatus === 'Running' || rawStatus === 'KOT_CUT' || rawStatus === 'ORDERED' || (t.amount && t.amount > 0)) {
-        color = 'orange';
-      } else if (rawStatus === 'Paid' || rawStatus === 'PAYMENT_COMPLETED' || rawStatus === 'CLEANUP_RUNNING') {
-        color = 'green';
-      } else {
-        color = 'white';
-      }
-    }
+    const statusUpper = String(rawStatus).toUpperCase();
+    const color = (['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper)) ? 'green' :
+      (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (t.amount && t.amount > 0)) ? 'orange' : 'white';
+    
+    const isPaymentCompleted = color === 'green';
+    const isAvailable = color === 'white';
+    const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0
+      ? t.available_actions
+      : (isPaymentCompleted ? ['print_kot'] : !isAvailable ? ['print_kot', 'view_kot'] : []);
+
     return {
       id: t.id,
       table_id: t.table_id || t.id,
@@ -66,13 +66,13 @@ export const RestaurantProvider = ({ children }) => {
       seats: Number(t.seats || t.max_person) || 4,
       status: rawStatus,
       current_order_id: t.current_order_id || 0,
-      payment_status: t.payment_status || 'UNPAID',
-      kot_status: t.kot_status || 'NONE',
-      payment_completed_at: t.payment_completed_at || null,
+      payment_status: t.payment_status || (isPaymentCompleted ? 'PAID' : 'UNPAID'),
+      kot_status: t.kot_status || (color === 'orange' ? 'CUT' : 'NONE'),
+      payment_completed_at: t.payment_completed_at || (t.extra_details && t.extra_details.payment_completed_at) || null,
       cleanup_after_seconds: t.cleanup_after_seconds || 60,
-      remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 0,
+      remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 60,
       color: color,
-      available_actions: Array.isArray(t.available_actions) ? t.available_actions : [],
+      available_actions: actions,
       amount: Number(t.amount || 0),
       waiter: t.waiter || null,
       customer: t.customer || 'Walk-in',
@@ -83,23 +83,14 @@ export const RestaurantProvider = ({ children }) => {
     };
   }
 
-  // refreshTables — call this manually after any table-changing action (KOT, payment, etc.)
+  // refreshTables — call this manually or automatically after any table-changing action (KOT, payment, etc.)
   const refreshTables = React.useCallback(async () => {
     try {
       const tableRes = await tableService.getTables();
       const rawTables = tableRes?.tables || tableRes?.data || [];
       if (Array.isArray(rawTables) && rawTables.length > 0) {
         const mapped = rawTables.map(mapTable);
-        setTables(prev => {
-          if (!prev || prev.length === 0) return mapped;
-          return mapped.map(t => {
-            const existing = prev.find(p => String(p.id) === String(t.id));
-            if (existing && existing.updatedAt && (Date.now() - existing.updatedAt < 3000)) {
-              return { ...t, ...existing };
-            }
-            return t;
-          });
-        });
+        setTables(mapped);
       }
     } catch (err) {
       console.warn('refreshTables error:', err.message);
@@ -108,76 +99,62 @@ export const RestaurantProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch tables ONCE on mount — no polling
+  // Fetch tables ONCE on mount
   useEffect(() => {
     refreshTables().then(() => setTablesLoaded(true));
   }, []);
 
-  // Auto-reset Cleaning / Paid tables to Blank after countdown expires (45 seconds)
+  // Live countdown ticker & Auto-reset Cleaning / Paid tables to Blank when timer hits 0 (60s)
   useEffect(() => {
     const id = setInterval(() => {
       const now = Date.now();
       setTables(prev => {
-        const toReset = prev.filter(t => {
-          if (t.status === 'Cleaning' || t.status === 'Paid' || t.status === 'Bill Generated') {
-            const startTime = t.cleanedAt || t.paidAt || t.updatedAt || now;
-            return (now - startTime) >= 45000;
+        let hasChanges = false;
+        const nextTables = prev.map(t => {
+          const isGreen = t.status === 'PAYMENT_COMPLETED' || t.status === 'CLEANUP_RUNNING' || t.status === 'Cleaning' || t.status === 'Paid' || t.status === 'Bill Generated';
+          if (isGreen) {
+            const startTime = t.payment_completed_at || t.cleanedAt || t.paidAt || t.updatedAt || now;
+            const elapsedSec = Math.floor((now - startTime) / 1000);
+            const totalCleanupSec = t.cleanup_after_seconds || 60;
+            const remSec = Math.max(0, totalCleanupSec - elapsedSec);
+
+            if (remSec <= 0) {
+              hasChanges = true;
+              tableService.patchTableStatus(t.id, {
+                status: 'Blank',
+                amount: 0,
+                waiter: null,
+                customer: 'Walk-in'
+              }).then(() => refreshTables()).catch(err => console.warn('Error resetting table status in DB:', err));
+
+              return { ...t, status: 'Blank', color: 'white', remaining_seconds: 0, amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, paidAt: null, cleanedAt: null, payment_completed_at: null, isHold: false, kots: [], kotCount: 0 };
+            }
+
+            if (t.remaining_seconds !== remSec) {
+              hasChanges = true;
+              return { ...t, remaining_seconds: remSec };
+            }
           }
-          return false;
+          return t;
         });
 
-        if (toReset.length === 0) return prev;
-
-        // Reset PostgreSQL backend state for each expired cleaning table
-        toReset.forEach(t => {
-          tableService.patchTableStatus(t.id, {
-            status: 'Blank',
-            amount: 0,
-            waiter: null,
-            customer: 'Walk-in'
-          }).catch(err => console.warn('Error resetting table status in DB:', err));
-        });
-
-        // Reset order items map
-        setOrderItemsMap(om => {
-          const next = { ...om };
-          toReset.forEach(t => { next[t.id] = []; });
-          return next;
-        });
-
-        return prev.map(t =>
-          toReset.find(r => r.id === t.id)
-            ? { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, paidAt: null, cleanedAt: null, isHold: false, kots: [], kotCount: 0 }
-            : t
-        );
+        return hasChanges ? nextTables : prev;
       });
-    }, 3000);
+      // Clear orderItemsMap for any table that just reset to Blank
+      setOrderItemsMap(prev => {
+        const next = { ...prev };
+        let changed = false;
+        Object.keys(next).forEach(key => {
+          if (next[key] && next[key].length > 0) {
+            changed = true;
+            delete next[key];
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
     return () => clearInterval(id);
-  }, []);
-
-  // Helper: reload tables from PostgreSQL API
-  const reloadTablesFromStorage = async () => {
-    try {
-      const res = await tableService.getTables();
-      const rawTables = res?.tables || res?.data || [];
-      if (Array.isArray(rawTables) && rawTables.length > 0) {
-        const mapped = rawTables.map(t => ({
-          id: t.id,
-          no: String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '').padStart(2, '0') || String(t.id).padStart(2, '0'),
-          seats: Number(t.seats || t.max_person) || 4,
-          status: t.status || t.order_state || 'Blank',
-          amount: Number(t.amount || 0),
-          waiter: t.waiter || null,
-          customer: t.customer || 'Walk-in',
-          floor: t.floor || 'Ground',
-          section: t.section || 'Main Area',
-          kots: [],
-          kotCount: 0
-        }));
-        setTables(mapped);
-      }
-    } catch {}
-  };
+  }, [refreshTables]);
 
   // Sync state changes to localStorage
   useEffect(() => {
@@ -196,14 +173,13 @@ export const RestaurantProvider = ({ children }) => {
   }, []);
 
   // Refresh tables whenever the user navigates back to this tab / page
-  // This covers: browser back/forward, tab switching, React Router navigation
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        reloadTablesFromStorage();
+        refreshTables();
       }
     };
-    const handlePopstate = () => reloadTablesFromStorage();
+    const handlePopstate = () => refreshTables();
 
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('popstate', handlePopstate);
@@ -211,18 +187,16 @@ export const RestaurantProvider = ({ children }) => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('popstate', handlePopstate);
     };
-  }, []);
+  }, [refreshTables]);
 
-  useEffect(() => {
-    try { localStorage.setItem('alfa_restaurant_orders', JSON.stringify(orderItemsMap)); } catch {}
-  }, [orderItemsMap]);
+  // orderItemsMap is session-only — never persist to localStorage to prevent stale item accumulation
 
   useEffect(() => {
     try { localStorage.setItem('alfa_restaurant_history', JSON.stringify(tableHistory)); } catch {}
   }, [tableHistory]);
 
   return (
-    <RestaurantContext.Provider value={{ tables, setTables, orderItemsMap, setOrderItemsMap, tableHistory, loading }}>
+    <RestaurantContext.Provider value={{ tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, tableHistory, loading }}>
       {children}
     </RestaurantContext.Provider>
   );

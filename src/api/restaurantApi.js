@@ -5,7 +5,7 @@ export const restaurantApi = {
   getTables: (params) => apiClient.get('/tables', { params }),
   createTable: (data) => apiClient.post('/tables', data),
   updateTable: (tableId, data) => apiClient.put(`/tables/${tableId}`, data),
-  patchTableStatus: (tableId, data) => apiClient.patch(`/tables/${tableId}`, data),
+  patchTableStatus: (tableId, data) => apiClient.patch(`/tables/${tableId}/status`, data),
   deleteTable: (tableId) => apiClient.delete(`/tables/${tableId}`),
 
   // Menu & Departments

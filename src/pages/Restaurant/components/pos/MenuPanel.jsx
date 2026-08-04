@@ -12,11 +12,16 @@ const MenuPanel = ({
   setCategory,
   onPreviousBookingsClick,
   toast,
-  isBillingDesk = false
+  isBillingDesk = false,
+  loadingMenu = false
 }) => {
   return (
     <div className="pos-menu-section" style={{ flex: 1, flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
       <style>{`
+        @keyframes skeletonShimmer {
+          0% { background-position: -200px 0; }
+          100% { background-position: calc(200px + 100%) 0; }
+        }
         .pos-menu-body {
           display: flex;
           flex: 1;
@@ -169,61 +174,78 @@ const MenuPanel = ({
 
         {/* Food Items Grid (100% width on Mobile) */}
         <div className="items-grid-container">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
-            {filteredGridItems.map((item, idx) => (
-              <button
-                key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx}
-                className="grid-item-btn"
-                data-index={idx}
-                onClick={() => handleGridItemClick(item)}
-                onKeyDown={e => {
-                  const maxIndex = filteredGridItems.length - 1;
-                  let targetIndex = idx;
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    targetIndex = Math.min(maxIndex, idx + 4);
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    targetIndex = Math.max(0, idx - 4);
-                  } else if (e.key === 'ArrowRight') {
-                    e.preventDefault();
-                    targetIndex = Math.min(maxIndex, idx + 1);
-                  } else if (e.key === 'ArrowLeft') {
-                    e.preventDefault();
-                    targetIndex = Math.max(0, idx - 1);
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    if (searchInputRef.current) {
-                      searchInputRef.current.focus();
-                      searchInputRef.current.select();
+          {loadingMenu ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+              {Array.from({ length: 12 }).map((_, idx) => (
+                <div key={idx} style={{
+                  padding: '16px 10px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                  background: 'linear-gradient(90deg, #f1f5f9 25%, #cbd5e1 50%, #f1f5f9 75%)',
+                  backgroundSize: '200% 100%', animation: 'skeletonShimmer 1.5s infinite',
+                  minHeight: '80px'
+                }} />
+              ))}
+            </div>
+          ) : filteredGridItems.length === 0 ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.9rem', fontWeight: 700 }}>
+              No menu items available in this category
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+              {filteredGridItems.map((item, idx) => (
+                <button
+                  key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx}
+                  className="grid-item-btn"
+                  data-index={idx}
+                  onClick={() => handleGridItemClick(item)}
+                  onKeyDown={e => {
+                    const maxIndex = filteredGridItems.length - 1;
+                    let targetIndex = idx;
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      targetIndex = Math.min(maxIndex, idx + 4);
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      targetIndex = Math.max(0, idx - 4);
+                    } else if (e.key === 'ArrowRight') {
+                      e.preventDefault();
+                      targetIndex = Math.min(maxIndex, idx + 1);
+                    } else if (e.key === 'ArrowLeft') {
+                      e.preventDefault();
+                      targetIndex = Math.max(0, idx - 1);
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      if (searchInputRef.current) {
+                        searchInputRef.current.focus();
+                        searchInputRef.current.select();
+                      }
                     }
-                  }
-                  if (targetIndex !== idx) {
-                    const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
-                    if (targetBtn) targetBtn.focus();
-                  }
-                }}
-                style={{
-                  padding: '16px 10px', borderRadius: '8px',
-                  border: item.isVeg === false ? '2px solid #ef4444' : '2px solid #16a34a',
-                  background: '#fff', textAlign: 'center', cursor: 'pointer',
-                  fontSize: '0.78rem', fontWeight: 800, color: '#334155',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex',
-                  flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  minHeight: '80px', textTransform: 'uppercase', transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-              >
-                <span>{item.name}</span>
-                {item.variants && item.variants.length > 0 && (
-                  <span style={{ fontSize: '0.62rem', color: '#0e7490', marginTop: '4px', fontWeight: 700 }}>
-                    {item.variants.length} Variants Available
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+                    if (targetIndex !== idx) {
+                      const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
+                      if (targetBtn) targetBtn.focus();
+                    }
+                  }}
+                  style={{
+                    padding: '16px 10px', borderRadius: '8px',
+                    border: item.isVeg === false ? '2px solid #ef4444' : '2px solid #16a34a',
+                    background: '#fff', textAlign: 'center', cursor: 'pointer',
+                    fontSize: '0.78rem', fontWeight: 800, color: '#334155',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex',
+                    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    minHeight: '80px', textTransform: 'uppercase', transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  <span>{item.name}</span>
+                  {item.variants && item.variants.length > 0 && (
+                    <span style={{ fontSize: '0.62rem', color: '#0e7490', marginTop: '4px', fontWeight: 700 }}>
+                      {item.variants.length} Variants Available
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

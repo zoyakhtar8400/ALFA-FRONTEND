@@ -97,32 +97,35 @@ function App() {
         return;
       }
 
+      // Do NOT hijack F-keys if user is on Restaurant or POS pages so page-level shortcuts work cleanly
+      const isRestaurantOrPosPage = window.location.pathname.startsWith('/restaurant') || window.location.pathname.startsWith('/pos');
+
       // Function keys mapping
       if (e.key === 'F1') {
         e.preventDefault();
         navigate('/');
-      } else if (e.key === 'F2') {
+      } else if (e.key === 'F2' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/front-desk/operation/booking');
-      } else if (e.key === 'F3') {
+      } else if (e.key === 'F3' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/front-desk');
-      } else if (e.key === 'F4') {
+      } else if (e.key === 'F4' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/restaurant/display-table');
-      } else if (e.key === 'F6') {
+      } else if (e.key === 'F6' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/front-desk/mis/reservation-dashboard');
-      } else if (e.key === 'F7') {
+      } else if (e.key === 'F7' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/front-desk/operation/guest-profile');
-      } else if (e.key === 'F8') {
+      } else if (e.key === 'F8' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/front-desk/operation/payment-recieve-entry');
-      } else if (e.key === 'F9') {
+      } else if (e.key === 'F9' && !isRestaurantOrPosPage) {
         e.preventDefault();
         navigate('/pos/report');
-      } else if (e.key === 'F10') {
+      } else if (e.key === 'F10' && !isRestaurantOrPosPage) {
         e.preventDefault();
         window.print();
       } else if (e.key === 'F11') {

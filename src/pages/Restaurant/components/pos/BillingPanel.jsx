@@ -162,7 +162,16 @@ const BillingPanel = ({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, index) => {
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan="5" style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
+                  <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>🛒</div>
+                  <div>No Active Order</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>Select menu items on the left to start billing</div>
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, index) => {
               const matchItem = allMenuItems.find(f =>
                 (f.id && row.itemId && String(f.id) === String(row.itemId)) ||
                 (f.name && (row.itemName || row.name || row.title) && String(f.name).toLowerCase() === String(row.itemName || row.name || row.title).toLowerCase())
@@ -274,7 +283,7 @@ const BillingPanel = ({
                   </td>
                 </tr>
               );
-            })}
+            }))}
           </tbody>
         </table>
 
@@ -667,7 +676,12 @@ const BillingPanel = ({
       {/* KOT Print Modal — Multi-printer routing */}
       <KOTPrintModal
         isOpen={showKotPrintModal}
-        onClose={() => setShowKotPrintModal(false)}
+        onClose={() => {
+          setShowKotPrintModal(false);
+          if (kotSuccessCallbackRef.current) {
+            kotSuccessCallbackRef.current();
+          }
+        }}
         kotGroups={kotGroups}
         payloads={kotPayloads}
         kotNo={generatedKotNo}

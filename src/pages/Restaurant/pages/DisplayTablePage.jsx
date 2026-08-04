@@ -17,6 +17,8 @@ import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
 import { printTaxInvoice } from '../utils/printInvoice';
 import { tableService } from '../../../services/tableService';
+import { kotService } from '../../../services/kotService';
+import { restaurantApi } from '../../../api/restaurantApi';
 
 const DisplayTablePage = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ const DisplayTablePage = () => {
     tables,
     loading,
     setTables,
+    refreshTables,
     orderItemsMap,
     setOrderItemsMap,
     showQuickSwitch,
@@ -106,7 +109,17 @@ const DisplayTablePage = () => {
     return () => window.removeEventListener('tableMasterSync', handleSync);
   }, []);
 
+  // Automatically reload live tables from PostgreSQL database whenever this page is mounted or navigated to
+  useEffect(() => {
+    refreshTables();
+  }, [location, refreshTables]);
 
+  // Refs for keyboard nav (avoid stale closures)
+  const filteredDataRef = React.useRef([]);
+  const focusedTableIndexRef = React.useRef(-1);
+  useEffect(() => {
+    focusedTableIndexRef.current = focusedTableIndex;
+  }, [focusedTableIndex]);
 
   // Delete confirmation modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -151,14 +164,21 @@ const DisplayTablePage = () => {
             }
           }
 
-          if (e.key === 'ArrowRight') return Math.min(prev + 1, len - 1);
-          if (e.key === 'ArrowLeft') return Math.max(prev - 1, 0);
-          if (e.key === 'ArrowDown') return Math.min(prev + cols, len - 1);
-          if (e.key === 'ArrowUp') return Math.max(prev - cols, 0);
-          return prev;
+          let nextIdx = prev;
+          if (e.key === 'ArrowRight') nextIdx = Math.min(prev + 1, len - 1);
+          if (e.key === 'ArrowLeft') nextIdx = Math.max(prev - 1, 0);
+          if (e.key === 'ArrowDown') nextIdx = Math.min(prev + cols, len - 1);
+          if (e.key === 'ArrowUp') nextIdx = Math.max(prev - cols, 0);
+          focusedTableIndexRef.current = nextIdx;
+          return nextIdx;
         });
       }
       if (e.key === 'Enter' && focusedTableIndexRef.current >= 0) {
+        const t = filteredDataRef.current[focusedTableIndexRef.current];
+        if (t) handleTableCardClick(t);
+      }
+      if (e.key === 'F8' && focusedTableIndexRef.current >= 0) {
+        e.preventDefault();
         const t = filteredDataRef.current[focusedTableIndexRef.current];
         if (t) handleTableCardClick(t);
       }
@@ -176,13 +196,33 @@ const DisplayTablePage = () => {
       if (e.key === 'F4') {
         e.preventDefault();
         const t = focusedTableIndexRef.current >= 0 ? filteredDataRef.current[focusedTableIndexRef.current] : null;
-        if (t && t.status !== 'Blank') {
-          const items = orderItemsMap[t.id] || [];
-          if (items.length === 0) return toast('No items to generate KOT.');
-          const newKotId = `KOT-${Math.floor(100 + Math.random() * 900)}`;
-          const newKot = { id: newKotId, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), items: items.map(it => ({ name: it.name, qty: it.qty })) };
-          setTables(prev => prev.map(tb => tb.id === t.id ? { ...tb, kots: [...(tb.kots || []), newKot], kotCount: (tb.kots || []).length + 1, status: 'KOT Generated' } : tb));
+        if (t) {
+          const items = orderItemsMap[t.id] || orderItemsMap[t.no] || [];
+          if (items.length === 0) return toast('No items to generate KOT. Select items first in POS Billing.');
+          const newKotId = `KOT-${String(Date.now()).slice(-4)}-${Math.floor(100 + Math.random() * 900)}`;
+          const newKot = { id: newKotId, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), items: items.map(it => ({ name: it.name || it.itemName, qty: it.qty })) };
+          const calculatedAmt = items.reduce((sum, it) => sum + ((it.qty || 1) * (it.unitPrice || it.price || 0)), 0);
+
+          // Optimistic local state update (0ms delay!)
+          setTables(prev => prev.map(tb => (String(tb.id) === String(t.id) || String(tb.no) === String(t.no)) ? { ...tb, kots: [...(tb.kots || []), newKot], kotCount: (tb.kots || []).length + 1, status: 'Running', color: 'orange', amount: calculatedAmt || tb.amount, updatedAt: Date.now() } : tb));
           toast(`KOT generated: ${newKotId}`);
+
+          // Persist to PostgreSQL backend database asynchronously
+          kotService.createKOT({
+            kotNo: newKotId,
+            tableId: t.id,
+            tableNo: String(t.no),
+            customerName: t.customer || 'Walk-in',
+            waiter: t.waiter || 'Staff',
+            items: items
+          }).then(() => {
+            restaurantApi.patchTableStatus(t.id, {
+              status: 'Running',
+              amount: calculatedAmt
+            }).catch(console.warn);
+          }).catch(err => {
+            console.error('Error creating KOT:', err);
+          });
         }
       }
       if (e.key === 'F10') {
@@ -194,10 +234,6 @@ const DisplayTablePage = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [orderItemsMap, previewTable]);
-
-  // Refs for keyboard nav (avoid stale closures)
-  const filteredDataRef = React.useRef([]);
-  const focusedTableIndexRef = React.useRef(-1);
 
   // Add Table modal state
   const [addTableModalOpen, setAddTableModalOpen] = useState(false);

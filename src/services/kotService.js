@@ -16,6 +16,11 @@ export const kotService = {
     return await apiClient.get(`/kot/${kotId}`);
   },
 
+  // Alias used by POSBillingPage KOT view mode
+  async getKOTDetails(kotId) {
+    return await apiClient.get(`/kot/${kotId}`);
+  },
+
   // Update KOT item status (Preparing, Ready, Served, Cancelled)
   async updateKOTStatus(kotId, statusData) {
     return await apiClient.patch(`/kot/${kotId}/status`, statusData);
