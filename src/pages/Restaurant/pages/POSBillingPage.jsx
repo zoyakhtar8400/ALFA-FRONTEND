@@ -296,9 +296,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       const isBlank = !currentTable || currentTable.status === 'Blank' || currentTable.status === 'AVAILABLE';
 
       if (isBlank) {
-        if (!isNewBooking && (!location.state?.rows || location.state.rows.length === 0)) {
-          setRows([]);
-        }
+        setRows([]);
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
         if (currentTable?.captain) setCaptain(currentTable.captain);
@@ -311,7 +309,6 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
 
       // Always fetch fresh from PostgreSQL — never use stale localStorage/orderItemsMap cache.
-      // orderItemsMap accumulates across sessions and causes duplicate/mixed items.
       try {
         // Fetch the most recent active KOTs for this table directly from the DB
         const kotRes = await restaurantApi.getKOTList({
@@ -322,22 +319,38 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         const kotList = kotRes?.kots || kotRes?.data || (Array.isArray(kotRes) ? kotRes : []);
         if (Array.isArray(kotList) && kotList.length > 0) {
           // Aggregate items from all active KOTs for this table
-          const kotItems = kotList.flatMap(k => k.items || []);
-          if (kotItems.length > 0) {
-            setRows(kotItems.map((item, idx) => ({
-              lineId: item.lineId || `kot-item-${idx}`,
-              itemId: item.itemId || item.id || idx,
-              itemName: item.itemName || item.name || '',
-              name: item.itemName || item.name || '',
-              variantId: item.variantId || '',
-              variantName: item.variantName || '',
-              qty: Number(item.qty || 1),
-              unitPrice: Number(item.unitPrice || item.price || 0),
-              price: Number(item.unitPrice || item.price || 0),
-              rate: Number(item.unitPrice || item.price || 0),
-              total: Number(item.total || ((item.qty || 1) * (item.unitPrice || item.price || 0))),
-              remark: item.remark || ''
-            })));
+          const rawKotItems = kotList.flatMap(k => k.items || []);
+          if (rawKotItems.length > 0) {
+            // Deduplicate items across active KOTs to avoid multiplying rows
+            const mappedRows = [];
+            rawKotItems.forEach((item, idx) => {
+              const itemKey = `${item.itemId || item.id || item.itemName || item.name}-${item.variantId || item.variantName || ''}`;
+              const existingIndex = mappedRows.findIndex(r => r.itemKey === itemKey);
+              if (existingIndex !== -1) {
+                mappedRows[existingIndex].qty = Math.max(mappedRows[existingIndex].qty, Number(item.qty || 1));
+                mappedRows[existingIndex].total = mappedRows[existingIndex].qty * mappedRows[existingIndex].unitPrice;
+              } else {
+                const uPrice = Number(item.unitPrice || item.price || 0);
+                const qVal = Number(item.qty || 1);
+                mappedRows.push({
+                  itemKey,
+                  lineId: item.lineId || `kot-item-${idx}`,
+                  itemId: item.itemId || item.id || idx,
+                  itemName: item.itemName || item.name || '',
+                  name: item.itemName || item.name || '',
+                  variantId: item.variantId || '',
+                  variantName: item.variantName || '',
+                  qty: qVal,
+                  unitPrice: uPrice,
+                  price: uPrice,
+                  rate: uPrice,
+                  total: Number(item.total || (qVal * uPrice)),
+                  remark: item.remark || '',
+                  isCut: true
+                });
+              }
+            });
+            setRows(mappedRows);
             return;
           }
         }
@@ -912,10 +925,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     setKotCreated(true);
 
     const resolvedTableId = assignedTableId || restoredTableId || (tablesList.length > 0 ? tablesList[0].id : 1);
-    const resolvedTable = tablesList.find(t => t.id === resolvedTableId) || routedTable || { id: 1, no: '01' };
-    const tableNo = resolvedTable?.no || resolvedTableId || '01';
+    const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedTableId) || String(t.no) === String(resolvedTableId)) || routedTable || { id: resolvedTableId, no: String(resolvedTableId) };
+    const tableNo = String(resolvedTable?.no || resolvedTableId || '01').replace(/[^0-9]/g, '') || String(resolvedTableId);
 
-    const groups = groupItemsByPrinter(activeRows, allMenuItems);
+    const uncutRows = activeRows.filter(r => !r.isCut);
+    const rowsToCut = uncutRows.length > 0 ? uncutRows : activeRows;
+
+    const groups = groupItemsByPrinter(rowsToCut, allMenuItems);
 
     const payloads = groups.map(group =>
       generateKOTPayload({
@@ -963,11 +979,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableNo,
         customerName: customerName || 'Walk-in',
         waiter: activeWaiter,
-        items: activeRows,
+        items: rowsToCut,
         isNewSession: isNewSession
       });
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
-      // Re-fetch tables from PostgreSQL immediately after KOT saved so DisplayTablePage shows orange
+      // Mark active rows as cut in local state
+      setRows(prev => prev.map(r => ({ ...r, isCut: true })));
       if (typeof refreshTables === 'function') refreshTables();
     } catch (err) {
       console.warn('Error calling KOT API:', err);
