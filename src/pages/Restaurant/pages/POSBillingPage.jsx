@@ -954,6 +954,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       return t;
     }));
 
+    const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
+
     try {
       await kotService.createKOT({
         kotNo: newKotNo,
@@ -961,7 +963,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableNo,
         customerName: customerName || 'Walk-in',
         waiter: activeWaiter,
-        items: activeRows
+        items: activeRows,
+        isNewSession: isNewSession
       });
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
       // Re-fetch tables from PostgreSQL immediately after KOT saved so DisplayTablePage shows orange
@@ -1003,6 +1006,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const timeNo = Date.now().toString().slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
     const newKotNo = `KOT-${timeNo}`;
 
+    const isNewSession = !targetTable || targetTable.status === 'Blank' || targetTable.status === 'AVAILABLE';
+
     // 1. Create KOT in PostgreSQL
     try {
       await kotService.createKOT({
@@ -1011,7 +1016,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableNo: targetTable?.no || String(assignedTableId),
         customerName: customerName || 'Walk-in',
         waiter: waiter || 'Staff',
-        items: activeRows
+        items: activeRows,
+        isNewSession: isNewSession
       });
       console.log('✅ KOT created in PostgreSQL for assigned table');
     } catch (err) {
