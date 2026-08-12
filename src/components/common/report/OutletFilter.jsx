@@ -10,12 +10,7 @@ const OutletFilter = ({ value, onChange, label = "Outlet" }) => {
         className="custom-form-input"
         style={{ paddingRight: '28px', appearance: 'none', background: 'url("data:image/svg+xml;utf8,<svg fill=\'%2364748b\' height=\'24\' viewBox=\'0 0 24 24\' width=\'24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>") no-repeat right 10px center/16px' }}
       >
-        <option value="All">All Outlets</option>
-        <option value="Main Restaurant">Main Restaurant</option>
-        <option value="Room Service">Room Service</option>
-        <option value="Banquet Hall">Banquet Hall</option>
-        <option value="Bar Outlet">Bar Outlet</option>
-        <option value="Cafe Outlet">Cafe Outlet</option>
+        <option value="Restaurant">Restaurant Outlet</option>
       </select>
     </div>
   );

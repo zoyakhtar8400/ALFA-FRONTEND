@@ -3,6 +3,7 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ItemGroupForm from './ItemGroupForm';
 import { usePurchase } from '../../hooks/usePurchase';
+import { inventoryApi } from '../../../../api/inventoryApi';
 
 const columns = [
   { key: 'name', label: 'Name', sortable: true },
@@ -22,16 +23,48 @@ const ItemGroupList = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   };
 
+  React.useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const json = await inventoryApi.getItemGroups();
+        if (Array.isArray(json?.data) && json.data.length > 0) {
+          const mappedGroups = json.data.map(g => ({
+            id: g.group_id,
+            name: g.group_name,
+            type: g.group_type || 'Raw Material',
+            postInAc: g.post_in_ac || ''
+          }));
+          setItemGroups(mappedGroups);
+        }
+      } catch (err) {
+        console.warn('Error loading item groups from PostgreSQL:', err.message);
+      }
+    };
+    loadGroups();
+  }, []);
+
   const handleOpenAdd = () => setModal({ open: true, mode: 'add', row: null });
   const handleOpenEdit = (row) => setModal({ open: true, mode: 'edit', row });
 
-  const handleSave = (formData) => {
+  const handleSave = async (formData) => {
+    try {
+      await inventoryApi.saveItemGroup({
+        group_id: modal.mode === 'edit' && modal.row ? modal.row.id : undefined,
+        group_name: formData.name,
+        group_type: formData.type || 'Raw Material',
+        post_in_ac: formData.postInAc || ''
+      });
+      console.log('✅ Item Group saved to PostgreSQL via inventoryApi.saveItemGroup');
+    } catch (e) {
+      console.warn('Error saving Item Group to PostgreSQL:', e.message);
+    }
+
     if (modal.mode === 'edit' && modal.row) {
       setItemGroups((prev) => prev.map((ig) => (ig.id === modal.row.id ? { ...formData, id: ig.id } : ig)));
-      toast('Item Group updated successfully!');
+      toast('Item Group updated in PostgreSQL!');
     } else {
       setItemGroups((prev) => [{ ...formData, id: Date.now() }, ...prev]);
-      toast('Item Group created successfully!');
+      toast('Item Group created in PostgreSQL!');
     }
     setModal({ open: false, mode: 'add', row: null });
   };

@@ -114,6 +114,14 @@ const OrderInvoicePage = () => {
   const discountAmount = hasItems ? Number(order.discount_amount || 0) : 0;
   const grandTotal = hasItems ? Number(order.total_amount || order.amount || (subtotal + taxAmount - discountAmount)) : 0;
 
+  const cleanBillNo = () => {
+    const b = String(order.billNo || order.custom_bill_number || order.order_number || order.id || '');
+    if (b.startsWith('Bill ')) return b;
+    const digits = b.replace(/[^0-9]/g, '');
+    if (digits && digits.length <= 4) return `Bill ${parseInt(digits, 10)}`;
+    return b || 'Bill 1';
+  };
+
   return (
     <div style={{ background: '#ffffff', minHeight: '100vh', padding: '16px 20px', fontFamily: '\'Courier New\', Courier, monospace', color: '#000000', width: '100%', boxSizing: 'border-box' }}>
       {/* Top Controls Bar (hidden during print) */}
@@ -121,8 +129,8 @@ const OrderInvoicePage = () => {
         <button
           onClick={handleBack}
           style={{
-            background: '#333333', color: '#ffffff', border: '1px solid #000000',
-            padding: '8px 18px', borderRadius: '4px', cursor: 'pointer',
+            background: 'none', border: '1px solid #000000', color: '#000000',
+            padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
             fontSize: '13px', fontWeight: 'bold', fontFamily: 'monospace'
           }}
         >
@@ -195,7 +203,7 @@ const OrderInvoicePage = () => {
         <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', marginBottom: '16px', color: '#000000' }}>
           <tbody>
             <tr>
-              <td style={{ padding: '3px 0', width: '50%' }}><strong>BILL NO:</strong> {order.billNo || order.id}</td>
+              <td style={{ padding: '3px 0', width: '50%' }}><strong>BILL NO:</strong> {cleanBillNo()}</td>
               <td style={{ padding: '3px 0', width: '50%', textAlign: 'right' }}><strong>DATE:</strong> {order.billDate || new Date().toLocaleDateString()}</td>
             </tr>
             <tr>

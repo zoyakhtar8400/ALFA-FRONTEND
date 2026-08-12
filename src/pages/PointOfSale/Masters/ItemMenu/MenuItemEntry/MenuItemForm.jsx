@@ -20,8 +20,8 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
     hsnCode: ''
   });
 
-  const groupOptions = itemGroups.length > 0 ? itemGroups.map(g => g.name) : ['Indian Starter', 'Chinese Main Course', 'Domestic Beer'];
-  const parentOptions = mainGroups.length > 0 ? mainGroups.map(g => g.name) : ['Food', 'Banquet Food'];
+  const groupOptions = itemGroups.map(g => g.name);
+  const parentOptions = mainGroups.map(g => g.name);
 
   useEffect(() => {
     if (isOpen) {

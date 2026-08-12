@@ -14,7 +14,7 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
   const leftMargin = 15;
   const rightMargin = 15;
 
-  const dateRangeStr = `Cover Analysis Report From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `Cover Analysis Report From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)

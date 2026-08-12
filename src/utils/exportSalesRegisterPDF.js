@@ -21,7 +21,9 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
   const rightMargin = 10;
   const printableWidth = pageWidth - leftMargin - rightMargin; // 277mm
 
-  const dateRangeStr = `Sales Register From ${filters.dateFrom || '01-Apr-2026'} To ${filters.dateTo || '10-Apr-2026'}`;
+  const dateFromText = filters.dateFrom || 'Start';
+  const dateToText = filters.dateTo || 'End';
+  const dateRangeStr = `Sales Register From ${dateFromText} To ${dateToText}`;
   const outletStr = `${filters.outlet || 'All Outlets'}`;
 
   // 2. Report Header (Plain text matching screenshot style)

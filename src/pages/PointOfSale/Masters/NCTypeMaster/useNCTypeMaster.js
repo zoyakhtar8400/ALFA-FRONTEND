@@ -1,16 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-
-const INITIAL_NC = [
-  { id: 'NC1', name: 'Management Complimentary', status: 'Active' },
-  { id: 'NC2', name: 'Staff Welfare Meal', status: 'Active' },
-  { id: 'NC3', name: 'VIP Guest Relations', status: 'Active' }
-];
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import posApi from '../../../../api/posApi';
 
 export const useNCTypeMaster = (showToast) => {
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_nc_types');
-    return saved ? JSON.parse(saved) : INITIAL_NC;
-  });
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -20,13 +13,24 @@ export const useNCTypeMaster = (showToast) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
+  const fetchNCTypes = useCallback(() => {
+    setLoading(true);
+    posApi.getNCTypes().then(res => {
+      const ncList = Array.isArray(res?.data) ? res.data : [];
+      setData(ncList);
+    }).catch(err => {
+      console.error('Error fetching NC types:', err);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
-    localStorage.setItem('hms_pos_nc_types', JSON.stringify(data));
-  }, [data]);
+    fetchNCTypes();
+  }, [fetchNCTypes]);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
-      const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = statusFilter === 'All' || item.status === statusFilter;
       return matchSearch && matchStatus;
     });
@@ -40,7 +44,7 @@ export const useNCTypeMaster = (showToast) => {
     if (!skipDuplicateCheck) {
       const duplicateItem = data.find(item => 
         item.id !== fields.id && 
-        item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
+        (item.name || '').toLowerCase().trim() === fields.name.toLowerCase().trim()
       );
       if (duplicateItem) {
         setDuplicateConfirm({ open: true, fields, duplicateItem });
@@ -53,28 +57,38 @@ export const useNCTypeMaster = (showToast) => {
   const handleSave = (fields, skipDuplicateCheck = false) => {
     if (!validate(fields, skipDuplicateCheck)) return false;
 
-    if (modal.isEdit) {
-      setData(prev => prev.map(item => item.id === fields.id ? fields : item));
-      showToast('NC Type updated successfully.');
-    } else {
-      const newId = `NC${Math.floor(Math.random() * 10000)}`;
-      setData(prev => [...prev, { ...fields, id: newId, status: fields.status || 'Active' }]);
-      showToast('NC Type created successfully.');
-    }
-    setModal({ open: false, isEdit: false, fields: {} });
-    setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    const payload = {
+      id: fields.id,
+      name: fields.name,
+      code: fields.code || fields.name.slice(0, 4).toUpperCase(),
+      status: fields.status || 'Active'
+    };
+
+    posApi.saveNCType(payload).then(() => {
+      showToast(modal.isEdit ? 'NC Type updated in PostgreSQL.' : 'NC Type created in PostgreSQL.');
+      fetchNCTypes();
+      setModal({ open: false, isEdit: false, fields: {} });
+      setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to save NC Type');
+    });
     return true;
   };
 
   const handleDelete = () => {
     if (!deleteModal.row) return;
-    setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
-    showToast('NC Type deleted successfully.');
-    setDeleteModal({ open: false, row: null });
+    posApi.deleteNCType(deleteModal.row.id).then(() => {
+      showToast('NC Type deactivated in PostgreSQL.');
+      fetchNCTypes();
+      setDeleteModal({ open: false, row: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to delete NC Type');
+    });
   };
 
   return {
     data: filteredData,
+    loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -89,3 +103,5 @@ export const useNCTypeMaster = (showToast) => {
     handleDelete
   };
 };
+
+export default useNCTypeMaster;

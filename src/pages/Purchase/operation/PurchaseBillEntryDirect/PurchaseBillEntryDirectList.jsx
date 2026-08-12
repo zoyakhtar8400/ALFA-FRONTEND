@@ -4,37 +4,19 @@ import DeleteConfirmationModal from '../../../../components/common/DeleteConfirm
 import PurchaseBillEntryDirectForm from './PurchaseBillEntryDirectForm';
 import PurchaseBillEntryDirectView from './PurchaseBillEntryDirectView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { purchaseApi } from '../../../../api/purchaseApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No', sortable: true },
   { key: 'entryDate', label: 'Entry Date', sortable: true },
-  { key: 'ptyBillNo', label: 'Pty BillNo', sortable: true },
-  { key: 'ptyBillDt', label: 'Pty BillDt', sortable: true },
-  { key: 'customer', label: 'Customer / Supplier', sortable: true },
+  { key: 'ptyBillNo', label: 'Pty Bill No', sortable: true },
+  { key: 'customer', label: 'Customer', sortable: true },
+  { key: 'netAmount', label: 'Net Amount', sortable: true },
   { key: 'action', label: 'Action' }
 ];
 
-const INITIAL_DIRECT_BILLS = [
-  {
-    id: 1,
-    entryNo: '1',
-    entryDate: '25-07-2026',
-    ptyBillNo: 'DIR-101',
-    ptyBillDt: '25-07-2026',
-    customer: 'A P SUPPLY',
-    supplier: 'A P SUPPLY',
-    type: 'Tax Invoice',
-    gstin: '09AAAAA0000A1Z5',
-    netAmount: 450,
-    lines: [
-      { sNo: 1, item: 'AATA', unit: 'K.G.', qty: 10, rate: 32, amount: 320, department: 'PURCHASE STORE', expiry: '2026-12-31' }
-    ]
-  }
-];
-
 const PurchaseBillEntryDirectList = ({ showToast }) => {
-  const { items, units } = usePurchase();
-  const [directBills, setDirectBills] = useState(INITIAL_DIRECT_BILLS);
+  const { directBills, setDirectBills, items, units } = usePurchase();
 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
   const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'
@@ -47,6 +29,28 @@ const PurchaseBillEntryDirectList = ({ showToast }) => {
     if (showToast) showToast(msg);
     else if (window.showToast) window.showToast(msg);
   };
+
+  React.useEffect(() => {
+    const loadDirectBills = async () => {
+      try {
+        const json = await purchaseApi.getPurchaseBills();
+        if (Array.isArray(json?.data) && json.data.length > 0) {
+          const mappedBills = json.data.map((b) => ({
+            id: b.bill_id,
+            entryNo: b.bill_number,
+            entryDate: new Date(b.bill_date || Date.now()).toISOString().split('T')[0],
+            ptyBillNo: b.supplier_invoice_no || 'DIR-1001',
+            customer: b.Supplier?.supplier_name || 'A P SUPPLY',
+            netAmount: Number(b.total_amount || 0)
+          }));
+          setDirectBills(mappedBills);
+        }
+      } catch (err) {
+        console.warn('Error loading direct bills from PostgreSQL:', err.message);
+      }
+    };
+    loadDirectBills();
+  }, []);
 
   const nextNo = (directBills?.length || 0) + 1;
 
@@ -62,7 +66,22 @@ const PurchaseBillEntryDirectList = ({ showToast }) => {
     setViewMode('form');
   };
 
-  const handleSave = (entry) => {
+  const handleSave = async (entry) => {
+    try {
+      const payload = {
+        bill_number: `DIR-${entry.entryNo || Date.now()}`,
+        supplier_invoice_no: entry.ptyBillNo || '',
+        supplier_id: 1,
+        bill_date: entry.entryDate || new Date(),
+        total_amount: Number(entry.netAmount || entry.grossAmount || 0),
+        paid_amount: Number(entry.paidAmount || 0)
+      };
+
+      await purchaseApi.createPurchaseBill(payload);
+      console.log('✅ Direct Purchase Bill posted to PostgreSQL via purchaseApi.createPurchaseBill');
+    } catch (e) {
+      console.warn('Error posting direct bill to PostgreSQL:', e.message);
+    }
     if (formMode === 'edit' && selectedRow) {
       setDirectBills((prev) => prev.map((b) => (b.id === selectedRow.id ? { ...entry, id: b.id } : b)));
       toast(`Purchase Bill Direct Entry #${entry.entryNo} updated successfully!`);

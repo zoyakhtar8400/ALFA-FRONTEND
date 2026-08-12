@@ -4,11 +4,19 @@ import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 
 const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
-  const [fields, setFields] = useState({ partner: '', name: '', phone: '', status: 'Active' });
+  const [fields, setFields] = useState({ partner: 'Direct Delivery', name: '', phone: '', status: 'Active' });
 
   useEffect(() => {
     if (isOpen) {
-      setFields(isEdit ? { ...initialData } : { partner: '', name: '', phone: '', status: 'Active' });
+      setFields(isEdit ? {
+        partner: 'Direct Delivery',
+        ...initialData
+      } : {
+        partner: 'Direct Delivery',
+        name: '',
+        phone: '',
+        status: 'Active'
+      });
     }
   }, [isOpen, isEdit, initialData]);
 
@@ -26,23 +34,28 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
       <form onSubmit={handleSubmit}>
         <FormCard>
           <div className="form-grid-2">
-            {/* <div className="form-field">
-              <label className="form-label">Partner Name *</label>
-              <input
-                type="text"
-                placeholder="e.g. Zomato, Swiggy, Direct"
-                value={fields.partner || ''}
+            <div className="form-field">
+              <label className="form-label">Partner / Aggregator *</label>
+              <select
+                value={fields.partner || 'Direct Delivery'}
                 onChange={(e) => setFields(p => ({ ...p, partner: e.target.value }))}
-                className="form-input"
+                className="form-select"
                 required
-              />
-            </div> */}
+              >
+                <option value="Direct Delivery">Direct Delivery</option>
+                <option value="Swiggy">Swiggy</option>
+                <option value="Zomato">Zomato</option>
+                <option value="UberEats">UberEats</option>
+                <option value="Dunzo">Dunzo</option>
+                <option value="Other Aggregator">Other Aggregator</option>
+              </select>
+            </div>
 
             <div className="form-field">
-              <label className="form-label">Name *</label>
+              <label className="form-label">Delivery Staff Name *</label>
               <input
                 type="text"
-                placeholder="Enter name"
+                placeholder="Enter staff name"
                 value={fields.name || ''}
                 onChange={(e) => setFields(p => ({ ...p, name: e.target.value }))}
                 className="form-input"

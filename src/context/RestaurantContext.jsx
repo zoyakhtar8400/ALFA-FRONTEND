@@ -8,14 +8,9 @@ const RestaurantContext = createContext(null);
 const AUTO_RESET_MS = 30000; // 30 seconds after paid → reset to Blank
 
 export const RestaurantProvider = ({ children }) => {
-  const [tables, setTables] = useState(() => {
-    try {
-      const saved = localStorage.getItem('alfa_restaurant_tables');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Always start empty — refreshTables() will load from PostgreSQL on mount.
+  // Do NOT seed from localStorage here; it causes stale phantom tables when DB rows are deleted.
+  const [tables, setTables] = useState([]);
   const [tablesLoaded, setTablesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -78,20 +73,43 @@ export const RestaurantProvider = ({ children }) => {
       customer: t.customer || 'Walk-in',
       floor: t.floor || 'Ground',
       section: t.section || 'Main Area',
-      kots: [],
-      kotCount: 0
+      kots: Array.isArray(t.kots) ? t.kots : [],
+      kotCount: Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0))
     };
   }
 
-  // refreshTables — call this manually or automatically after any table-changing action (KOT, payment, etc.)
+  // refreshTables — always re-fetches from PostgreSQL and replaces state.
+  // Clears tables if DB is empty so stale cache never shows phantom tables.
   const refreshTables = React.useCallback(async () => {
     try {
       const tableRes = await tableService.getTables();
       const rawTables = tableRes?.tables || tableRes?.data || [];
-      if (Array.isArray(rawTables) && rawTables.length > 0) {
-        const mapped = rawTables.map(mapTable);
-        setTables(mapped);
+      // Always update — even if empty, so deleted tables disappear
+      const uniqueMap = new Map();
+      if (Array.isArray(rawTables)) {
+        rawTables.forEach(t => {
+          const key = String(t.id);
+          if (!uniqueMap.has(key)) uniqueMap.set(key, mapTable(t));
+        });
       }
+      const sorted = Array.from(uniqueMap.values()).sort((a, b) => {
+        const numA = parseInt(String(a.table_name || a.no || '').replace(/\D/g, '')) || 0;
+        const numB = parseInt(String(b.table_name || b.no || '').replace(/\D/g, '')) || 0;
+        if (numA !== numB) return numA - numB;
+        return String(a.table_name || '').localeCompare(String(b.table_name || ''));
+      });
+      setTables(sorted);
+
+      // Populate orderItemsMap directly from active KOT items returned from PostgreSQL
+      const nextItemsMap = {};
+      sorted.forEach(tbl => {
+        if (Array.isArray(tbl.kots) && tbl.kots.length > 0) {
+          const allItems = tbl.kots.flatMap(k => Array.isArray(k.items) ? k.items : []);
+          nextItemsMap[tbl.id] = allItems;
+          if (tbl.no) nextItemsMap[tbl.no] = allItems;
+        }
+      });
+      setOrderItemsMap(nextItemsMap);
     } catch (err) {
       console.warn('refreshTables error:', err.message);
     } finally {
@@ -161,16 +179,12 @@ export const RestaurantProvider = ({ children }) => {
     try { localStorage.setItem('alfa_restaurant_tables', JSON.stringify(tables)); } catch {}
   }, [tables]);
 
-  // Listen for TableMaster → DisplayTablePage live sync event (same-tab)
+  // Listen for Table Master CRUD events → immediately re-fetch from PostgreSQL
   useEffect(() => {
-    const handleTableMasterSync = (e) => {
-      if (e.detail && Array.isArray(e.detail.tables)) {
-        setTables(e.detail.tables);
-      }
-    };
-    window.addEventListener('tableMasterSync', handleTableMasterSync);
-    return () => window.removeEventListener('tableMasterSync', handleTableMasterSync);
-  }, []);
+    const handleSync = () => refreshTables();
+    window.addEventListener('tablesMasterRefreshed', handleSync);
+    return () => window.removeEventListener('tablesMasterRefreshed', handleSync);
+  }, [refreshTables]);
 
   // Refresh tables whenever the user navigates back to this tab / page
   useEffect(() => {

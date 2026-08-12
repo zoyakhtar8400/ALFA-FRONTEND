@@ -20,7 +20,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
   const leftMargin = 10;
   const rightMargin = 10;
 
-  const dateRangeStr = `NC KOT(Bill Report)(Detailed) From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `NC KOT(Bill Report)(Detailed) From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
@@ -46,7 +46,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
 
   data.forEach(row => {
     const outlet = row.outlet || '1978 THE FAMILY RESTAURANT';
-    const date = row.c4 || '03/Apr/2026';
+    const date = row.c4 || '';
     const ncType = row.ncType || 'Complementry (0.00%)';
 
     if (!grouped[outlet]) grouped[outlet] = {};

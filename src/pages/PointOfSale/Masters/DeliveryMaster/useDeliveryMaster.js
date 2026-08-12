@@ -1,16 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-
-const INITIAL_DELIVERY = [
-  { id: 'D1', partner: 'Zomato', name: 'Vikram Singh', phone: '9988776655', status: 'Active' },
-  { id: 'D2', partner: 'Swiggy', name: 'Rohan Sen', phone: '8877665544', status: 'Active' },
-  { id: 'D3', partner: 'Direct Delivery', name: 'Deepak Raj', phone: '7766554433', status: 'Active' }
-];
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import posApi from '../../../../api/posApi';
 
 export const useDeliveryMaster = (showToast) => {
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_deliveries');
-    return saved ? JSON.parse(saved) : INITIAL_DELIVERY;
-  });
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -20,23 +13,41 @@ export const useDeliveryMaster = (showToast) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
+  const fetchDeliveryBoys = useCallback(() => {
+    setLoading(true);
+    posApi.getDeliveryBoys().then(res => {
+      if (Array.isArray(res?.data)) {
+        setData(res.data);
+      } else {
+        setData([]);
+      }
+    }).catch(err => {
+      console.error('Error fetching delivery boys:', err);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
-    localStorage.setItem('hms_pos_deliveries', JSON.stringify(data));
-  }, [data]);
+    fetchDeliveryBoys();
+  }, [fetchDeliveryBoys]);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
+      const partnerStr = item.partner || '';
+      const nameStr = item.name || '';
+      const phoneStr = item.phone || '';
       const matchSearch =
-        item.partner.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.phone.includes(searchTerm);
+        partnerStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        nameStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        phoneStr.includes(searchTerm);
       const matchStatus = statusFilter === 'All' || item.status === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [data, searchTerm, statusFilter]);
 
   const validate = (fields, skipDuplicateCheck = false) => {
-    if (!fields.partner || fields.partner.trim().length < 2) {
+    const partnerName = fields.partner || 'Direct Delivery';
+    if (!partnerName || partnerName.trim().length < 2) {
       showToast('Partner Name must be at least 2 characters.');
       return false;
     }
@@ -44,15 +55,15 @@ export const useDeliveryMaster = (showToast) => {
       showToast('Name must be at least 2 characters.');
       return false;
     }
-    if (!/^\d{10}$/.test(fields.phone)) {
+    if (fields.phone && !/^\d{10}$/.test(fields.phone)) {
       showToast('Phone must be a valid 10-digit number.');
       return false;
     }
     if (!skipDuplicateCheck) {
       const duplicateItem = data.find(item => 
         item.id !== fields.id && 
-        item.partner.toLowerCase().trim() === fields.partner.toLowerCase().trim() &&
-        item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
+        String(item.partner || 'Direct Delivery').toLowerCase().trim() === partnerName.toLowerCase().trim() &&
+        String(item.name || '').toLowerCase().trim() === fields.name.toLowerCase().trim()
       );
       if (duplicateItem) {
         setDuplicateConfirm({ open: true, fields, duplicateItem });
@@ -63,30 +74,34 @@ export const useDeliveryMaster = (showToast) => {
   };
 
   const handleSave = (fields, skipDuplicateCheck = false) => {
-    if (!validate(fields, skipDuplicateCheck)) return false;
+    const payload = { ...fields, partner: fields.partner || 'Direct Delivery' };
+    if (!validate(payload, skipDuplicateCheck)) return false;
 
-    if (modal.isEdit) {
-      setData(prev => prev.map(item => item.id === fields.id ? fields : item));
-      showToast('Delivery record updated successfully.');
-    } else {
-      const newId = `D${Math.floor(Math.random() * 10000)}`;
-      setData(prev => [...prev, { ...fields, id: newId, status: fields.status || 'Active' }]);
-      showToast('Delivery record created successfully.');
-    }
-    setModal({ open: false, isEdit: false, fields: {} });
-    setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    posApi.saveDeliveryBoy(payload).then(() => {
+      showToast(modal.isEdit ? 'Delivery record updated in PostgreSQL.' : 'Delivery record created in PostgreSQL.');
+      fetchDeliveryBoys();
+      setModal({ open: false, isEdit: false, fields: {} });
+      setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to save delivery record.');
+    });
     return true;
   };
 
   const handleDelete = () => {
     if (!deleteModal.row) return;
-    setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
-    showToast('Delivery record deleted successfully.');
-    setDeleteModal({ open: false, row: null });
+    posApi.deleteDeliveryBoy(deleteModal.row.id).then(() => {
+      showToast('Delivery record deactivated in PostgreSQL.');
+      fetchDeliveryBoys();
+      setDeleteModal({ open: false, row: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to delete delivery record.');
+    });
   };
 
   return {
     data: filteredData,
+    loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -98,6 +113,8 @@ export const useDeliveryMaster = (showToast) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
   };
 };
+
+export default useDeliveryMaster;

@@ -5,17 +5,21 @@ import { FaChevronLeft, FaChevronRight, FaAngleDoubleLeft, FaAngleDoubleRight } 
  * CommonPagination component that provides unified table navigation and items-per-page logic.
  */
 const CommonPagination = ({
-  totalItems,
-  itemsPerPage,
-  currentPage,
+  totalItems = 0,
+  itemsPerPage = 10,
+  currentPage = 1,
   onPageChange,
   onItemsPerPageChange,
   itemsPerPageOptions = [10, 25, 50, 100],
   onlyTable = false,
 }) => {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startRange = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-  const endRange = Math.min(currentPage * itemsPerPage, totalItems);
+  const safeTotalItems = Number.isFinite(Number(totalItems)) ? Number(totalItems) : 0;
+  const safeItemsPerPage = Number.isFinite(Number(itemsPerPage)) && Number(itemsPerPage) > 0 ? Number(itemsPerPage) : 10;
+  const safeCurrentPage = Number.isFinite(Number(currentPage)) && Number(currentPage) > 0 ? Number(currentPage) : 1;
+
+  const totalPages = Math.ceil(safeTotalItems / safeItemsPerPage);
+  const startRange = safeTotalItems === 0 ? 0 : (safeCurrentPage - 1) * safeItemsPerPage + 1;
+  const endRange = Math.min(safeCurrentPage * safeItemsPerPage, safeTotalItems);
 
   if (onlyTable && totalPages <= 1) return null;
 
@@ -43,7 +47,7 @@ const CommonPagination = ({
       {/* Info text */}
       {!onlyTable && (
         <div className="text-slate-500 font-medium">
-          Showing {startRange} to {endRange} of {totalItems} records
+          Showing {startRange} to {endRange} of {safeTotalItems} records
         </div>
       )}
 

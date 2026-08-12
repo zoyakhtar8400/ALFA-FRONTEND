@@ -20,7 +20,7 @@ export const exportPendingKOTPDF = (columns, data, filters = {}, printedOn = '')
   const leftMargin = 10;
   const rightMargin = 10;
 
-  const dateRangeStr = `Pending KOT Report As on Date ${filters.dateTo || '15/Jul/2026'}`;
+  const dateRangeStr = `Pending KOT Report As on Date ${filters.dateTo || 'Today'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)

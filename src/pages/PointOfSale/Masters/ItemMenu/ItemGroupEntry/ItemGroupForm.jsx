@@ -6,8 +6,7 @@ import CommonActionButtons from '../../../../../components/common/CommonActionBu
 const ItemGroupForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, mainGroups = [] }) => {
   const [fields, setFields] = useState({ name: '', mainGroup: '', code: '' });
 
-  // Use mainGroups dynamically, or fallback to the standard ones
-  const groupsList = mainGroups.length > 0 ? mainGroups : [{ name: 'Food' }, { name: 'Banquet Food' }];
+  const groupsList = mainGroups;
 
   useEffect(() => {
     if (isOpen) {

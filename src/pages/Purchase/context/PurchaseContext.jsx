@@ -1,4 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { inventoryApi } from '../../../api/inventoryApi';
+import { purchaseApi } from '../../../api/purchaseApi';
 
 export const PurchaseContext = createContext(null);
 
@@ -175,90 +177,123 @@ const INITIAL_PURCHASE_BILLS = [
 ];
 
 export const PurchaseProvider = ({ children }) => {
-  const [itemGroups, setItemGroups] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_item_groups_v2');
-    return saved ? JSON.parse(saved) : INITIAL_ITEM_GROUPS;
-  });
+  // All state starts empty — hydrated from PostgreSQL on mount.
+  // INITIAL_* constants above are kept only as emergency offline fallback (not used in normal flow).
+  const [itemGroups, setItemGroups] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [items, setItems] = useState([]);
+  const [openStockEntries, setOpenStockEntries] = useState([]);
+  const [indents, setIndents] = useState([]);
+  const [indentApprovals, setIndentApprovals] = useState([]);
+  const [quotations, setQuotations] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [grns, setGrns] = useState([]);
+  const [purchaseBills, setPurchaseBills] = useState([]);
+  const [purchaseReturns, setPurchaseReturns] = useState([]);
+  const [departmentIssues, setDepartmentIssues] = useState([]);
+  const [stockTransfers, setStockTransfers] = useState([]);
+  const [consumerEntries, setConsumerEntries] = useState([]);
 
-  const [units, setUnits] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_units_v2');
-    return saved ? JSON.parse(saved) : INITIAL_UNITS;
-  });
+  // ── Hydrate from PostgreSQL on mount ──────────────────────────────────────
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        // Item Groups
+        inventoryApi.getItemGroups().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setItemGroups(data.map(g => ({ id: g.item_group_id, name: g.group_name, type: g.group_type || '', postInAc: g.post_in_account || '' })));
+          }
+        }).catch(() => { if (mounted) setItemGroups([]); });
 
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_items_v2');
-    return saved ? JSON.parse(saved) : INITIAL_ITEMS;
-  });
+        // Units
+        inventoryApi.getUnits().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setUnits(data.map(u => ({ id: u.unit_id, name: u.unit_name, qtyDecimalPlaces: String(u.decimal_places ?? 3) })));
+          }
+        }).catch(() => { if (mounted) setUnits([]); });
 
-  const [openStockEntries, setOpenStockEntries] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_open_stock_v2');
-    return saved ? JSON.parse(saved) : INITIAL_OPEN_STOCK;
-  });
+        // Inventory Items
+        inventoryApi.getInventoryItems().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setItems(data.map(i => ({
+              id: i.inventory_item_id, name: i.item_name,
+              unitName: i.unit || 'K.G.', active: i.is_active ? 'Yes' : 'No',
+              itemCategory: i.category || '', itemGroupName: i.group_name || '',
+              storeDepartment: i.store_department || 'PURCHASE',
+              reOrderLevel: String(i.minimum_stock || ''), currentStock: Number(i.current_stock || 0),
+              purchaseRate: Number(i.purchase_price || 0),
+            })));
+          }
+        }).catch(() => { if (mounted) setItems([]); });
 
-  const [indents, setIndents] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_indents_v2');
-    return saved ? JSON.parse(saved) : INITIAL_INDENTS;
-  });
+        // Purchase Orders
+        purchaseApi.getPurchaseOrders().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setPurchaseOrders(data.map((po, idx) => ({
+              id: po.po_id || idx + 1, entryNo: String(po.po_number || po.po_id || idx + 1),
+              date: po.po_date ? new Date(po.po_date).toISOString().split('T')[0] : '',
+              entryDate: po.po_date ? new Date(po.po_date).toISOString().split('T')[0] : '',
+              supplier: po.Supplier?.supplier_name || po.supplier_name || '',
+              customer: po.Supplier?.supplier_name || po.supplier_name || '',
+              netAmount: Number(po.net_amount || po.total_amount || 0),
+              lines: po.purchaseOrderItems || [],
+            })));
+          }
+        }).catch(() => { if (mounted) setPurchaseOrders([]); });
 
-  const [indentApprovals, setIndentApprovals] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_indent_approvals');
-    return saved ? JSON.parse(saved) : [];
-  });
+        // Purchase Bills
+        purchaseApi.getPurchaseBills().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setPurchaseBills(data.map((b, idx) => ({
+              id: b.bill_id || idx + 1, entryNo: String(b.bill_number || b.bill_id || idx + 1),
+              date: b.bill_date ? new Date(b.bill_date).toISOString().split('T')[0] : '',
+              entryDate: b.bill_date ? new Date(b.bill_date).toISOString().split('T')[0] : '',
+              supplier: b.Supplier?.supplier_name || '', customer: b.Supplier?.supplier_name || '',
+              ptyBillNo: b.vendor_invoice_no || '', ptyBillDt: b.vendor_invoice_date || '',
+              netAmount: Number(b.net_amount || 0),
+            })));
+          }
+        }).catch(() => { if (mounted) setPurchaseBills([]); });
 
-  const [quotations, setQuotations] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_quotations_v2');
-    return saved ? JSON.parse(saved) : INITIAL_QUOTATIONS;
-  });
+        // Indents
+        purchaseApi.getIndents().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setIndents(data.map((ind, idx) => ({
+              id: ind.indent_id || idx + 1, indentNo: String(ind.indent_number || ind.indent_id || idx + 1),
+              indentDate: ind.indent_date ? new Date(ind.indent_date).toISOString().split('T')[0] : '',
+              department: ind.department || '', status: ind.status || 'Pending',
+              lines: ind.indentItems || [],
+            })));
+          }
+        }).catch(() => { if (mounted) setIndents([]); });
 
-  const [purchaseOrders, setPurchaseOrders] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_orders_v2');
-    return saved ? JSON.parse(saved) : INITIAL_PURCHASE_ORDERS;
-  });
+        // GRNs
+        purchaseApi.getGRNs().then(res => {
+          if (mounted) {
+            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            setGrns(data.map((g, idx) => ({
+              id: g.grn_id || idx + 1, entryNo: String(g.grn_number || g.grn_id || idx + 1),
+              entryDate: g.grn_date ? new Date(g.grn_date).toISOString().split('T')[0] : '',
+              partyName: g.Supplier?.supplier_name || '', netAmount: Number(g.net_amount || 0),
+              lines: g.grnItems || [],
+            })));
+          }
+        }).catch(() => { if (mounted) setGrns([]); });
 
-  const [grns, setGrns] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_grns_v2');
-    return saved ? JSON.parse(saved) : INITIAL_GRNS;
-  });
-
-  const [purchaseBills, setPurchaseBills] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_bills_v2');
-    return saved ? JSON.parse(saved) : INITIAL_PURCHASE_BILLS;
-  });
-
-  const [purchaseReturns, setPurchaseReturns] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_returns');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [departmentIssues, setDepartmentIssues] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_dept_issues');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [stockTransfers, setStockTransfers] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_stock_transfers');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [consumerEntries, setConsumerEntries] = useState(() => {
-    const saved = localStorage.getItem('alfa_purchase_consumer_entries');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  useEffect(() => { localStorage.setItem('alfa_purchase_item_groups_v2', JSON.stringify(itemGroups)); }, [itemGroups]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_units_v2', JSON.stringify(units)); }, [units]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_items_v2', JSON.stringify(items)); }, [items]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_open_stock_v2', JSON.stringify(openStockEntries)); }, [openStockEntries]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_indents_v2', JSON.stringify(indents)); }, [indents]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_indent_approvals', JSON.stringify(indentApprovals)); }, [indentApprovals]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_quotations_v2', JSON.stringify(quotations)); }, [quotations]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_orders_v2', JSON.stringify(purchaseOrders)); }, [purchaseOrders]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_grns_v2', JSON.stringify(grns)); }, [grns]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_bills_v2', JSON.stringify(purchaseBills)); }, [purchaseBills]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_returns', JSON.stringify(purchaseReturns)); }, [purchaseReturns]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_dept_issues', JSON.stringify(departmentIssues)); }, [departmentIssues]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_stock_transfers', JSON.stringify(stockTransfers)); }, [stockTransfers]);
-  useEffect(() => { localStorage.setItem('alfa_purchase_consumer_entries', JSON.stringify(consumerEntries)); }, [consumerEntries]);
+      } catch (e) {
+        console.warn('PurchaseContext hydration error:', e);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   return (
     <PurchaseContext.Provider value={{
@@ -281,3 +316,4 @@ export const PurchaseProvider = ({ children }) => {
     </PurchaseContext.Provider>
   );
 };
+

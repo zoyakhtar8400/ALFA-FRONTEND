@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import ConsumerEntryForm from './ConsumerEntryForm';
 import ConsumerEntryView from './ConsumerEntryView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { stockApi } from '../../../../api/stockApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No', sortable: true },
@@ -30,7 +31,24 @@ const INITIAL_CONSUME_ENTRIES = [
 
 const ConsumerEntryList = ({ showToast }) => {
   const { items, units } = usePurchase();
-  const [consumerEntries, setConsumerEntries] = useState(INITIAL_CONSUME_ENTRIES);
+  const [consumerEntries, setConsumerEntries] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    stockApi.getConsumerEntries().then(res => {
+      if (mounted) {
+        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setConsumerEntries(data.map((c, idx) => ({
+          id: c.consumer_id || idx + 1,
+          entryNo: String(c.entry_number || c.consumer_id || idx + 1),
+          entryDate: c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : '',
+          department: c.department || c.in_department || '',
+          lines: [],
+        })));
+      }
+    }).catch(() => { if (mounted) setConsumerEntries([]); });
+    return () => { mounted = false; };
+  }, []);
 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
   const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'

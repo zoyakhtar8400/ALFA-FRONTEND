@@ -99,12 +99,10 @@ const ReportsDashboard = () => {
       {/* Multi-Column Side-by-Side Category Layout */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${filteredCatalog.length}, 1fr)`,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
         gap: '16px',
         width: '100%',
-        alignItems: 'start',
-        overflowX: 'auto',
-        minWidth: 0
+        alignItems: 'start'
       }}>
         {filteredCatalog.map((cat, catIdx) => {
           const Icon = cat.icon;

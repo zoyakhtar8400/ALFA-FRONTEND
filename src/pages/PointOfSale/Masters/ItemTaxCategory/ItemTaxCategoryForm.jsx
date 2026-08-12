@@ -27,8 +27,7 @@ const ItemTaxCategoryForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit
         applicableDate: new Date().toISOString().split('T')[0],
         department: '',
         taxes: [
-          { taxName: 'CGST', percentage: '2.5%', postAccount: 'CGST Output A/c' },
-          { taxName: 'SGST', percentage: '2.5%', postAccount: 'SGST Output A/c' }
+          { taxName: '', percentage: '', postAccount: '' }
         ],
         status: 'Active'
       });
@@ -120,12 +119,7 @@ const ItemTaxCategoryForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                     required
                   >
-                    <option value="">--Select Department--</option>
                     <option value="Restaurant">Restaurant</option>
-                    <option value="Bar">Bar</option>
-                    <option value="Room Service">Room Service</option>
-                    <option value="Banquets">Banquets</option>
-                    <option value="Cafe">Cafe</option>
                   </select>
                 </F>
 

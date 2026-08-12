@@ -1,23 +1,45 @@
 import React from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { usePurchase } from './hooks/usePurchase';
-import { Link } from 'react-router-dom';
+import { purchaseApi } from '../../api/purchaseApi';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   FaBoxes, FaShoppingCart, FaTruck,
   FaExclamationTriangle, FaPlus, FaCloudUploadAlt
 } from 'react-icons/fa';
 
 const PurchaseDashboard = () => {
+  const navigate = useNavigate();
   const { items, purchaseOrders } = usePurchase();
+  const [kpis, setKpis] = React.useState({
+    totalStockValuation: 0,
+    totalCatalogItems: 0,
+    issuedPurchaseOrdersCount: 0,
+    reorderAlertsCount: 0,
+  });
 
-  const lowStockCount = items.filter((i) => Number(i.currentStock) <= Number(i.reorderLevel)).length;
-  const totalStockValuation = items.reduce((sum, i) => sum + (Number(i.currentStock || 0) * Number(i.purchaseRate || 0)), 0);
+  React.useEffect(() => {
+    const loadKPIs = async () => {
+      try {
+        const json = await purchaseApi.getDashboardKPIs();
+        if (json?.data) setKpis(json.data);
+      } catch (err) {
+        console.warn('Could not load purchase dashboard KPIs:', err.message);
+      }
+    };
+    loadKPIs();
+  }, []);
+
+  const lowStockCount = kpis.reorderAlertsCount || items.filter((i) => Number(i.currentStock) <= Number(i.reorderLevel)).length;
+  const totalStockValuation = kpis.totalStockValuation || items.reduce((sum, i) => sum + (Number(i.currentStock || 0) * Number(i.purchaseRate || 0)), 0);
 
   return (
     <div className="w-full flex flex-col p-6 animate-in fade-in duration-200 gap-6">
       <PageHeader
         title="Purchase & Inventory Enterprise Workspace"
         breadcrumbs={['Dashboard', 'Purchase']}
+        showBack
+        onBack={() => navigate('/')}
       />
 
       {/* Quick Action Buttons */}

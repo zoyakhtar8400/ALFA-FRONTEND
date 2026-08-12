@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import PurchaseReturnEntryForm from './PurchaseReturnEntryForm';
 import PurchaseReturnEntryView from './PurchaseReturnEntryView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { stockApi } from '../../../../api/stockApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No', sortable: true },
@@ -41,14 +42,37 @@ const INITIAL_RETURNS = [
 
 const PurchaseReturnEntryList = ({ showToast }) => {
   const { items, units } = usePurchase();
-  const [purchaseReturns, setPurchaseReturns] = useState(INITIAL_RETURNS);
+  const [purchaseReturns, setPurchaseReturns] = useState([]);
 
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
-  const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'
+  const [viewMode, setViewMode] = useState('list');
+  const [formMode, setFormMode] = useState('add');
   const [selectedRow, setSelectedRow] = useState(null);
 
   const [viewModal, setViewModal] = useState({ open: false, row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    let mounted = true;
+    stockApi.getPurchaseReturns().then(res => {
+      if (mounted) {
+        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setPurchaseReturns(data.map((r, idx) => ({
+          id: r.return_id || idx + 1,
+          entryNo: String(r.return_number || r.return_id || idx + 1),
+          entryDate: r.return_date ? new Date(r.return_date).toISOString().split('T')[0] : '',
+          ptyBillNo: r.return_number || '',
+          ptyBillDt: r.return_date ? new Date(r.return_date).toISOString().split('T')[0] : '',
+          customer: r.Supplier?.supplier_name || '',
+          supplier: r.Supplier?.supplier_name || '',
+          approvedBy: r.approved_by || '',
+          rowNo: idx + 1,
+          netAmount: Number(r.total_amount || 0),
+          lines: [],
+        })));
+      }
+    }).catch(() => { if (mounted) setPurchaseReturns([]); });
+    return () => { mounted = false; };
+  }, []);
 
   const toast = (msg) => {
     if (showToast) showToast(msg);
@@ -69,7 +93,28 @@ const PurchaseReturnEntryList = ({ showToast }) => {
     setViewMode('form');
   };
 
-  const handleSave = (entry) => {
+  const handleSave = async (entry) => {
+    try {
+      const payload = {
+        return_number: `RET-${entry.entryNo || Date.now()}`,
+        supplier_id: 1,
+        return_date: entry.entryDate || new Date(),
+        reason: entry.reason || 'Damaged Stock',
+        total_amount: Number(entry.netAmount || entry.grossAmount || 0),
+        items: (entry.lines || []).map((l) => ({
+          inventory_item_id: l.item ? Number(l.item) : 1,
+          return_qty: Number(l.retQty || 1),
+          unit: l.unit || 'Kg',
+          unit_price: Number(l.rate || 0),
+          total_amount: Number(l.amount || 0)
+        }))
+      };
+
+      await stockApi.processPurchaseReturn(payload);
+      console.log('✅ Purchase Return saved to PostgreSQL & inventory reduced via stockApi');
+    } catch (e) {
+      console.warn('Error posting Purchase Return to PostgreSQL:', e.message);
+    }
     if (formMode === 'edit' && selectedRow) {
       setPurchaseReturns((prev) => prev.map((r) => (r.id === selectedRow.id ? { ...entry, id: r.id } : r)));
       toast(`Purchase Return Entry #${entry.entryNo} updated successfully!`);

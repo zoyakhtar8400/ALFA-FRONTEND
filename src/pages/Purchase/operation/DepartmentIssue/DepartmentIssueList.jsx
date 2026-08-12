@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import DepartmentIssueForm from './DepartmentIssueForm';
 import DepartmentIssueView from './DepartmentIssueView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { stockApi } from '../../../../api/stockApi';
+import { purchaseApi } from '../../../../api/purchaseApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No', sortable: true },
@@ -33,7 +35,7 @@ const INITIAL_DEPT_ISSUES = [
 
 const DepartmentIssueList = ({ showToast }) => {
   const { items, units } = usePurchase();
-  const [departmentIssues, setDepartmentIssues] = useState(INITIAL_DEPT_ISSUES);
+  const [departmentIssues, setDepartmentIssues] = useState([]);
 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
   const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'
@@ -41,6 +43,25 @@ const DepartmentIssueList = ({ showToast }) => {
 
   const [viewModal, setViewModal] = useState({ open: false, row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+
+  useEffect(() => {
+    let mounted = true;
+    stockApi.getDepartmentIssues().then(res => {
+      if (mounted) {
+        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setDepartmentIssues(data.map((d, idx) => ({
+          id: d.issue_id || idx + 1,
+          entryNo: String(d.issue_number || d.issue_id || idx + 1),
+          entryDate: d.created_at ? new Date(d.created_at).toISOString().split('T')[0] : '',
+          department: d.from_department || '',
+          toDepartment: d.to_department || '',
+          vPrefix: 'ISS',
+          lines: [],
+        })));
+      }
+    }).catch(() => { if (mounted) setDepartmentIssues([]); });
+    return () => { mounted = false; };
+  }, []);
 
   const toast = (msg) => {
     if (showToast) showToast(msg);
@@ -61,7 +82,25 @@ const DepartmentIssueList = ({ showToast }) => {
     setViewMode('form');
   };
 
-  const handleSave = (entry) => {
+  const handleSave = async (entry) => {
+    try {
+      const payload = {
+        issue_number: `ISS-${entry.entryNo || Date.now()}`,
+        from_department: entry.issueStore || 'PURCHASE STORE',
+        to_department: entry.department || 'MAIN KITCHEN',
+        notes: entry.remarks || '',
+        items: (entry.lines || []).map((l) => ({
+          inventory_item_id: l.item ? Number(l.item) : 1,
+          issue_qty: Number(l.issQty || 1),
+          unit: l.unit || 'Kg'
+        }))
+      };
+
+      await stockApi.issueStockToDepartment(payload);
+      console.log('✅ Department Issue posted to PostgreSQL & store stock reduced via stockApi');
+    } catch (e) {
+      console.warn('Error issuing stock to department:', e.message);
+    }
     if (formMode === 'edit' && selectedRow) {
       setDepartmentIssues((prev) => prev.map((d) => (d.id === selectedRow.id ? { ...entry, id: d.id } : d)));
       toast(`Department Issue Entry #${entry.entryNo} updated successfully!`);

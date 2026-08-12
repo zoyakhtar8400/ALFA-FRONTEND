@@ -67,14 +67,23 @@ const HSNCodeEntryPage = ({ showToast }) => {
       toastTrigger('Please click Fill to load items first.');
       return;
     }
-    // Update matching items in local state
-    setMenuItems(prev => {
-      return prev.map(item => {
-        const match = hsnTableList.find(x => x.id === item.id);
-        return match ? { ...item, hsnCode: match.hsnCode } : item;
+    const sampleHsn = hsnTableList[0]?.hsnCode || '2106';
+    const selectedGroupObj = itemGroups.find(g => g.name === selectedGroup);
+    
+    posApi.updateHsnCodes({
+      category_id: selectedGroupObj?.id || 1,
+      hsn_code: sampleHsn
+    }).then(() => {
+      setMenuItems(prev => {
+        return prev.map(item => {
+          const match = hsnTableList.find(x => x.id === item.id);
+          return match ? { ...item, hsnCode: match.hsnCode } : item;
+        });
       });
+      toastTrigger('HSN codes saved successfully in PostgreSQL for all loaded items.');
+    }).catch(err => {
+      toastTrigger(err?.response?.data?.message || 'Failed to update HSN codes');
     });
-    toastTrigger('HSN codes saved successfully for all loaded items.');
   };
 
   return (

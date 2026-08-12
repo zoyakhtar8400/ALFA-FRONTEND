@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import StockTransferEntryForm from './StockTransferEntryForm';
 import StockTransferEntryView from './StockTransferEntryView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { stockApi } from '../../../../api/stockApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No', sortable: true },
@@ -32,7 +33,25 @@ const INITIAL_STOCK_TRANSFERS = [
 
 const StockTransferEntryList = ({ showToast }) => {
   const { items, units } = usePurchase();
-  const [stockTransfers, setStockTransfers] = useState(INITIAL_STOCK_TRANSFERS);
+  const [stockTransfers, setStockTransfers] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+    stockApi.getStockTransfers().then(res => {
+      if (mounted) {
+        const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        setStockTransfers(data.map((s, idx) => ({
+          id: s.transfer_id || idx + 1,
+          entryNo: String(s.transfer_number || s.transfer_id || idx + 1),
+          entryDate: s.created_at ? new Date(s.created_at).toISOString().split('T')[0] : '',
+          department: s.from_department || '',
+          toDepartment: s.to_department || '',
+          lines: [],
+        })));
+      }
+    }).catch(() => { if (mounted) setStockTransfers([]); });
+    return () => { mounted = false; };
+  }, []);
 
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'form'
   const [formMode, setFormMode] = useState('add'); // 'add' | 'edit'

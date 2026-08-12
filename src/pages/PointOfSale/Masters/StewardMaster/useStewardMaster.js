@@ -1,12 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-
-// Seeds for Steward Master records
-const INITIAL_STEWARDS = [
-  { id: 1, name: 'Rakesh', active: 'Yes' },
-  { id: 2, name: 'Amit', active: 'Yes' },
-  { id: 3, name: 'Sanjay', active: 'Yes' },
-  { id: 4, name: 'Vijay', active: 'Yes' }
-];
+import posApi from '../../../../api/posApi';
 
 export const useStewardMaster = (showToast) => {
   const [data, setData] = useState([]);
@@ -23,35 +16,23 @@ export const useStewardMaster = (showToast) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
-  // Initialize data from localStorage or initial seed
-  useEffect(() => {
-    const loadData = () => {
-      setLoading(true);
-      try {
-        const stored = localStorage.getItem('alfa_hms_stewards');
-        if (stored) {
-          setData(JSON.parse(stored));
-        } else {
-          localStorage.setItem('alfa_hms_stewards', JSON.stringify(INITIAL_STEWARDS));
-          setData(INITIAL_STEWARDS);
-        }
-      } catch (err) {
-        if (showToast) showToast('Error reading steward records');
-      } finally {
-        // Simple simulated fetch delay
-        setTimeout(() => {
-          setLoading(false);
-        }, 300);
+  const fetchStewards = useCallback(() => {
+    setLoading(true);
+    posApi.getStewards().then(res => {
+      if (Array.isArray(res?.data)) {
+        setData(res.data);
+      } else {
+        setData([]);
       }
-    };
-    loadData();
+    }).catch(err => {
+      console.error('Error fetching stewards:', err);
+      setData([]);
+    }).finally(() => setLoading(false));
   }, []);
 
-  // Persist local data changes
-  const saveToStorage = (updatedList) => {
-    localStorage.setItem('alfa_hms_stewards', JSON.stringify(updatedList));
-    setData(updatedList);
-  };
+  useEffect(() => {
+    fetchStewards();
+  }, [fetchStewards]);
 
   // Filtered and Searched records
   const processedData = useMemo(() => {
@@ -111,7 +92,7 @@ export const useStewardMaster = (showToast) => {
     if (!skipDuplicateCheck) {
       const duplicateItem = data.find(s =>
         s.name.toLowerCase() === trimmedName.toLowerCase() &&
-        (modal.mode === 'add' || s.id !== modal.row.id)
+        (modal.mode === 'add' || s.id !== modal.row?.id)
       );
       if (duplicateItem) {
         setDuplicateConfirm({ open: true, fields: formData, duplicateItem });
@@ -119,38 +100,35 @@ export const useStewardMaster = (showToast) => {
       }
     }
 
-    let updatedList;
-    if (modal.mode === 'add') {
-      const newRow = {
-        id: Date.now(),
-        name: trimmedName,
-        active: formData.active ? 'Yes' : 'No'
-      };
-      updatedList = [...data, newRow];
-      if (showToast) showToast('Steward added successfully!');
-    } else {
-      updatedList = data.map(s =>
-        s.id === modal.row.id
-          ? { ...s, name: trimmedName, active: formData.active ? 'Yes' : 'No' }
-          : s
-      );
-      if (showToast) showToast('Steward updated successfully!');
-    }
+    const payload = {
+      id: modal.mode === 'edit' ? modal.row?.id : undefined,
+      name: trimmedName,
+      active: formData.active !== false ? 'Yes' : 'No'
+    };
 
-    saveToStorage(updatedList);
-    setModal({ open: false, mode: 'add', row: null });
-    setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    posApi.saveSteward(payload).then(() => {
+      if (showToast) showToast(modal.mode === 'add' ? 'Steward added successfully in PostgreSQL!' : 'Steward updated successfully in PostgreSQL!');
+      fetchStewards();
+      setModal({ open: false, mode: 'add', row: null });
+      setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    }).catch(err => {
+      if (showToast) showToast(err?.response?.data?.message || 'Failed to save steward');
+    });
+
     return true;
-  }, [data, modal, showToast]);
+  }, [data, modal, showToast, fetchStewards]);
 
   // Delete handler
   const handleDelete = useCallback(() => {
     if (!deleteModal.row) return;
-    const updatedList = data.filter(s => s.id !== deleteModal.row.id);
-    saveToStorage(updatedList);
-    if (showToast) showToast('Steward record deleted successfully.');
-    setDeleteModal({ open: false, row: null });
-  }, [data, deleteModal, showToast]);
+    posApi.deleteSteward(deleteModal.row.id).then(() => {
+      if (showToast) showToast('Steward record deactivated in PostgreSQL.');
+      fetchStewards();
+      setDeleteModal({ open: false, row: null });
+    }).catch(err => {
+      if (showToast) showToast(err?.response?.data?.message || 'Failed to delete steward');
+    });
+  }, [deleteModal, showToast, fetchStewards]);
 
   return {
     data,
@@ -179,3 +157,5 @@ export const useStewardMaster = (showToast) => {
     handleDelete
   };
 };
+
+export default useStewardMaster;

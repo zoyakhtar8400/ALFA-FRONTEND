@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../../components/common/PageHeader';
 import CommonSearch from '../../../components/common/CommonSearch';
 import { PURCHASE_REPORT_CATALOG } from './purchaseReportCatalog';
@@ -7,6 +8,7 @@ import { FaArrowRight } from 'react-icons/fa';
 import '../../FrontDesk/report/reports.css';
 
 const PurchaseReports = ({ showToast }) => {
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -58,6 +60,8 @@ const PurchaseReports = ({ showToast }) => {
       <PageHeader
         title="Purchase Report Hub"
         breadcrumbs={['Dashboard', 'Purchase', 'Reports']}
+        showBack
+        onBack={() => navigate('/purchase')}
       />
 
       <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '8px' }}>

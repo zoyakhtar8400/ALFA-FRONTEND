@@ -7,12 +7,12 @@ import TableMasterBulkForm from './TableMasterBulkForm';
 import { useTableMaster } from './useTableMaster';
 
 const columns = [
+  { key: 'no', label: 'Table No', sortable: true },
   { key: 'name', label: 'Table Name', sortable: true },
-  { key: 'department', label: 'Department', sortable: true },
+  { key: 'department', label: 'Section', sortable: true },
   { key: 'pax', label: 'PAX', sortable: true, render: (v) => (v !== undefined && v !== null && v !== '') ? `${v} Pax` : '' },
-  { key: 'floor', label: 'Floor Name', sortable: true },
-  { key: 'description', label: 'Description', sortable: true },
-  { key: 'isActive', label: 'Active', sortable: true, render: (v) => v ? 'Yes' : 'No' }
+  { key: 'floor', label: 'Floor', sortable: true },
+  { key: 'status', label: 'Status', sortable: true }
 ];
 
 const TableMasterPage = ({ showToast }) => {
@@ -64,7 +64,6 @@ const TableMasterPage = ({ showToast }) => {
         showToast={toastTrigger}
         breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Table Master']}
         emptyMessage="No Table Records Found"
-        statusFilterKey="isActive"
         extraButtons={[
           {
             label: 'Bulk Create Tables',

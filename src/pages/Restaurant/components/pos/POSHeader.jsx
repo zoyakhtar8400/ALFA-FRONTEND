@@ -8,6 +8,7 @@ const POSHeader = ({
   setServiceType,
   assignedTableNo,
   customerName,
+  mobileNumber,
   paxCount,
   hasRemarks,
   waiter,
@@ -47,6 +48,7 @@ const POSHeader = ({
       <HeaderActions
         assignedTableNo={assignedTableNo}
         customerName={customerName}
+        mobileNumber={mobileNumber}
         paxCount={paxCount}
         hasRemarks={hasRemarks}
         waiter={waiter}

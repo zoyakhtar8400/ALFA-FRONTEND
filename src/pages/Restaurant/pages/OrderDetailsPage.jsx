@@ -19,20 +19,22 @@ const OrderDetailsPage = ({ showToast }) => {
         const res = await orderService.getOrders();
         const rawOrders = res?.orders || res?.data || [];
         if (Array.isArray(rawOrders)) {
-          const mapped = rawOrders.map(o => ({
-            id: o.id,
-            billNo: String(o.billNo || o.id),
-            tableNo: o.tableNo || o.table_name || `T${o.table_id || o.id}`,
-            billType: o.billType || o.order_type || 'DINE_IN',
-            billDate: new Date(o.createdAt || o.billDate || Date.now()).toLocaleDateString(),
-            orderNo: String(o.orderNo || o.order_number || o.id),
-            amount: Number(o.amount || o.total_amount || 0),
-            customerName: o.customerName || o.customer_name || 'Walk-in',
-            mobileNo: o.mobileNo || o.customer_phone || '—',
-            waiter: o.waiter || o.waiter_name || 'Staff',
-            payment_status: o.payment_status || 'Paid',
-            items: o.items || []
-          }));
+          const mapped = rawOrders.map((o, idx) => {
+            return {
+              id: o.id || o.order_id || o.billNo || (idx + 1),
+              billNo: o.billNo || `Bill ${o.order_number || o.orderNo || (idx + 1)}`,
+              tableNo: o.tableNo || o.table_name || `Table ${o.table_id || (idx + 1)}`,
+              billType: o.billType || o.order_type || 'DINE_IN',
+              billDate: new Date(o.createdAt || o.billDate || Date.now()).toLocaleDateString(),
+              orderNo: String(o.orderNo || o.order_number || (idx + 1)),
+              amount: Number(o.amount || o.total_amount || 0),
+              customerName: o.customerName || o.customer_name || 'Walk-in',
+              mobileNo: o.mobileNo || o.mobile_no || o.customer_phone || o.phone || o.mobile || '—',
+              waiter: o.waiter || o.waiter_name || 'Staff',
+              payment_status: o.payment_status || 'Paid',
+              items: o.items || []
+            };
+          });
           setData(mapped);
         }
       } catch (err) {
@@ -86,6 +88,7 @@ const OrderDetailsPage = ({ showToast }) => {
     { key: 'amount', label: 'Amount', render: (val) => `₹${Number(val).toFixed(2)}` },
     { key: 'customerName', label: 'Customer Name' },
     { key: 'mobileNo', label: 'Mobile No' },
+    { key: 'payment_status', label: 'Payment Status', renderStatus: true, activeValue: 'Paid' },
     { key: 'action', label: 'Action', sortable: false }
   ];
 

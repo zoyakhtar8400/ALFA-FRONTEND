@@ -137,6 +137,7 @@ const BillingPanel = ({
         setServiceType={setServiceType}
         assignedTableNo={resolvedAssignedTableNo}
         customerName={customerName}
+        mobileNumber={mobileNumber}
         paxCount={paxCount}
         hasRemarks={!!remarks}
         waiter={waiter}

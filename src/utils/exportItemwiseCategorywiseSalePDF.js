@@ -21,7 +21,7 @@ export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, p
   const rightMargin = 15;
   const printableWidth = pageWidth - leftMargin - rightMargin; // 180mm
 
-  const dateRangeStr = `Itemwise Categorywise Sale From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `Itemwise Categorywise Sale From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)

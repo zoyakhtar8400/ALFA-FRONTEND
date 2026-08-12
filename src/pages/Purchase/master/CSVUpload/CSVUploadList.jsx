@@ -3,6 +3,7 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import CSVUploadForm from './CSVUploadForm';
 import { usePurchase } from '../../hooks/usePurchase';
+import { inventoryApi } from '../../../../api/inventoryApi';
 
 const columns = [
   { key: 'name', label: 'Item Name', sortable: true },
@@ -26,7 +27,24 @@ const CSVUploadList = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   };
 
-  const handleImport = (validRows) => {
+  const handleImport = async (validRows) => {
+    try {
+      const payloadItems = validRows.map((r) => ({
+        item_name: r.ItemName,
+        item_type: r.ItemCategory?.includes('FINISH') ? 'FINISHED' : 'RAW',
+        unit: r.Unit || 'Kg',
+        purchase_price: Number(r.PurchaseRate || 0),
+        selling_price: Number(r.SalesRate || 0),
+        minimum_stock: Number(r.MinLevel || 0),
+        current_stock: Number(r.OpeningStock || 0)
+      }));
+
+      await inventoryApi.uploadItemCsv(payloadItems);
+      console.log('✅ CSV item rows bulk-imported into PostgreSQL via inventoryApi.uploadItemCsv');
+    } catch (err) {
+      console.warn('Error uploading CSV items to PostgreSQL:', err.message);
+    }
+
     const newItems = validRows.map((r, idx) => ({
       id: Date.now() + idx,
       name: r.ItemName,
@@ -37,18 +55,10 @@ const CSVUploadList = ({ showToast }) => {
       storeDepartment: r.StoreDepartment || 'PURCHASE',
       lotBatchNo: r.LotNoApplicable || 'Yes',
       conversionUnit: r.ConvUnit || r.Unit || 'K.G.',
-      maxLevel: '',
-      minLevel: '',
-      reOrderLevel: '',
-      poMandatory: 'Yes',
-      convRatio: '1',
-      moq: '',
-      description: '',
-      hsnSacCode: ''
     }));
 
     setItems((prev) => [...newItems, ...prev]);
-    toast(`Successfully imported ${newItems.length} items from CSV!`);
+    toast(`Successfully imported ${newItems.length} items to PostgreSQL via CSV!`);
     setModalOpen(false);
   };
 

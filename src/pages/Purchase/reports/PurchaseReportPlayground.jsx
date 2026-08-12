@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PageHeader from '../../../components/common/PageHeader';
 import CommonSearch from '../../../components/common/CommonSearch';
 import CommonActionToolbar from '../../../components/common/CommonActionToolbar';
@@ -7,6 +7,7 @@ import { exportExcel } from '../../../utils/exportExcel';
 import { exportPurchasePDF } from './pdf';
 import { handlePrint } from '../../../utils/printUtil';
 import { PrintHeader, PrintFooter } from '../../../components/common/PrintComponent';
+import { purchaseApi } from '../../../api/purchaseApi';
 import { FaChartBar } from 'react-icons/fa';
 import '../../FrontDesk/report/reports.css';
 
@@ -15,39 +16,84 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
   const [startDate, setStartDate] = useState('2026-06-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [timeframe, setTimeframe] = useState('weekly'); // 'weekly' | 'monthly' | 'yearly'
+  const [realReportData, setRealReportData] = useState([]);
+  const [realKpis, setRealKpis] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const toast = (msg) => {
     if (showToast) showToast(msg);
     else if (window.showToast) window.showToast(msg);
   };
 
+  // Fetch real PostgreSQL data whenever active report or date range changes
+  useEffect(() => {
+    if (!selectedReport?.id) return;
+    let isMounted = true;
+    setLoading(true);
+
+    purchaseApi.getPurchaseReport(selectedReport.id, { startDate, endDate })
+      .then((res) => {
+        if (!isMounted) return;
+        const reportPayload = res?.data || res;
+        if (reportPayload && Array.isArray(reportPayload.data)) {
+          setRealReportData(reportPayload.data);
+          if (Array.isArray(reportPayload.kpis) && reportPayload.kpis.length > 0) {
+            setRealKpis(reportPayload.kpis);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error(`Error fetching real PostgreSQL report for ${selectedReport?.id}:`, err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [selectedReport?.id, startDate, endDate]);
+
+  // Derive chart data from real PostgreSQL report rows — never static/dummy values
   const chartData = useMemo(() => {
-    if (timeframe === 'monthly') {
-      return [
-        { label: 'Wk 1', val: '₹1.85L', pct: 55 },
-        { label: 'Wk 2', val: '₹2.40L', pct: 72 },
-        { label: 'Wk 3', val: '₹2.10L', pct: 64 },
-        { label: 'Wk 4', val: '₹3.15L', pct: 95 }
-      ];
-    }
-    if (timeframe === 'yearly') {
-      return [
-        { label: 'Q1', val: '₹7.20L', pct: 65 },
-        { label: 'Q2', val: '₹9.40L', pct: 82 },
-        { label: 'Q3', val: '₹8.10L', pct: 74 },
-        { label: 'Q4', val: '₹11.5L', pct: 100 }
-      ];
-    }
-    return [
-      { label: '18 Jul', val: '₹42.5K', pct: 45 },
-      { label: '19 Jul', val: '₹58.0K', pct: 60 },
-      { label: '20 Jul', val: '₹64.2K', pct: 68 },
-      { label: '21 Jul', val: '₹48.9K', pct: 52 },
-      { label: '22 Jul', val: '₹76.5K', pct: 80 },
-      { label: '23 Jul', val: '₹89.0K', pct: 92 },
-      { label: '24 Jul', val: '₹94.2K', pct: 100 }
-    ];
-  }, [timeframe]);
+    const rows = realReportData.length > 0 ? realReportData : (selectedReport?.data || []);
+    if (!rows.length) return [];
+
+    // Find first numeric column and first date column from the report columns
+    const cols = selectedReport?.columns || [];
+    const dateColIdx = cols.findIndex(c => c.toLowerCase().includes('date'));
+    const amtColIdx = cols.findIndex(c =>
+      ['amount', 'value', 'total', 'net', 'price', 'rate', 'cost', 'balance'].some(k => c.toLowerCase().includes(k))
+    );
+    if (amtColIdx === -1) return [];
+
+    const amtKey = `c${amtColIdx + 1}`;
+    const dateKey = dateColIdx !== -1 ? `c${dateColIdx + 1}` : null;
+
+    // Group rows into buckets by timeframe
+    const buckets = {};
+    rows.forEach(row => {
+      const amt = Number(row[amtKey] || 0);
+      let label = 'Total';
+      if (dateKey && row[dateKey]) {
+        const d = new Date(row[dateKey]);
+        if (!isNaN(d.getTime())) {
+          if (timeframe === 'yearly') {
+            label = `Q${Math.ceil((d.getMonth() + 1) / 3)} ${d.getFullYear()}`;
+          } else if (timeframe === 'monthly') {
+            const weekNo = Math.ceil(d.getDate() / 7);
+            label = `Wk ${weekNo}`;
+          } else {
+            label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+          }
+        }
+      }
+      buckets[label] = (buckets[label] || 0) + amt;
+    });
+
+    const entries = Object.entries(buckets).slice(0, 8);
+    const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+    const fmt = (v) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(1)}K` : `₹${Math.round(v)}`;
+    return entries.map(([label, val]) => ({ label, val: fmt(val), pct: Math.round((val / maxVal) * 100) }));
+  }, [realReportData, selectedReport, timeframe]);
 
   const parseRowDate = (dateStr) => {
     if (!dateStr) return null;
@@ -65,7 +111,7 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
 
   // Filter data by search query and date range
   const filteredData = useMemo(() => {
-    let rows = selectedReport?.data || [];
+    let rows = realReportData.length > 0 ? realReportData : (selectedReport?.data || []);
 
     // Filter by date range
     if (startDate || endDate) {
@@ -96,7 +142,11 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
     }
 
     return rows;
-  }, [selectedReport, searchQuery, startDate, endDate]);
+  }, [selectedReport, realReportData, searchQuery, startDate, endDate]);
+
+  const activeKpis = useMemo(() => {
+    return realKpis.length > 0 ? realKpis : (selectedReport?.kpis || []);
+  }, [realKpis, selectedReport]);
 
   const tableColumns = useMemo(() => {
     if (!selectedReport?.columns) return [];
@@ -160,9 +210,9 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
       </div>
 
       {/* 1. First: Show 3 KPI Cards */}
-      {selectedReport.kpis && selectedReport.kpis.length > 0 && (
+      {activeKpis && activeKpis.length > 0 && (
         <div className="no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-          {selectedReport.kpis.slice(0, 3).map((kpi, idx) => (
+          {activeKpis.slice(0, 3).map((kpi, idx) => (
             <div key={idx} style={{
               background: '#ffffff',
               border: '1px solid #e2e8f0',
@@ -381,10 +431,12 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
             title={`${selectedReport.name} Ledger Details`}
             columns={tableColumns}
             data={filteredData}
+            isLoading={loading}
             searchPlaceholder={`Search in ${selectedReport.name}...`}
             showToast={toast}
             onlyTable
-            emptyMessage="No matching data entries found for current filters."
+            hidePrintHeader
+            emptyMessage="No matching data entries found in PostgreSQL for current filters."
           />
 
           <PrintFooter />

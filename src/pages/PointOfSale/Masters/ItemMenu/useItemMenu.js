@@ -1,69 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-
-const INITIAL_MAIN_GROUPS = [
-  { id: 'MG1', name: 'Food' },
-  { id: 'MG2', name: 'Banquet Food' }
-];
-
-const INITIAL_ITEM_GROUPS = [
-  { id: 'IG1', name: 'Indian Starter', mainGroup: 'Food', code: '2106' },
-  { id: 'IG2', name: 'Chinese Main Course', mainGroup: 'Food', code: '2106' },
-  { id: 'IG3', name: 'Domestic Beer', mainGroup: 'Banquet Food', code: '2203' }
-];
-
-const INITIAL_MENU_ITEMS = [
-  { 
-    id: 'M1', 
-    name: 'Chicken Tandoori', 
-    dispCode: '101', 
-    itemGroup: 'Indian Starter', 
-    mainGroup: 'Food', 
-    unitType: 'Plate', 
-    outlet: 'Main Restaurant', 
-    price: 280, 
-    category: 'Veg', 
-    rateEdit: 'No', 
-    discApp: 'Yes', 
-    kitchen: 'Main Kitchen', 
-    status: 'Active', 
-    hsnCode: '2106' 
-  },
-  { 
-    id: 'M2', 
-    name: 'Paneer Tikka', 
-    dispCode: '102', 
-    itemGroup: 'Indian Starter', 
-    mainGroup: 'Food', 
-    unitType: 'Plate', 
-    outlet: 'Main Restaurant', 
-    price: 220, 
-    category: 'Veg', 
-    rateEdit: 'No', 
-    discApp: 'Yes', 
-    kitchen: 'Main Kitchen', 
-    status: 'Active', 
-    hsnCode: '2106' 
-  }
-];
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import posApi from '../../../../api/posApi';
 
 export const useItemMenu = (activeTab, showToast) => {
-  // Main Groups State
-  const [mainGroups, setMainGroups] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_main_groups');
-    return saved ? JSON.parse(saved) : INITIAL_MAIN_GROUPS;
-  });
-
-  // Item Groups State
-  const [itemGroups, setItemGroups] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_item_groups');
-    return saved ? JSON.parse(saved) : INITIAL_ITEM_GROUPS;
-  });
-
-  // Menu Items State
-  const [menuItems, setMenuItems] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_menu_items');
-    return saved ? JSON.parse(saved) : INITIAL_MENU_ITEMS;
-  });
+  const [mainGroups, setMainGroups] = useState([]);
+  const [itemGroups, setItemGroups] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -73,18 +15,57 @@ export const useItemMenu = (activeTab, showToast) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem('hms_pos_main_groups', JSON.stringify(mainGroups));
-  }, [mainGroups]);
+  const fetchMenuData = useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      posApi.getProductGroups(),
+      posApi.getCategories(),
+      posApi.getMenuItems()
+    ]).then(([pgRes, catRes, menuRes]) => {
+      const groups = Array.isArray(pgRes?.data?.productGroups) ? pgRes.data.productGroups : (Array.isArray(pgRes?.data) ? pgRes.data : []);
+      const categories = Array.isArray(catRes?.data?.categories) ? catRes.data.categories : (Array.isArray(catRes?.data) ? catRes.data : []);
+      const items = Array.isArray(menuRes?.data?.menuItems) ? menuRes.data.menuItems : (Array.isArray(menuRes?.data) ? menuRes.data : []);
+
+      const mappedProductGroups = groups.map((g, idx) => ({
+        id: g.id || g.product_group_id || idx + 1,
+        name: g.name || g.product_group_name || `Main Group ${idx + 1}`
+      }));
+
+      const mappedCategories = categories.map((c, idx) => ({
+        id: c.id || c.category_refid || idx + 1,
+        name: c.name || c.category_name || `Category ${idx + 1}`,
+        mainGroup: c.mainGroup || 'Food',
+        code: c.hsnCode || '2106'
+      }));
+
+      const mappedMenuItems = items.map((m, idx) => ({
+        id: m.id || m.item_id || idx + 1,
+        name: m.name || m.title || `Menu Item ${idx + 1}`,
+        dispCode: String(m.id || idx + 100),
+        itemGroup: m.category || 'General',
+        mainGroup: 'Food',
+        unitType: 'Plate',
+        outlet: 'Main Restaurant',
+        price: Number(m.price || m.sale_price || 0),
+        category: m.foodType || 'Veg',
+        rateEdit: 'No',
+        discApp: 'Yes',
+        kitchen: 'Main Kitchen',
+        status: m.active !== 0 ? 'Active' : 'Inactive',
+        hsnCode: '2106'
+      }));
+
+      setMainGroups(mappedProductGroups);
+      setItemGroups(mappedCategories);
+      setMenuItems(mappedMenuItems);
+    }).catch(err => {
+      console.error('Error fetching menu catalog:', err);
+    }).finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('hms_pos_item_groups', JSON.stringify(itemGroups));
-  }, [itemGroups]);
-
-  useEffect(() => {
-    localStorage.setItem('hms_pos_menu_items', JSON.stringify(menuItems));
-  }, [menuItems]);
+    fetchMenuData();
+  }, [fetchMenuData]);
 
   const filteredData = useMemo(() => {
     if (activeTab === 'main-group') {
@@ -119,80 +100,23 @@ export const useItemMenu = (activeTab, showToast) => {
         showToast('Main Group Name must be at least 2 characters.');
         return false;
       }
-      if (!skipDuplicateCheck) {
-        const duplicateItem = mainGroups.find(item => 
-          item.id !== fields.id && 
-          item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
-        );
-        if (duplicateItem) {
-          setDuplicateConfirm({ open: true, fields, duplicateItem });
-          return false;
-        }
-      }
     }
-
     if (activeTab === 'item-group') {
       if (!fields.name || fields.name.trim().length < 2) {
         showToast('Item Group Name must be at least 2 characters.');
         return false;
       }
-      if (!fields.mainGroup) {
-        showToast('Please select a Main Group.');
-        return false;
-      }
-      if (!fields.code || fields.code.trim().length < 2) {
-        showToast('HSN/SAC Code must be at least 2 characters.');
-        return false;
-      }
-      if (!skipDuplicateCheck) {
-        const duplicateItem = itemGroups.find(item => 
-          item.id !== fields.id && 
-          item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
-        );
-        if (duplicateItem) {
-          setDuplicateConfirm({ open: true, fields, duplicateItem });
-          return false;
-        }
-      }
     }
-
     if (activeTab === 'menu-item') {
       if (!fields.name || fields.name.trim().length < 2) {
         showToast('Item Name must be at least 2 characters.');
-        return false;
-      }
-      if (!fields.dispCode || fields.dispCode.trim().length < 1) {
-        showToast('DISP Code is required.');
-        return false;
-      }
-      if (!fields.itemGroup) {
-        showToast('Please select an Item Group.');
-        return false;
-      }
-      if (!fields.mainGroup) {
-        showToast('Please select a Main Group.');
-        return false;
-      }
-      if (!fields.outlet) {
-        showToast('Please select an Outlet.');
         return false;
       }
       if (fields.price === undefined || fields.price === '' || Number(fields.price) < 0) {
         showToast('Sale Rate must be a valid number.');
         return false;
       }
-      if (!skipDuplicateCheck) {
-        const duplicateItem = menuItems.find(item => 
-          item.id !== fields.id && 
-          item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
-        );
-        if (duplicateItem) {
-          setDuplicateConfirm({ open: true, fields, duplicateItem });
-          return false;
-        }
-      }
     }
-
     return true;
   };
 
@@ -200,35 +124,47 @@ export const useItemMenu = (activeTab, showToast) => {
     if (!validate(fields, skipDuplicateCheck)) return false;
 
     if (activeTab === 'main-group') {
-      if (modal.isEdit) {
-        setMainGroups(prev => prev.map(item => item.id === fields.id ? fields : item));
-        showToast('Main Group updated successfully.');
-      } else {
-        const newId = `MG${Math.floor(Math.random() * 10000)}`;
-        setMainGroups(prev => [...prev, { ...fields, id: newId }]);
-        showToast('Main Group created successfully.');
-      }
+      posApi.saveProductGroup({
+        id: modal.isEdit ? fields.id : undefined,
+        product_group_name: fields.name,
+        name: fields.name
+      }).then(() => {
+        showToast(modal.isEdit ? 'Main Group updated in PostgreSQL.' : 'Main Group created in PostgreSQL.');
+        fetchMenuData();
+        setModal({ open: false, isEdit: false, fields: {} });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to save Main Group');
+      });
     } else if (activeTab === 'item-group') {
-      if (modal.isEdit) {
-        setItemGroups(prev => prev.map(item => item.id === fields.id ? fields : item));
-        showToast('Item Group updated successfully.');
-      } else {
-        const newId = `IG${Math.floor(Math.random() * 10000)}`;
-        setItemGroups(prev => [...prev, { ...fields, id: newId }]);
-        showToast('Item Group created successfully.');
-      }
+      posApi.saveCategory({
+        id: modal.isEdit ? fields.id : undefined,
+        category_name: fields.name,
+        name: fields.name
+      }).then(() => {
+        showToast(modal.isEdit ? 'Item Group updated in PostgreSQL.' : 'Item Group created in PostgreSQL.');
+        fetchMenuData();
+        setModal({ open: false, isEdit: false, fields: {} });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to save Item Group');
+      });
     } else if (activeTab === 'menu-item') {
-      if (modal.isEdit) {
-        setMenuItems(prev => prev.map(item => item.id === fields.id ? fields : item));
-        showToast('Menu Item updated successfully.');
-      } else {
-        const newId = `M${Math.floor(Math.random() * 10000)}`;
-        setMenuItems(prev => [...prev, { ...fields, id: newId, status: fields.status || 'Active' }]);
-        showToast('Menu Item created successfully.');
-      }
+      posApi.saveMenuItem({
+        ...(modal.isEdit && { id: fields.id || fields.item_id, item_id: fields.id || fields.item_id }),
+        title: fields.name,
+        name: fields.name,
+        price: Number(fields.price || 0),
+        sale_price: Number(fields.price || 0),
+        food_type: fields.category || 'Veg',
+        inventory_type: 'RECIPE'
+      }).then(() => {
+        showToast(modal.isEdit ? 'Menu item updated in PostgreSQL.' : 'Menu item created in PostgreSQL.');
+        fetchMenuData();
+        setModal({ open: false, isEdit: false, fields: {} });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to save menu item');
+      });
     }
 
-    setModal({ open: false, isEdit: false, fields: {} });
     setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
     return true;
   };
@@ -237,21 +173,35 @@ export const useItemMenu = (activeTab, showToast) => {
     if (!deleteModal.row) return;
 
     if (activeTab === 'main-group') {
-      setMainGroups(prev => prev.filter(item => item.id !== deleteModal.row.id));
-      showToast('Main Group deleted successfully.');
+      posApi.deleteProductGroup(deleteModal.row.id).then(() => {
+        showToast('Main Group deleted in PostgreSQL.');
+        fetchMenuData();
+        setDeleteModal({ open: false, row: null });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to delete Main Group');
+      });
     } else if (activeTab === 'item-group') {
-      setItemGroups(prev => prev.filter(item => item.id !== deleteModal.row.id));
-      showToast('Item Group deleted successfully.');
+      posApi.deleteCategory(deleteModal.row.id).then(() => {
+        showToast('Item Group deactivated in PostgreSQL.');
+        fetchMenuData();
+        setDeleteModal({ open: false, row: null });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to delete Item Group');
+      });
     } else if (activeTab === 'menu-item') {
-      setMenuItems(prev => prev.filter(item => item.id !== deleteModal.row.id));
-      showToast('Menu Item deleted successfully.');
+      posApi.deleteMenuItem(deleteModal.row.id).then(() => {
+        showToast('Menu Item deactivated in PostgreSQL.');
+        fetchMenuData();
+        setDeleteModal({ open: false, row: null });
+      }).catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to delete Menu Item');
+      });
     }
-
-    setDeleteModal({ open: false, row: null });
   };
 
   return {
     data: filteredData,
+    loading,
     mainGroups,
     itemGroups,
     menuItems,
@@ -270,3 +220,5 @@ export const useItemMenu = (activeTab, showToast) => {
     handleDelete
   };
 };
+
+export default useItemMenu;

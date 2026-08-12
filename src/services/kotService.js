@@ -33,7 +33,17 @@ export const kotService = {
 
   // Move KOT from one table to another in PostgreSQL
   async moveKOT(kotId, payload) {
-    return await apiClient.post(`/api/kot/${kotId}/move`, payload);
+    return await apiClient.post(`/kot/${kotId}/move`, payload);
+  },
+
+  // Move entire table order to another table in PostgreSQL
+  async moveTable(payload) {
+    return await apiClient.post('/kot/move-table', payload);
+  },
+
+  // Move specific items / quantities from one table to another in PostgreSQL
+  async moveItems(payload) {
+    return await apiClient.post('/kot/move-items', payload);
   }
 };
 

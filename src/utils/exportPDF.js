@@ -140,8 +140,8 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
       return defaultFallback;
     };
 
-    const fromStr = formatDateDisplay(activeFilters?.startDate || activeFilters?.dateFrom, '01/Apr/2026');
-    const toStr = formatDateDisplay(activeFilters?.endDate || activeFilters?.dateTo, '25/Jul/2026');
+    const fromStr = formatDateDisplay(activeFilters?.startDate || activeFilters?.dateFrom, 'Start');
+    const toStr = formatDateDisplay(activeFilters?.endDate || activeFilters?.dateTo, 'End');
 
     doc.setFontSize(10.5);
     doc.text(`${reportName} From ${fromStr} To ${toStr}`, pageWidth / 2, 20, { align: 'center' });

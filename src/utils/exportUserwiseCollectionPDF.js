@@ -20,7 +20,7 @@ export const exportUserwiseCollectionPDF = (columns, data, filters = {}, printed
   const leftMargin = 10;
   const rightMargin = 10;
 
-  const dateRangeStr = `User Wise Collection Report(Summary) From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `User Wise Collection Report(Summary) From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
   const userStr = `${filters.user || 'All'}`;
 

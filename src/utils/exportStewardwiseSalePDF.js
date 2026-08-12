@@ -20,7 +20,7 @@ export const exportStewardwiseSalePDF = (columns, data, filters = {}, printedOn 
   const leftMargin = 15;
   const rightMargin = 15;
 
-  const dateRangeStr = `Stewardwise Item Sale From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `Stewardwise Item Sale From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)

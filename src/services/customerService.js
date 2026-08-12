@@ -2,8 +2,8 @@ import apiClient from './apiClient';
 
 export const customerService = {
   // Search or fetch customer list
-  async getCustomers(query) {
-    return await apiClient.get('/customer', { params: { query } });
+  async getCustomers(phone) {
+    return await apiClient.get('/customer', { params: { phone } });
   },
 
   // Create new customer profile

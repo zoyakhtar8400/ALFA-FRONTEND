@@ -71,12 +71,7 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
               <select value={fields.department}
                 onChange={(e) => setFields(p => ({ ...p, department: e.target.value }))}
                 className="form-select" required>
-                <option value="">--Select Department--</option>
                 <option value="Restaurant">Restaurant</option>
-                <option value="Bar">Bar</option>
-                <option value="Room Service">Room Service</option>
-                <option value="Banquets">Banquets</option>
-                <option value="Cafe">Cafe</option>
               </select>
             </div>
 

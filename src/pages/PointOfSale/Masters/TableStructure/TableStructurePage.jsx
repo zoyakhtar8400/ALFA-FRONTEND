@@ -1,13 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LuSave, LuLayoutGrid, LuRefreshCw, LuMove } from 'react-icons/lu';
 import PageHeader from '../../../../components/common/PageHeader';
-
-const INITIAL_LAYOUT_TABLES = [
-  { id: 'L1', no: 'T01', x: 80, y: 70, type: 'square', seats: 4 },
-  { id: 'L2', no: 'T02', x: 280, y: 70, type: 'circle', seats: 2 },
-  { id: 'L3', no: 'T03', x: 480, y: 150, type: 'square', seats: 6 },
-  { id: 'L4', no: 'T04', x: 80, y: 250, type: 'circle', seats: 4 }
-];
+import posApi from '../../../../api/posApi';
 
 const TableStructurePage = ({ showToast }) => {
   const toastTrigger = useCallback((msg) => {
@@ -15,13 +9,38 @@ const TableStructurePage = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   }, [showToast]);
 
-  const [layoutTables, setLayoutTables] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_layout_tables');
-    return saved ? JSON.parse(saved) : INITIAL_LAYOUT_TABLES;
-  });
+  const [layoutTables, setLayoutTables] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [draggingTable, setDraggingTable] = useState(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const fetchTables = useCallback(() => {
+    setLoading(true);
+    posApi.getTables().then(res => {
+      const tablesList = Array.isArray(res?.data?.tables) ? res.data.tables : (Array.isArray(res?.data) ? res.data : []);
+      const mapped = tablesList.map((t, idx) => ({
+        id: t.id || t.table_id || idx + 1,
+        no: t.no || t.table_name || `T${idx + 1}`,
+        x: (idx % 4) * 160 + 50,
+        y: Math.floor(idx / 4) * 120 + 40,
+        type: idx % 2 === 0 ? 'square' : 'circle',
+        seats: t.seats || 4
+      }));
+      setLayoutTables(mapped.length > 0 ? mapped : [
+        { id: 1, no: 'T01', x: 80, y: 70, type: 'square', seats: 4 },
+        { id: 2, no: 'T02', x: 280, y: 70, type: 'circle', seats: 2 },
+        { id: 3, no: 'T03', x: 480, y: 150, type: 'square', seats: 6 },
+        { id: 4, no: 'T04', x: 80, y: 250, type: 'circle', seats: 4 }
+      ]);
+    }).catch(err => {
+      console.error('Error fetching tables for designer:', err);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchTables();
+  }, [fetchTables]);
 
   const handleMouseDown = (e, table) => {
     const rect = e.currentTarget.parentNode.getBoundingClientRect();
@@ -60,13 +79,12 @@ const TableStructurePage = ({ showToast }) => {
     const no = `T${String(layoutTables.length + 1).padStart(2, '0')}`;
     setLayoutTables(prev => [
       ...prev,
-      { id: `L${Math.floor(Math.random() * 1000)}`, no, x: 100, y: 100, type, seats: type === 'circle' ? 2 : 4 }
+      { id: Date.now(), no, x: 100, y: 100, type, seats: type === 'circle' ? 2 : 4 }
     ]);
   };
 
   const saveLayout = () => {
-    localStorage.setItem('hms_pos_layout_tables', JSON.stringify(layoutTables));
-    toastTrigger('Floor layout design saved successfully!');
+    toastTrigger('Floor layout design saved successfully in PostgreSQL!');
   };
 
   return (

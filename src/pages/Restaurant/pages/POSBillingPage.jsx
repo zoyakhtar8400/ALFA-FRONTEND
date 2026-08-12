@@ -298,6 +298,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       if (isBlank) {
         setRows([]);
         if (currentTable?.customer) setCustomerName(currentTable.customer);
+        if (currentTable?.mobile || currentTable?.phone || currentTable?.customer_phone) setMobileNumber(currentTable.mobile || currentTable.phone || currentTable.customer_phone);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
         if (currentTable?.captain) setCaptain(currentTable.captain);
         return;
@@ -351,6 +352,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               }
             });
             setRows(mappedRows);
+            if (kotList[0]?.customer_mobile) setMobileNumber(kotList[0].customer_mobile);
+            if (kotList[0]?.customer_name) setCustomerName(kotList[0].customer_name);
             return;
           }
         }
@@ -362,6 +365,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
 
       if (currentTable.customer) setCustomerName(currentTable.customer);
+      if (currentTable.mobile || currentTable.phone || currentTable.customer_phone) setMobileNumber(currentTable.mobile || currentTable.phone || currentTable.customer_phone);
       if (currentTable.waiter) setWaiter(currentTable.waiter);
       if (currentTable.captain) setCaptain(currentTable.captain);
     }
@@ -973,21 +977,32 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
 
     try {
-      await kotService.createKOT({
+      const kotResult = await kotService.createKOT({
         kotNo: newKotNo,
         tableId: resolvedTableId,
         tableNo,
         customerName: customerName || 'Walk-in',
+        mobileNo: mobileNumber || '',
         waiter: activeWaiter,
         items: rowsToCut,
         isNewSession: isNewSession
       });
+      
+      // Check if backend returned stock or validation error message
+      if (kotResult && kotResult.statusCode && kotResult.statusCode >= 400) {
+        toast.error(kotResult.message || 'Failed to cut KOT');
+        return;
+      }
+      
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
       // Mark active rows as cut in local state
       setRows(prev => prev.map(r => ({ ...r, isCut: true })));
       if (typeof refreshTables === 'function') refreshTables();
     } catch (err) {
       console.warn('Error calling KOT API:', err);
+      const errMsg = err.response?.data?.message || err.message || 'Stock insufficient or KOT failed';
+      toast.error(`⛔ ${errMsg}`);
+      return;
     }
 
     const finalRows = rows.filter(r => r.name || r.itemName);
@@ -1032,6 +1047,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableId: assignedTableId,
         tableNo: targetTable?.no || String(assignedTableId),
         customerName: customerName || 'Walk-in',
+        mobileNo: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
         waiter: waiter || 'Staff',
         items: activeRows,
         isNewSession: isNewSession
@@ -1047,7 +1063,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         status: 'KOT_CUT',
         amount: finalAmt,
         waiter: waiter || 'Staff',
-        customer: customerName || 'Walk-in'
+        customer: customerName || 'Walk-in',
+        mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : ''
       });
     } catch (err) {}
 
@@ -1061,6 +1078,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       amount: finalAmt,
       waiter: waiter || 'Staff',
       customer: customerName || 'Walk-in',
+      mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
       updatedAt: Date.now()
     };
     toast(`Table T${targetTable?.no || assignedTableId} assigned successfully!`);
@@ -1076,6 +1094,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const timeNo = Date.now().toString().slice(-4) + '-' + Math.floor(100 + Math.random() * 900);
     const newKotNo = `KOT-${timeNo}`;
 
+    const cleanMobile = (mobileNumber && mobileNumber !== '—') ? mobileNumber : '';
+
     // 1. Create KOT in PostgreSQL if items exist
     if (activeRows.length > 0) {
       try {
@@ -1084,10 +1104,30 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           tableId: targetTableId || 1,
           tableNo: targetTableNo || '1',
           customerName: customerName || 'Walk-in',
+          mobileNo: cleanMobile,
           waiter: waiter || 'Staff',
           items: activeRows
         });
       } catch (err) {}
+
+      // 2. Create Bill record in PostgreSQL
+      try {
+        await orderService.createOrder({
+          tableId: targetTableId || 1,
+          tableNo: targetTableNo || '1',
+          customerName: customerName || 'Walk-in',
+          mobileNo: cleanMobile,
+          waiter: waiter || 'Staff',
+          subtotal: finalAmt,
+          amount: netBill,
+          tax: taxAmount,
+          discount: discountAmount,
+          status: 'pending',
+          items: activeRows
+        });
+      } catch (err) {
+        console.error('Error saving bill order to database:', err);
+      }
     }
 
     // 2. Update Table status in PostgreSQL
@@ -1097,7 +1137,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE',
           amount: finalAmt,
           waiter: waiter || 'Staff',
-          customer: customerName || 'Walk-in'
+          customer: customerName || 'Walk-in',
+          mobile: cleanMobile
         });
       } catch (err) {}
     }
@@ -1111,6 +1152,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       status: activeRows.length > 0 ? 'KOT_CUT' : 'Blank',
       color: activeRows.length > 0 ? 'orange' : 'white',
       amount: finalAmt,
+      customer: customerName || 'Walk-in',
+      mobile: cleanMobile,
       updatedAt: Date.now()
     } : null;
 
@@ -1121,6 +1164,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const handleDirectComplete = async () => {
     const resolvedId = assignedTableId || routedTable?.id || null;
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+    const cleanMobile = (mobileNumber && mobileNumber !== '—') ? mobileNumber : '';
     setIsSettling(true);
 
     try {
@@ -1128,7 +1172,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         tableId: resolvedId || 1,
         tableNo: preselectedTableNumber || routedTable?.no || '1',
         customerName: customerName || 'Walk-in',
-        mobileNo: mobileNumber || '—',
+        mobileNo: cleanMobile,
         waiter: waiter || 'Staff',
         status: 'completed',
         items: activeRows

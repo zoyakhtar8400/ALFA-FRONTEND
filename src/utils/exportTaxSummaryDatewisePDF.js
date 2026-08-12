@@ -20,7 +20,7 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
   const leftMargin = 10;
   const rightMargin = 10;
 
-  const dateRangeStr = `Tax Summary Datewise From ${filters.dateFrom || '01/Apr/2026'} To ${filters.dateTo || '15/Apr/2026'}`;
+  const dateRangeStr = `Tax Summary Datewise From ${filters.dateFrom || 'Start'} To ${filters.dateTo || 'End'}`;
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)

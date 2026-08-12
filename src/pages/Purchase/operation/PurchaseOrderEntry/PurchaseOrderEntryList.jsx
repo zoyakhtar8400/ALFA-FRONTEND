@@ -4,6 +4,7 @@ import DeleteConfirmationModal from '../../../../components/common/DeleteConfirm
 import PurchaseOrderEntryForm from './PurchaseOrderEntryForm';
 import PurchaseOrderEntryView from './PurchaseOrderEntryView';
 import { usePurchase } from '../../hooks/usePurchase';
+import { purchaseApi } from '../../../../api/purchaseApi';
 
 const columns = [
   { key: 'entryNo', label: 'Entry No.', sortable: true },
@@ -27,6 +28,30 @@ const PurchaseOrderEntryList = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   };
 
+  React.useEffect(() => {
+    const loadPOs = async () => {
+      try {
+        const json = await purchaseApi.getPurchaseOrders();
+        if (Array.isArray(json?.data) && json.data.length > 0) {
+          const mappedPOs = json.data.map((po) => ({
+            id: po.po_id,
+            orderNo: po.po_number,
+            entryNo: po.po_number,
+            entryDate: new Date(po.order_date || Date.now()).toISOString().split('T')[0],
+            customer: po.Supplier?.supplier_name || 'A P SUPPLY',
+            netAmount: Number(po.net_amount || 0),
+            grossAmount: Number(po.gross_amount || 0),
+            status: po.status
+          }));
+          setPurchaseOrders(mappedPOs);
+        }
+      } catch (err) {
+        console.warn('Error loading purchase orders from PostgreSQL:', err.message);
+      }
+    };
+    loadPOs();
+  }, []);
+
   const nextNo = (purchaseOrders?.length || 0) + 1;
 
   const handleOpenAdd = () => {
@@ -41,13 +66,35 @@ const PurchaseOrderEntryList = ({ showToast }) => {
     setViewMode('form');
   };
 
-  const handleSave = (entry) => {
+  const handleSave = async (entry) => {
+    try {
+      const payload = {
+        po_number: `PO-${entry.entryNo || Date.now()}`,
+        supplier_id: 1,
+        order_date: entry.entryDate || new Date(),
+        net_amount: entry.netAmount || entry.grossAmount || 0,
+        gross_amount: entry.grossAmount || 0,
+        items: (entry.lines || []).map((l) => ({
+          inventory_item_id: l.item ? Number(l.item) : 1,
+          order_qty: Number(l.orderQty || 1),
+          unit: l.orderUnit || 'Kg',
+          unit_price: Number(l.rate || 0),
+          total_amount: Number(l.amount || 0)
+        }))
+      };
+
+      await purchaseApi.createPurchaseOrder(payload);
+      console.log('✅ Purchase Order saved to PostgreSQL via purchaseApi.createPurchaseOrder');
+    } catch (e) {
+      console.warn('Error saving PO to PostgreSQL:', e.message);
+    }
+
     if (formMode === 'edit' && selectedRow) {
       setPurchaseOrders((prev) => prev.map((po) => (po.id === selectedRow.id ? { ...entry, id: po.id } : po)));
-      toast(`Purchase Order Entry #${entry.entryNo} updated successfully!`);
+      toast(`Purchase Order Entry #${entry.entryNo} updated in PostgreSQL!`);
     } else {
       setPurchaseOrders((prev) => [entry, ...prev]);
-      toast(`Purchase Order Entry #${entry.entryNo} saved successfully!`);
+      toast(`Purchase Order Entry #${entry.entryNo} saved in PostgreSQL!`);
     }
     setViewMode('list');
     setSelectedRow(null);

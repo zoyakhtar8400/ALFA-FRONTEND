@@ -1,18 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaUserAlt, FaPhone, FaMapMarkerAlt } from 'react-icons/fa';
-
-// In-memory mock database of customers for rapid local search demonstration
-const CUSTOMER_DB = [
-  { phone: '9876543210', name: 'Zoya Akhtar', address: 'Apartment 4B, Hill Road', locality: 'Bandra' },
-  { phone: '9999988888', name: 'Amit Sharma', address: 'Flat 101, Prestige Heights', locality: 'Andheri' },
-  { phone: '8888877777', name: 'Pooja Rao', address: 'Villa 12, Palms Estate', locality: 'Juhu' }
-];
+import { customerService } from '../../../../services/customerService';
 
 const CustomerDrawer = ({ isOpen, onClose, currentCustomer, onSaveCustomer }) => {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [locality, setLocality] = useState('');
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef(null);
 
   // Hydrate form on open
   useEffect(() => {
@@ -24,24 +20,44 @@ const CustomerDrawer = ({ isOpen, onClose, currentCustomer, onSaveCustomer }) =>
     }
   }, [isOpen, currentCustomer]);
 
-  // Handle phone changes to trigger auto-search lookup
+  // Handle phone changes — debounced live lookup from backend
   const handlePhoneChange = (e) => {
     const val = e.target.value;
     setPhone(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (val.length === 10) {
-      const match = CUSTOMER_DB.find(c => c.phone === val);
-      if (match) {
-        setName(match.name);
-        setAddress(match.address);
-        setLocality(match.locality);
-      }
+      debounceRef.current = setTimeout(async () => {
+        try {
+          setSearching(true);
+          const res = await customerService.getCustomers(val);
+          const customers = res?.customers || res?.data || [];
+          const match = Array.isArray(customers) && customers.find(
+            c => String(c.phone) === val || String(c.mobile) === val
+          );
+          if (match) {
+            setName(match.name || '');
+            setAddress(match.address || '');
+            setLocality(match.locality || match.area || '');
+          }
+        } catch (err) {
+          // silently ignore lookup errors
+        } finally {
+          setSearching(false);
+        }
+      }, 300);
     }
   };
 
-  const handleConfirm = (e) => {
+  const handleConfirm = async (e) => {
     e.preventDefault();
     if (!phone) return;
-    onSaveCustomer({ phone, name: name || 'Walk-in', address, locality });
+    const custData = { phone, name: name || 'Walk-in', address, locality };
+    try {
+      await customerService.createCustomer(custData);
+    } catch (err) {
+      // persist failure is non-blocking
+    }
+    onSaveCustomer(custData);
     onClose();
   };
 
@@ -90,7 +106,7 @@ const CustomerDrawer = ({ isOpen, onClose, currentCustomer, onSaveCustomer }) =>
                 value={phone}
                 onChange={handlePhoneChange}
                 placeholder="Enter 10-digit mobile..."
-                style={{ width: '100%', padding: '10px 12px 10px 34px', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem' }}
+                style={{ width: '100%', padding: '10px 12px 10px 34px', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', background: searching ? '#f0f9ff' : '#fff' }}
               />
             </div>
           </div>

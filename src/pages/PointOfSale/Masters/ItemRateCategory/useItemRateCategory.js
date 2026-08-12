@@ -1,16 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-
-const INITIAL_RATES = [
-  { id: 'RC1', name: 'Standard Rate Card', activeDays: 'All Days', multiplier: '1.0', status: 'Active' },
-  { id: 'RC2', name: 'Happy Hours (20% Off)', activeDays: 'Mon-Thu (4pm-8pm)', multiplier: '0.8', status: 'Active' },
-  { id: 'RC3', name: 'Weekend Peak Rates', activeDays: 'Fri-Sun', multiplier: '1.1', status: 'Active' }
-];
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import posApi from '../../../../api/posApi';
 
 export const useItemRateCategory = (showToast) => {
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('hms_pos_rate_categories');
-    return saved ? JSON.parse(saved) : INITIAL_RATES;
-  });
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -20,15 +13,34 @@ export const useItemRateCategory = (showToast) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
+  const fetchRates = useCallback(() => {
+    setLoading(true);
+    posApi.getItemRateCategories().then(res => {
+      const ratesList = Array.isArray(res?.data) ? res.data : [];
+      const mapped = ratesList.map((r, idx) => ({
+        id: r.id || idx + 1,
+        name: r.name || 'Rate Category',
+        code: r.code || 'RATE',
+        activeDays: 'All Days',
+        multiplier: '1.0',
+        status: r.status || 'Active'
+      }));
+      setData(mapped);
+    }).catch(err => {
+      console.error('Error fetching rate categories:', err);
+      setData([]);
+    }).finally(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
-    localStorage.setItem('hms_pos_rate_categories', JSON.stringify(data));
-  }, [data]);
+    fetchRates();
+  }, [fetchRates]);
 
   const filteredData = useMemo(() => {
     return data.filter(item => {
       const matchSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.activeDays.toLowerCase().includes(searchTerm.toLowerCase());
+        (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.activeDays || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = statusFilter === 'All' || item.status === statusFilter;
       return matchSearch && matchStatus;
     });
@@ -39,18 +51,10 @@ export const useItemRateCategory = (showToast) => {
       showToast('Rate Category Name must be at least 2 characters.');
       return false;
     }
-    if (!fields.activeDays || fields.activeDays.trim().length < 2) {
-      showToast('Active Days/Hours must be at least 2 characters.');
-      return false;
-    }
-    if (!fields.multiplier || isNaN(Number(fields.multiplier)) || Number(fields.multiplier) <= 0) {
-      showToast('Multiplier must be a positive number.');
-      return false;
-    }
     if (!skipDuplicateCheck) {
       const duplicateItem = data.find(item => 
         item.id !== fields.id && 
-        item.name.toLowerCase().trim() === fields.name.toLowerCase().trim()
+        (item.name || '').toLowerCase().trim() === fields.name.toLowerCase().trim()
       );
       if (duplicateItem) {
         setDuplicateConfirm({ open: true, fields, duplicateItem });
@@ -63,28 +67,38 @@ export const useItemRateCategory = (showToast) => {
   const handleSave = (fields, skipDuplicateCheck = false) => {
     if (!validate(fields, skipDuplicateCheck)) return false;
 
-    if (modal.isEdit) {
-      setData(prev => prev.map(item => item.id === fields.id ? fields : item));
-      showToast('Rate category updated successfully.');
-    } else {
-      const newId = `RC${Math.floor(Math.random() * 10000)}`;
-      setData(prev => [...prev, { ...fields, id: newId, status: fields.status || 'Active' }]);
-      showToast('Rate category created successfully.');
-    }
-    setModal({ open: false, isEdit: false, fields: {} });
-    setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    const payload = {
+      id: fields.id,
+      name: fields.name,
+      code: fields.code || fields.name.slice(0, 3).toUpperCase(),
+      status: fields.status || 'Active'
+    };
+
+    posApi.saveItemRateCategory(payload).then(() => {
+      showToast(modal.isEdit ? 'Rate category updated in PostgreSQL.' : 'Rate category created in PostgreSQL.');
+      fetchRates();
+      setModal({ open: false, isEdit: false, fields: {} });
+      setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to save rate category');
+    });
     return true;
   };
 
   const handleDelete = () => {
     if (!deleteModal.row) return;
-    setData(prev => prev.filter(item => item.id !== deleteModal.row.id));
-    showToast('Rate category deleted successfully.');
-    setDeleteModal({ open: false, row: null });
+    posApi.deleteItemRateCategory(deleteModal.row.id).then(() => {
+      showToast('Rate category deactivated in PostgreSQL.');
+      fetchRates();
+      setDeleteModal({ open: false, row: null });
+    }).catch(err => {
+      showToast(err?.response?.data?.message || 'Failed to delete rate category');
+    });
   };
 
   return {
     data: filteredData,
+    loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
@@ -99,3 +113,5 @@ export const useItemRateCategory = (showToast) => {
     handleDelete
   };
 };
+
+export default useItemRateCategory;

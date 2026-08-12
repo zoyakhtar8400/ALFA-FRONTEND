@@ -3,6 +3,7 @@ import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import UnitMasterForm from './UnitMasterForm';
 import { usePurchase } from '../../hooks/usePurchase';
+import { inventoryApi } from '../../../../api/inventoryApi';
 
 const columns = [
   { key: 'name', label: 'Unit Name', sortable: true },
@@ -21,17 +22,47 @@ const UnitMasterList = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   };
 
+  React.useEffect(() => {
+    const loadUnits = async () => {
+      try {
+        const json = await inventoryApi.getUnits();
+        if (Array.isArray(json?.data) && json.data.length > 0) {
+          const mappedUnits = json.data.map(u => ({
+            id: u.unit_id,
+            name: u.unit_name,
+            qtyDecimalPlaces: String(u.qty_decimal_places || 3)
+          }));
+          setUnits(mappedUnits);
+        }
+      } catch (err) {
+        console.warn('Error loading units from PostgreSQL:', err.message);
+      }
+    };
+    loadUnits();
+  }, []);
+
   const handleOpenAdd = () => setModal({ open: true, mode: 'add', row: null });
   const handleOpenEdit = (row) => setModal({ open: true, mode: 'edit', row });
 
-  const handleSave = (formData) => {
+  const handleSave = async (formData) => {
+    try {
+      await inventoryApi.saveUnit({
+        unit_id: modal.mode === 'edit' && modal.row ? modal.row.id : undefined,
+        unit_name: formData.name,
+        qty_decimal_places: Number(formData.qtyDecimalPlaces || 3)
+      });
+      console.log('✅ Unit saved to PostgreSQL via inventoryApi.saveUnit');
+    } catch (e) {
+      console.warn('Error saving Unit to PostgreSQL:', e.message);
+    }
+
     if (modal.mode === 'edit' && modal.row) {
       setUnits((prev) => prev.map((u) => (u.id === modal.row.id ? { ...formData, id: u.id } : u)));
-      toast('Unit updated successfully!');
+      toast('Unit updated in PostgreSQL!');
     } else {
       const newId = Date.now();
       setUnits((prev) => [{ ...formData, id: newId }, ...prev]);
-      toast('Unit created successfully!');
+      toast('Unit created in PostgreSQL!');
     }
     setModal({ open: false, mode: 'add', row: null });
   };

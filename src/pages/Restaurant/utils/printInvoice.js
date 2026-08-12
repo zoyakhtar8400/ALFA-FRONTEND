@@ -54,8 +54,8 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
           </thead>
           <tbody>
             ${items.map(item => {
-              const displayName = (item.itemName || item.name || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
-              return `
+    const displayName = (item.itemName || item.name || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
+    return `
                 <tr>
                   <td class="qty">x${item.qty}</td>
                   <td>
@@ -64,7 +64,7 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
                   </td>
                 </tr>
               `;
-            }).join('')}
+  }).join('')}
           </tbody>
         </table>
         <div class="footer">
@@ -162,11 +162,11 @@ export const printTaxInvoice = (data) => {
               ${items.length === 0 ? `
                 <tr><td colspan="4" style="text-align:center;">No Items Registered</td></tr>
               ` : items.map(item => {
-                const name = (item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
-                const qty = item.qty || item.quantity || 1;
-                const rate = item.unitPrice || item.price || item.rate || 0;
-                const amt = item.amount || item.total || (qty * rate);
-                return `
+    const name = (item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
+    const qty = item.qty || item.quantity || 1;
+    const rate = item.unitPrice || item.price || item.rate || 0;
+    const amt = item.amount || item.total || (qty * rate);
+    return `
                   <tr>
                     <td style="text-align:left;">${name}</td>
                     <td style="text-align:center; font-weight:bold;">${qty}</td>
@@ -174,7 +174,7 @@ export const printTaxInvoice = (data) => {
                     <td style="text-align:right; font-weight:bold;">₹${amt}</td>
                   </tr>
                 `;
-              }).join('')}
+  }).join('')}
             </tbody>
           </table>
 

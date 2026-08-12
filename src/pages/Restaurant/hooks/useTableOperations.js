@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { useRestaurant } from '../../../context/RestaurantContext';
+import { kotService } from '../../../services/kotService';
 
 export const useTableOperations = (location, navigate) => {
   const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading } = useRestaurant();
@@ -274,60 +275,6 @@ export const useTableOperations = (location, navigate) => {
     toast(`Moved ${kotId} to target table.`);
   };
 
-  // Move selected items helper
-  const executeMoveSelectedItems = (srcId, dstId) => {
-    const sourceItems = orderItemsMap[srcId] || [];
-    const updatedSource = [];
-    const itemsToTransfer = [];
-
-    sourceItems.forEach(item => {
-      const key = item.lineId || item.name || item.itemName;
-      const moveQty = selectedTransferItems[key] || 0;
-      if (moveQty > 0) {
-        const remaining = item.qty - moveQty;
-        itemsToTransfer.push({ ...item, qty: moveQty, total: moveQty * (item.unitPrice || item.price || 0) });
-        if (remaining > 0) {
-          updatedSource.push({ ...item, qty: remaining, total: remaining * (item.unitPrice || item.price || 0) });
-        }
-      } else {
-        updatedSource.push(item);
-      }
-    });
-
-    const targetItems = [...(orderItemsMap[dstId] || [])];
-    itemsToTransfer.forEach(transferItem => {
-      const idx = targetItems.findIndex(t =>
-        (t.itemId === transferItem.itemId || t.itemName === transferItem.itemName || t.name === transferItem.name) &&
-        (t.variantId === transferItem.variantId || t.variantName === transferItem.variantName || t.variant === transferItem.variant)
-      );
-      if (idx !== -1) {
-        const nextQty = targetItems[idx].qty + transferItem.qty;
-        targetItems[idx] = {
-          ...targetItems[idx],
-          qty: nextQty,
-          total: nextQty * targetItems[idx].unitPrice
-        };
-      } else {
-        targetItems.push(transferItem);
-      }
-    });
-
-    const sourceSum = updatedSource.reduce((sum, r) => sum + r.total, 0);
-    const targetSum = targetItems.reduce((sum, r) => sum + r.total, 0);
-
-    setOrderItemsMap(prev => ({
-      ...prev,
-      [srcId]: updatedSource,
-      [dstId]: targetItems
-    }));
-
-    updateTableAmount(srcId, sourceSum);
-    updateTableAmount(dstId, targetSum);
-
-    toast(`Transferred items to target table.`);
-    setSelectedTransferItems({});
-  };
-
   // Add Item to active order
   const handleAddItemToOps = (variantId = '') => {
     if (!fromTableId) return;
@@ -556,10 +503,10 @@ export const useTableOperations = (location, navigate) => {
   };
 
   // Payment settlement action
-  const executePaymentSettlement = () => {
+  const executePaymentSettlement = async () => {
     if (!fromTableId) return;
     const srcId = parseInt(fromTableId);
-    const { grandTotal } = getBillingSummary();
+    const { subtotal, gst, discount, grandTotal } = getBillingSummary();
 
     if (paymentMethod === 'Split') {
       const splitTotal = (parseFloat(splitCash) || 0) + (parseFloat(splitCard) || 0) + (parseFloat(splitUPI) || 0);
@@ -568,15 +515,37 @@ export const useTableOperations = (location, navigate) => {
       }
     }
 
-    // Set status to 'Paid' with paidAt timestamp — context will auto-reset after 30s
-    setTables(prev => prev.map(t => {
-      if (t.id === srcId) {
-        return { ...t, status: 'Paid', paidAt: Date.now() };
-      }
-      return t;
-    }));
-    setShowSettleSuccess(true);
-    toast(`Payment received. Table status: Paid.`);
+    try {
+      const { orderService } = await import('../../../services/orderService');
+
+      // 1. Create Bill in PostgreSQL
+      const billRes = await orderService.createOrder({
+        tableId: srcId,
+        table_id: srcId,
+        subtotal: subtotal,
+        tax: gst,
+        discount: discount,
+        amount: grandTotal,
+        items: orderItemsMap[srcId] || [],
+        paymentMethod: paymentMethod
+      });
+
+      const createdOrder = billRes?.data?.data || billRes?.data || billRes?.order;
+      const orderId = createdOrder?.id || createdOrder?.order_id || srcId;
+
+      // 2. Settle payment in PostgreSQL DB
+      await orderService.settleOrder(orderId, {
+        paymentMethod: paymentMethod,
+        amount: grandTotal
+      });
+
+      await refreshTables();
+      setShowSettleSuccess(true);
+      toast(`Payment received. Bill settled in database.`);
+    } catch (err) {
+      console.error("Error settling payment in database:", err);
+      toast(err.response?.data?.message || err.message || "Failed to settle payment in database.");
+    }
 
     setTimeout(() => {
       setShowSettleSuccess(false);
@@ -584,7 +553,23 @@ export const useTableOperations = (location, navigate) => {
     }, 2000);
   };
 
-  const handleModalOkClick = () => {
+  // Move selected items helper
+  const executeMoveSelectedItems = async (srcId, dstId) => {
+    const selectedKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0 || selectedTransferItems[k] === true);
+    if (selectedKeys.length === 0) return toast("Adjust item quantities to transfer.");
+
+    await kotService.moveItems({
+      fromTableId: srcId,
+      toTableId: dstId,
+      items: selectedTransferItems
+    });
+
+    await refreshTables();
+    toast(`Transferred items to target table.`);
+    setSelectedTransferItems({});
+  };
+
+  const handleModalOkClick = async () => {
     if (modalTab === 'Move') {
       if (!fromTableId || !toTableId) {
         toast("Please select From Table and To Table.");
@@ -594,177 +579,61 @@ export const useTableOperations = (location, navigate) => {
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
-      if (transferOp === 'Move') {
-        const sourceTable = tables.find(t => t.id === srcId);
-        const sourceItems = orderItemsMap[srcId] || [];
-
-        setTables(prev => prev.map(t => {
-          if (t.id === srcId) {
-            return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, openedAt: null, isHold: false, kots: [], kotCount: 0 };
-          }
-          if (t.id === dstId) {
-            return {
-              ...t,
-              status: sourceTable.status === 'Blank' ? 'Running' : sourceTable.status,
-              amount: sourceTable.amount,
-              waiter: sourceTable.waiter,
-              captain: sourceTable.captain,
-              openedAt: sourceTable.openedAt || Date.now(),
-              isHold: sourceTable.isHold,
-              seats: sourceTable.seats,
-              kots: sourceTable.kots || [],
-              kotCount: sourceTable.kotCount
-            };
-          }
-          return t;
-        }));
-        setOrderItemsMap(prev => ({
-          ...prev,
-          [srcId]: [],
-          [dstId]: sourceItems
-        }));
-        toast(`Moved Table ${sourceTable.no} complete order to Table ${tables.find(t => t.id === dstId)?.no}.`);
-      } else {
-        const sourceTable = tables.find(t => t.id === srcId);
-        const targetTable = tables.find(t => t.id === dstId);
-        if (targetTable.status === 'Blank') {
-          return toast("Target table must be active to merge. Choose Move instead.");
-        }
-        const sourceItems = orderItemsMap[srcId] || [];
-        const targetItems = [...(orderItemsMap[dstId] || [])];
-
-        sourceItems.forEach(srcItem => {
-          const idx = targetItems.findIndex(t => t.name === srcItem.name);
-          if (idx !== -1) {
-            targetItems[idx] = {
-              ...targetItems[idx],
-              qty: targetItems[idx].qty + srcItem.qty,
-              total: (targetItems[idx].qty + srcItem.qty) * targetItems[idx].rate
-            };
-          } else {
-            targetItems.push({ ...srcItem });
-          }
-        });
-
-        const mergedSum = targetItems.reduce((sum, r) => sum + r.total, 0);
-
-        setTables(prev => prev.map(t => {
-          if (t.id === srcId) {
-            return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, openedAt: null, isHold: false, kots: [], kotCount: 0 };
-          }
-          if (t.id === dstId) {
-            return {
-              ...t,
-              status: 'Running',
-              amount: mergedSum,
-              waiter: t.waiter || sourceTable.waiter,
-              captain: t.captain || sourceTable.captain,
-              seats: Math.max(t.seats, sourceTable.seats),
-              openedAt: t.openedAt || sourceTable.openedAt || Date.now(),
-              kots: [...(t.kots || []), ...(sourceTable.kots || [])],
-              kotCount: (t.kotCount || 0) + (sourceTable.kotCount || 0)
-            };
-          }
-          return t;
-        }));
-        setOrderItemsMap(prev => ({
-          ...prev,
-          [srcId]: [],
-          [dstId]: targetItems
-        }));
-        toast(`Merged Table ${sourceTable.no} into Table ${targetTable.no}.`);
+      try {
+        await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
+        toast(`Moved Table complete order to target table.`);
+        await refreshTables();
+      } catch (err) {
+        console.error("Error moving table:", err);
+        toast(err.response?.data?.message || err.message || "Failed to move table.");
       }
       setShowQuickSwitch(false);
     }
     else if (modalTab === 'MoveKOT') {
-      const selectedKots = Object.keys(selectedTransferKots).filter(k => selectedTransferKots[k]);
-      if (selectedKots.length === 0) return toast("Please select KOTs to transfer.");
       if (!fromTableId || !toTableId) return toast("Select From Table and To Table.");
 
       const srcId = parseInt(fromTableId);
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
-      const destTable = tables.find(t => t.id === dstId);
-      const srcTable = tables.find(t => t.id === srcId);
+      const selectedKots = Object.keys(selectedTransferKots).filter(k => selectedTransferKots[k]);
+      const selectedItemKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0 || selectedTransferItems[k] === true);
 
-      // Call backend API for each selected KOT
-      const movePromises = selectedKots.map(async kotId => {
-        try {
-          const { kotService } = await import('../../../services/kotService');
-          await kotService.moveKOT(kotId, {
-            toTableId: dstId,
-            toTableNo: destTable?.no
-          });
-        } catch (err) {
-          console.error(`Error moving KOT ${kotId}:`, err.message);
+      try {
+        if (selectedKots.length > 0) {
+          for (const kotId of selectedKots) {
+            await kotService.moveKOT(kotId, { toTableId: dstId, fromTableId: srcId });
+          }
+          toast(`Moved ${selectedKots.length} KOT(s) to target table.`);
+        } else if (selectedItemKeys.length > 0) {
+          await kotService.moveItems({ fromTableId: srcId, toTableId: dstId, items: selectedTransferItems });
+          toast(`Moved selected items to target table.`);
+        } else {
+          await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
+          toast(`Moved order to target table.`);
         }
-      });
-
-      Promise.all(movePromises).then(async () => {
-        // Optimistic update: move KOTs visually
-        setTables(prev => prev.map(t => {
-          if (t.id === srcId) {
-            const remainingKots = (t.kots || []).filter(k => !selectedKots.includes(k.id));
-            return {
-              ...t,
-              kots: remainingKots,
-              kotCount: remainingKots.length,
-              status: remainingKots.length === 0 ? 'Blank' : t.status,
-              color: remainingKots.length === 0 ? 'white' : t.color,
-              amount: remainingKots.length === 0 ? 0 : t.amount,
-              updatedAt: Date.now()
-            };
-          }
-          if (t.id === dstId) {
-            const movedKots = (srcTable?.kots || []).filter(k => selectedKots.includes(k.id));
-            return {
-              ...t,
-              kots: [...(t.kots || []), ...movedKots],
-              kotCount: (t.kots || []).length + movedKots.length,
-              status: 'KOT_CUT',
-              color: 'orange',
-              updatedAt: Date.now()
-            };
-          }
-          return t;
-        }));
-
-        // Re-fetch tables from backend after 500ms to sync real DB state
-        setTimeout(async () => {
-          try {
-            const { tableService } = await import('../../../services/tableService');
-            const res = await tableService.getTables();
-            const rawTables = res?.tables || res?.data || [];
-            if (rawTables.length > 0) {
-              setTables(rawTables.map(t => {
-                const rawStatus = t.status || t.order_state || 'AVAILABLE';
-                let color = (t.color || '').toLowerCase();
-                if (!color || color === 'white') {
-                  color = (rawStatus === 'Running' || rawStatus === 'KOT_CUT') ? 'orange' : rawStatus === 'Paid' ? 'green' : 'white';
-                }
-                return { ...t, color, updatedAt: Date.now() };
-              }));
-            }
-          } catch (e) { /* silent */ }
-        }, 600);
-
-        toast(`Moved ${selectedKots.length} KOT(s) from T${srcTable?.no} to T${destTable?.no}.`);
-      });
+        await refreshTables();
+      } catch (err) {
+        console.error("Error moving KOT:", err);
+        toast(err.response?.data?.message || err.message || "Failed to move KOT.");
+      }
 
       setSelectedTransferKots({});
+      setSelectedTransferItems({});
       setShowQuickSwitch(false);
     }
     else if (modalTab === 'MoveItems') {
-      const selectedKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0);
-      if (selectedKeys.length === 0) return toast("Adjust item quantities to transfer.");
       if (!fromTableId || !toTableId) return toast("Select From Table and To Table.");
-
       const srcId = parseInt(fromTableId);
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
-      executeMoveSelectedItems(srcId, dstId);
+      try {
+        await executeMoveSelectedItems(srcId, dstId);
+      } catch (err) {
+        console.error("Error moving items:", err);
+        toast(err.response?.data?.message || err.message || "Failed to move items.");
+      }
       setShowQuickSwitch(false);
     }
   };

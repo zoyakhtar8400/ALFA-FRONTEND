@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import PageHeader from '../../../../components/common/PageHeader';
 import F from '../../../../components/common/F';
 import { usePurchase } from '../../hooks/usePurchase';
+import { purchaseApi } from '../../../../api/purchaseApi';
 import { FaCheckCircle, FaTimesCircle, FaFilter } from 'react-icons/fa';
 
 const DEPARTMENTS = ['All', 'MAIN KITCHEN', 'PURCHASE STORE', 'DISPENSE BAR', 'HOUSEKEEPING', 'MAINTENANCE'];
@@ -11,6 +12,35 @@ const STATUSES = ['Pending', 'Approved', 'Rejected', 'All'];
 
 const IndentApprovalList = ({ showToast }) => {
   const { indents, setIndents, items } = usePurchase();
+
+  React.useEffect(() => {
+    const loadIndents = async () => {
+      try {
+        const json = await purchaseApi.getIndents();
+        if (Array.isArray(json?.data) && json.data.length > 0) {
+          const mappedIndents = json.data.map((ind) => ({
+            id: ind.indent_id,
+            indentNo: ind.indent_number,
+            indentDate: new Date(ind.indent_date || Date.now()).toISOString().split('T')[0],
+            indentorName: ind.requested_by || 'Staff',
+            department: ind.department,
+            status: ind.status,
+            lines: (ind.indentItems || []).map((ii, idx) => ({
+              sNo: idx + 1,
+              item: String(ii.inventory_item_id),
+              indQty: Number(ii.quantity || 0),
+              unit: ii.unit || 'Kg',
+              remark: ii.remark || ''
+            }))
+          }));
+          setIndents(mappedIndents);
+        }
+      } catch (err) {
+        console.warn('Error loading indents for approval:', err.message);
+      }
+    };
+    loadIndents();
+  }, []);
 
   // Filters
   const [filterIndentNo, setFilterIndentNo] = useState('');

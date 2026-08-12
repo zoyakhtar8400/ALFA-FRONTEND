@@ -105,6 +105,15 @@ const CommonTable = ({
 
   const [localLoading, setLocalLoading] = useState(false);
 
+  // Automatically append Action column if actions are provided but no 'action' key exists in columns
+  const effectiveColumns = useMemo(() => {
+    const hasAction = columns.some(c => c.key === 'action');
+    if (!hasAction && actions && actions.length > 0) {
+      return [...columns, { key: 'action', label: 'Action', sortable: false }];
+    }
+    return columns;
+  }, [columns, actions]);
+
   // Filter, Sort, and Paginate Data
   const processedData = useMemo(() => {
     let result = [...data];
@@ -407,7 +416,7 @@ const CommonTable = ({
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                 <th style={{ width: '50px', textAlign: 'center', padding: '13px 18px', fontSize: '12px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
-                {columns.map((col) => (
+                {effectiveColumns.map((col) => (
                   <th
                     key={col.key}
                     onClick={() => handleSort(col.key, col.sortable !== false)}
@@ -433,7 +442,7 @@ const CommonTable = ({
                   row={row}
                   index={index}
                   indexOfFirstEntry={indexOfFirstEntry}
-                  columns={columns}
+                  columns={effectiveColumns}
                   actions={actions}
                 />
               ))}
@@ -446,10 +455,10 @@ const CommonTable = ({
       {!onlyTable && (
         <CommonPagination
           currentPage={currentPage}
-          totalEntries={totalEntries}
-          entriesPerPage={entriesPerPage}
+          totalItems={totalEntries ?? processedData.length}
+          itemsPerPage={entriesPerPage}
           onPageChange={setCurrentPage}
-          onEntriesPerPageChange={setEntriesPerPage}
+          onItemsPerPageChange={setEntriesPerPage}
         />
       )}
     </div>
