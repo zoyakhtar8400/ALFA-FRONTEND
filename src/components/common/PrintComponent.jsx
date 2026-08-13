@@ -9,11 +9,11 @@ export const PrintHeader = ({ title }) => {
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   return (
-    <div className="print-only print-header-container">
-      <img src="/logo/alfa-logo.png" alt="Company Logo" className="print-logo" />
-      <h1 className="print-company-name">ALFA HOTEL MANAGEMENT SYSTEM</h1>
-      <h2 className="print-report-title">{title}</h2>
-      <div className="print-date-time">
+    <div className="print-only print-header-container" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
+      <img src="/logo/alfa-logo.png" alt="Company Logo" className="print-logo" style={{ margin: '0 auto 8px auto', maxHeight: '50px' }} />
+      <h1 className="print-company-name" style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 800, margin: '4px 0' }}>ALFA HOTEL MANAGEMENT SYSTEM</h1>
+      <h2 className="print-report-title" style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 700, margin: '4px 0', textTransform: 'uppercase' }}>{title}</h2>
+      <div className="print-date-time" style={{ textAlign: 'center', fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
         Date: {dateStr} &nbsp;|&nbsp; Time: {timeStr}
       </div>
     </div>

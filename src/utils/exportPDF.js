@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 import { exportSalesRegisterPDF } from './exportSalesRegisterPDF';
 import { exportItemwiseSalePDF } from './exportItemwiseSalePDF';
 import { exportItemwiseCategorywiseSalePDF } from './exportItemwiseCategorywiseSalePDF';
@@ -110,6 +111,7 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
       unit: 'mm',
       format: 'a4'
     });
+    addRupeeFont(doc);
 
     const pageWidth = 210;
     const pageHeight = 297;
@@ -117,7 +119,7 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
     const rightMargin = 12;
 
     // 1. Hotel Header
-    doc.setFont('Helvetica', 'bold');
+    doc.setFont('ArialRupee', 'bold');
     doc.setFontSize(13);
     doc.setTextColor(0, 0, 0);
     doc.text('ALFA', pageWidth / 2, 14, { align: 'center' });
@@ -147,7 +149,7 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
     doc.text(`${reportName} From ${fromStr} To ${toStr}`, pageWidth / 2, 20, { align: 'center' });
 
     // 3. Filter Parameters Block (Left Aligned Key-Value Pairs)
-    doc.setFont('Courier', 'normal');
+    doc.setFont('ArialRupee', 'normal');
     doc.setFontSize(8.2);
     doc.setTextColor(30, 41, 59);
 
@@ -172,7 +174,7 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
     const tableRows = (data || []).map((rowObj) =>
       columns.map((_, colIdx) => {
         const rawVal = rowObj[`c${colIdx + 1}`] || '';
-        return String(rawVal).replace(/₹/g, 'Rs. ');
+        return String(rawVal).replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
       })
     );
 
@@ -181,6 +183,11 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
       head: [tableHeaders],
       body: tableRows,
       theme: 'plain',
+      styles: {
+        font: 'ArialRupee',
+        lineColor: [226, 232, 240],
+        lineWidth: 0.1
+      },
       headStyles: {
         fillColor: [209, 213, 219], // Light Gray Header (#D1D5DB)
         textColor: [0, 0, 0],

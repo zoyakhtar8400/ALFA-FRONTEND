@@ -36,26 +36,34 @@ function resolveProductionCategory(row, foodItems = ALL_FOOD_ITEMS) {
 export function groupItemsByPrinter(
   rows,
   foodItems = ALL_FOOD_ITEMS,
-  categories = INITIAL_PRODUCTION_CATEGORIES,
-  mappings = INITIAL_PRINTER_MAPPINGS,
-  printers = INITIAL_PRINTERS,
+  categories = null,
+  mappings = null,
+  printers = null,
 ) {
   const activeRows = rows.filter(r => r.itemName || r.name);
   const groupMap = {}; // key: printerId → group
 
+  const savedPrinters = typeof localStorage !== 'undefined' ? localStorage.getItem('alfa_pos_printers') : null;
+  const savedCategories = typeof localStorage !== 'undefined' ? localStorage.getItem('alfa_production_categories') : null;
+
+  const activePrinters = printers || (savedPrinters ? JSON.parse(savedPrinters) : INITIAL_PRINTERS);
+  const activeCategories = categories || (savedCategories ? JSON.parse(savedCategories) : INITIAL_PRODUCTION_CATEGORIES);
+  const activeMappings = mappings || activeCategories.map(pc => ({ productionCategoryId: pc.id, printerId: pc.printerId }));
+
   for (const row of activeRows) {
     const catId = resolveProductionCategory(row, foodItems);
-    const category = categories.find(c => c.id === catId);
-    const mapping = mappings.find(m => m.productionCategoryId === catId);
-    const printer = mapping ? printers.find(p => p.id === mapping.printerId) : null;
+    const category = activeCategories.find(c => String(c.id) === String(catId));
+    const mapping = activeMappings.find(m => String(m.productionCategoryId) === String(catId));
+    const printer = mapping ? activePrinters.find(p => String(p.id) === String(mapping.printerId)) : null;
 
     // Fallback: if no mapping found, route to default printer
     const effectivePrinter =
       printer ||
-      printers.find(p => p.isDefault) ||
-      printers[0];
+      activePrinters.find(p => p.isDefault) ||
+      activePrinters[0] ||
+      { id: 'default_p', name: 'Kitchen Printer', type: 'Network', ip: '192.168.1.100', port: 9100 };
 
-    const key = effectivePrinter.id;
+    const key = effectivePrinter.id || 'default_p';
 
     if (!groupMap[key]) {
       groupMap[key] = {

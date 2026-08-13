@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed) || parsed === 0) return '';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportUserwiseCollectionPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -14,6 +17,7 @@ export const exportUserwiseCollectionPDF = (columns, data, filters = {}, printed
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -25,16 +29,16 @@ export const exportUserwiseCollectionPDF = (columns, data, filters = {}, printed
   const userStr = `${filters.user || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
-  doc.text('HOTEL BOBINA', pageWidth / 2, 14, { align: 'center' });
+  doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
 
   doc.setFontSize(8.5);
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text(`User        : ${userStr}`, leftMargin, 27.5);
@@ -302,6 +306,7 @@ export const exportUserwiseCollectionPDF = (columns, data, filters = {}, printed
     head: [['User', 'Cash In Hand', 'ROOM SETTLEMENT', 'NET CASH']],
     body: summaryRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       fillColor: [220, 220, 220],
       textColor: [0, 0, 0],

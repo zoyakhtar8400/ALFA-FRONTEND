@@ -1,5 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Landscape
@@ -8,6 +11,7 @@ export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn =
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 297;
   const pageHeight = 210;
@@ -18,7 +22,7 @@ export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn =
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -27,7 +31,7 @@ export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn =
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
 
@@ -85,18 +89,18 @@ export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn =
       const items = grouped[outlet][type];
       items.forEach((item) => {
         tableRows.push([
-          { content: item.c1, styles: { halign: 'center' } }, // Ord./Bill Date
-          { content: item.c2, styles: { halign: 'center' } }, // Ord./Bill No.
-          { content: item.c3, styles: { halign: 'center' } }, // Ord./Bill Time (A)
-          { content: item.c4, styles: { halign: 'left' } },   // Item Name
-          { content: item.c5, styles: { halign: 'center' } }, // Qty
-          { content: item.c6, styles: { halign: 'center' } }, // Ord. Complete Date
-          { content: item.c7, styles: { halign: 'center' } }, // Ord. Complete Time (B)
-          { content: item.c8, styles: { halign: 'center' } }, // Diff. (B-A)
-          { content: item.c9, styles: { halign: 'center' } }, // Bill No.
-          { content: item.c10, styles: { halign: 'center' } }, // Bill Date
-          { content: item.c11, styles: { halign: 'center' } }, // Bill Time (C)
-          { content: item.c12, styles: { halign: 'center' } }  // Diff. (C-A)
+          { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // Ord./Bill Date
+          { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Ord./Bill No.
+          { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Ord./Bill Time (A)
+          { content: cleanPdfText(item.c4), styles: { halign: 'left' } },   // Item Name
+          { content: cleanPdfText(item.c5), styles: { halign: 'center' } }, // Qty
+          { content: cleanPdfText(item.c6), styles: { halign: 'center' } }, // Ord. Complete Date
+          { content: cleanPdfText(item.c7), styles: { halign: 'center' } }, // Ord. Complete Time (B)
+          { content: cleanPdfText(item.c8), styles: { halign: 'center' } }, // Diff. (B-A)
+          { content: cleanPdfText(item.c9), styles: { halign: 'center' } }, // Bill No.
+          { content: cleanPdfText(item.c10), styles: { halign: 'center' } }, // Bill Date
+          { content: cleanPdfText(item.c11), styles: { halign: 'center' } }, // Bill Time (C)
+          { content: cleanPdfText(item.c12), styles: { halign: 'center' } }  // Diff. (C-A)
         ]);
       });
     });
@@ -108,6 +112,7 @@ export const exportKitchenTimeGapPDF = (columns, data, filters = {}, printedOn =
     head: [['Ord./Bill Date', 'Ord./Bill No.', 'Ord./Bill Time (A)', 'Item Name', 'Qty', 'Ord. Complete Date', 'Ord. Complete Time (B)', 'Diff. (B-A)', 'Bill No.', 'Bill Date', 'Bill Time (C)', 'Diff. (C-A)']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 7.5,

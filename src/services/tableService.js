@@ -2,8 +2,8 @@ import apiClient from './apiClient';
 
 export const tableService = {
   // Load all restaurant tables from PostgreSQL
-  async getTables() {
-    return await apiClient.get('/tables');
+  async getTables(params) {
+    return await apiClient.get('/tables', { params });
   },
 
   // Create a new dining table in PostgreSQL

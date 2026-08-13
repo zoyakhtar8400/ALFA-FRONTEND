@@ -276,7 +276,7 @@ const DisplayTablePage = () => {
         tableNumber: `T${table.no}`,
         rows: tableRows
       }));
-    } catch (e) {}
+    } catch (e) { }
 
     if (isBookingMode) {
       if (table.status !== 'Blank') {
@@ -390,11 +390,31 @@ const DisplayTablePage = () => {
     }
 
     try {
+      const userRaw = localStorage.getItem('alfa_user') || localStorage.getItem('user');
+      const selectedOutlet = localStorage.getItem('activeOutletId');
+      let activeStoreId = selectedOutlet || 'STORE_1';
+
+      try {
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          const isAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
+          if (isAdmin) {
+            activeStoreId = selectedOutlet || u.store_id || 'STORE_1';
+          } else if (Array.isArray(u.assigned_outlets) && u.assigned_outlets.length > 0) {
+            activeStoreId = (selectedOutlet && u.assigned_outlets.includes(selectedOutlet))
+              ? selectedOutlet
+              : u.assigned_outlets[0];
+          } else {
+            activeStoreId = u.store_id || selectedOutlet || 'STORE_1';
+          }
+        }
+      } catch (e) {}
+
       const res = await tableService.createTable({
         table_name: `Table ${tableNum}`,
         max_person: String(newTableSeats),
         department: 1,
-        store_id: 'STORE_1'
+        store_id: activeStoreId
       });
 
       const createdRecord = res?.table || res?.data || {};

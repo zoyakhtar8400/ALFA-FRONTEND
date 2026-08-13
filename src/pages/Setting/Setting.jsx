@@ -14,8 +14,10 @@ import MenuList from './Menu/MenuList';
 import ExpenseList from './Expense/ExpenseList';
 import ExpenseForm from './Expense/ExpenseForm';
 import BillingScreenConfiguration from './BillingScreenConfiguration';
+import UserManagementList from './User/UserManagementList';
 
 const ALL_SETTINGS_MODULES = [
+  { id: 'user-management', title: 'User Management', description: 'Admin user accounts & role management', icon: FaUser, section: 'Restaurant Operations', path: '/setting/user-management' },
   // Orders & Billing
   { id: 'billing', title: 'Billing', description: 'Open POS Billing Workspace', icon: FaReceipt, section: 'Orders & Billing', path: '/restaurant/pos-billing' },
   { id: 'billing-desk', title: 'Billing Desk', description: 'Open Cashier & Bill Settlement Desk', icon: FaReceipt, section: 'Orders & Billing', path: '/restaurant/billing-desk' },
@@ -169,6 +171,11 @@ const Setting = ({ showToast = () => { } }) => {
   // Sub-route Check: /setting/expense
   if (path.includes('/setting/expense')) {
     return <ExpenseList showToast={showToast} />;
+  }
+
+  // Sub-route Check: /setting/user-management or /setting/user
+  if (path.includes('/setting/user-management') || path.includes('/setting/user')) {
+    return <UserManagementList showToast={showToast} />;
   }
 
   // Sub-route Check: /setting/billing-screen

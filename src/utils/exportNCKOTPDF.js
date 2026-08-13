@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed) || parsed === 0) return '';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -14,6 +17,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -24,7 +28,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -33,7 +37,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text('NC Type     : All', leftMargin, 27.5);
@@ -115,16 +119,16 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
 
         items.forEach((item) => {
           tableRows.push([
-            { content: item.c1, styles: { halign: 'center' } }, // S.No.
-            { content: item.c2, styles: { halign: 'center' } }, // KOT/Bill No.
-            { content: item.c3, styles: { halign: 'center' } }, // Table/Room
-            { content: item.c4, styles: { halign: 'center' } }, // Date
-            { content: item.c5, styles: { halign: 'left' } },   // Item
-            { content: item.c6, styles: { halign: 'left' } },   // Remarks
-            { content: item.c7, styles: { halign: 'left' } },   // Cust. Remarks
-            { content: item.c8, styles: { halign: 'center' } }, // Qty.
-            { content: item.c9, styles: { halign: 'right' } },  // Rate
-            { content: item.c10, styles: { halign: 'right' } }  // Amount
+            { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // S.No.
+            { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // KOT/Bill No.
+            { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Table/Room
+            { content: cleanPdfText(item.c4), styles: { halign: 'center' } }, // Date
+            { content: cleanPdfText(item.c5), styles: { halign: 'left' } },   // Item
+            { content: cleanPdfText(item.c6), styles: { halign: 'left' } },   // Remarks
+            { content: cleanPdfText(item.c7), styles: { halign: 'left' } },   // Cust. Remarks
+            { content: cleanPdfText(item.c8), styles: { halign: 'center' } }, // Qty.
+            { content: cleanPdfText(item.c9), styles: { halign: 'right' } },  // Rate
+            { content: cleanPdfText(item.c10), styles: { halign: 'right' } }  // Amount
           ]);
 
           ncTypeTotalAmount += item.rawAmount || 0;
@@ -191,6 +195,7 @@ export const exportNCKOTPDF = (columns, data, filters = {}, printedOn = '') => {
     head: [['S.No.', 'KOT/Bill No.', 'Table/Room', 'Date', 'Item', 'Remarks', 'Cust. Remarks', 'Qty.', 'Rate', 'Amount']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 7.5,

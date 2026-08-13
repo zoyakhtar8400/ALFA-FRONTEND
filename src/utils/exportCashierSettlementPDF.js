@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed) || parsed === 0) return '';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportCashierSettlementPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -14,6 +17,7 @@ export const exportCashierSettlementPDF = (columns, data, filters = {}, printedO
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -25,16 +29,16 @@ export const exportCashierSettlementPDF = (columns, data, filters = {}, printedO
   const userStr = `${filters.user || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
-  doc.text('HOTEL BOBINA', pageWidth / 2, 14, { align: 'center' });
+  doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
 
   doc.setFontSize(8.5);
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text(`User        : ${userStr}`, leftMargin, 27.5);
@@ -72,16 +76,16 @@ export const exportCashierSettlementPDF = (columns, data, filters = {}, printedO
     const items = grouped[outlet];
     items.forEach((item) => {
       tableRows.push([
-        { content: item.c1, styles: { halign: 'center' } }, // S.No
-        { content: item.c2, styles: { halign: 'center' } }, // Bill Date
-        { content: item.c3, styles: { halign: 'center' } }, // Bill No
-        { content: item.c4, styles: { halign: 'right' } },  // Bill Amount
-        { content: item.c5, styles: { halign: 'center' } }, // Date
-        { content: item.c6, styles: { halign: 'left' } },   // Pay Type
-        { content: item.c7, styles: { halign: 'center' } }, // GRCNo
-        { content: item.c8, styles: { halign: 'left' } },   // Party Name
-        { content: item.c9, styles: { halign: 'right' } },  // Paid Amount
-        { content: item.c10, styles: { halign: 'center' } } // user Name
+        { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // S.No
+        { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Bill Date
+        { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Bill No
+        { content: cleanPdfText(item.c4), styles: { halign: 'right' } },  // Bill Amount
+        { content: cleanPdfText(item.c5), styles: { halign: 'center' } }, // Date
+        { content: cleanPdfText(item.c6), styles: { halign: 'left' } },   // Pay Type
+        { content: cleanPdfText(item.c7), styles: { halign: 'center' } }, // GRCNo
+        { content: cleanPdfText(item.c8), styles: { halign: 'center' } },  // Party Name
+        { content: cleanPdfText(item.c9), styles: { halign: 'right' } },  // Paid Amount
+        { content: cleanPdfText(item.c10), styles: { halign: 'center' } } // user Name
       ]);
     });
   });
@@ -92,6 +96,7 @@ export const exportCashierSettlementPDF = (columns, data, filters = {}, printedO
     head: [['S.No.', 'Bill Date', 'Bill No.', 'Bill Amount', 'Date', 'Pay Type', 'GRCNo', 'Party Name', 'Paid Amount', 'user Name']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 7.5,

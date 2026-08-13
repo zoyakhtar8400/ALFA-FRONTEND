@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed)) return '0.00';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Landscape
@@ -14,6 +17,7 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 297;
   const pageHeight = 210;
@@ -27,7 +31,7 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
   const outletStr = `${filters.outlet || 'All Outlets'}`;
 
   // 2. Report Header (Plain text matching screenshot style)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -36,7 +40,7 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text('Main Grp    : All', leftMargin, 27.5);
@@ -53,12 +57,12 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
   data.forEach((item, idx) => {
     tableRows.push([
       { content: String(idx + 1), styles: { halign: 'center' } }, // Sr No
-      { content: item.c2, styles: { halign: 'center' } },        // Date
-      { content: item.c3, styles: { halign: 'center' } },        // Time
-      { content: item.c4, styles: { halign: 'center' } },        // Bill No
-      { content: item.c5, styles: { halign: 'center' } },        // Table
-      { content: item.c6, styles: { halign: 'left' } },          // Customer
-      { content: item.c7, styles: { halign: 'center' } },        // Payment Mode
+      { content: cleanPdfText(item.c2), styles: { halign: 'center' } },        // Date
+      { content: cleanPdfText(item.c3), styles: { halign: 'center' } },        // Time
+      { content: cleanPdfText(item.c4), styles: { halign: 'center' } },        // Bill No
+      { content: cleanPdfText(item.c5), styles: { halign: 'center' } },        // Table
+      { content: cleanPdfText(item.c6), styles: { halign: 'center' } },        // Customer
+      { content: cleanPdfText(item.c7), styles: { halign: 'center' } },        // Payment Mode
       { content: formatIndianCurrency(item.rawGross), styles: { halign: 'right' } }, // Gross Amount
       { content: formatIndianCurrency(item.rawDiscount), styles: { halign: 'right' } }, // Discount
       { content: formatIndianCurrency(item.rawTax), styles: { halign: 'right' } }, // Tax
@@ -132,6 +136,7 @@ export const exportSalesRegisterPDF = (columns, data, filters = {}, printedOn = 
     head: [['Sr No', 'Date', 'Time', 'Bill No', 'Table', 'Customer', 'Payment Mode', 'Gross Amount', 'Discount', 'Tax', 'Net Amount']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 8,

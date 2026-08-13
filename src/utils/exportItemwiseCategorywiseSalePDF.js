@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed)) return '0.00';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -14,6 +17,7 @@ export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, p
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -25,7 +29,7 @@ export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, p
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -34,7 +38,7 @@ export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, p
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text('Main Grp    : All', leftMargin, 27.5);
@@ -254,6 +258,7 @@ export const exportItemwiseCategorywiseSalePDF = (columns, data, filters = {}, p
     head: [['Item Name', 'Unit', 'Qty.', 'Value']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 8,

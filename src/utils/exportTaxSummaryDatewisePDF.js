@@ -1,11 +1,14 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
   if (isNaN(parsed) || parsed === 0) return '';
-  return parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '₹ ' + parsed.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Landscape
@@ -14,6 +17,7 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 297;
   const pageHeight = 210;
@@ -24,7 +28,7 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -33,7 +37,7 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
 
@@ -79,22 +83,22 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
 
     items.forEach((item) => {
       tableRows.push([
-        { content: item.c1, styles: { halign: 'center' } }, // Date
-        { content: item.c2, styles: { halign: 'center' } }, // Bill No
-        { content: item.c3, styles: { halign: 'right' } },  // Gross Amt
-        { content: item.c4, styles: { halign: 'right' } },  // Taxable
-        { content: item.c5, styles: { halign: 'right' } },  // Non-Taxable
-        { content: item.c6, styles: { halign: 'right' } },  // Discount
-        { content: item.c7, styles: { halign: 'right' } },  // SGST
-        { content: item.c8, styles: { halign: 'right' } },  // CGST
-        { content: item.c9, styles: { halign: 'right' } },  // IGST
-        { content: item.c10, styles: { halign: 'right' } }, // CESS
-        { content: item.c11, styles: { halign: 'right' } }, // VAT
-        { content: item.c12, styles: { halign: 'right' } }, // Service Charge
-        { content: item.c13, styles: { halign: 'right' } }, // S.C(SGST)
-        { content: item.c14, styles: { halign: 'right' } }, // S.C(CGST)
-        { content: item.c15, styles: { halign: 'right' } }, // Round Off
-        { content: item.c16, styles: { halign: 'right' } }  // Net Amount
+        { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // Date
+        { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Bill No
+        { content: cleanPdfText(item.c3), styles: { halign: 'right' } },  // Gross Amt
+        { content: cleanPdfText(item.c4), styles: { halign: 'right' } },  // Taxable
+        { content: cleanPdfText(item.c5), styles: { halign: 'right' } },  // Non-Taxable
+        { content: cleanPdfText(item.c6), styles: { halign: 'right' } },  // Discount
+        { content: cleanPdfText(item.c7), styles: { halign: 'right' } },  // SGST
+        { content: cleanPdfText(item.c8), styles: { halign: 'right' } },  // CGST
+        { content: cleanPdfText(item.c9), styles: { halign: 'right' } },  // IGST
+        { content: cleanPdfText(item.c10), styles: { halign: 'right' } }, // CESS
+        { content: cleanPdfText(item.c11), styles: { halign: 'right' } }, // VAT
+        { content: cleanPdfText(item.c12), styles: { halign: 'right' } }, // Add Amt
+        { content: cleanPdfText(item.c13), styles: { halign: 'right' } }, // Service Charge
+        { content: cleanPdfText(item.c14), styles: { halign: 'right' } }, // Delivery Charge
+        { content: cleanPdfText(item.c15), styles: { halign: 'right' } }, // Round Off
+        { content: cleanPdfText(item.c16), styles: { halign: 'right' } }  // Net Amount
       ]);
 
       totalGross += item.rawGross || 0;
@@ -219,6 +223,7 @@ export const exportTaxSummaryDatewisePDF = (columns, data, filters = {}, printed
     ]],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 6,

@@ -1,27 +1,30 @@
 import { handleEnterNavigation } from '../../utils/keyboardNavigation';
 import React, { useState } from 'react';
-import { FaUser, FaLock, FaSignInAlt, FaInfoCircle } from 'react-icons/fa';
+import { FaUser, FaLock, FaSignInAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 
 const Login = ({ showToast }) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@alfahms.com');
-  const [password, setPassword] = useState('password');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!email.trim() || !password.trim()) {
+      const toastFn = showToast || window.showToast;
+      if (toastFn) toastFn('Please enter username/email and password.', 'warning');
+      return;
+    }
 
-    // Simulate a premium mock loading experience
-    setTimeout(() => {
+    setLoading(true);
+    try {
+      await login(email.trim(), password, showToast);
+    } catch (err) {
+      console.error('Login submit error:', err);
+    } finally {
       setLoading(false);
-      if (email === 'admin@alfahms.com' && password === 'password') {
-        login(email, password, showToast);
-      } else {
-        alert("Invalid email or password (Try admin@alfahms.com / password)!");
-      }
-    }, 1200);
+    }
   };
 
   return (
@@ -35,14 +38,15 @@ const Login = ({ showToast }) => {
 
         <form onKeyDown={handleEnterNavigation} className="login-form" onSubmit={handleSubmit}>
           <div className="login-input-group">
-            <label className="login-label">Email Address</label>
+            <label className="login-label">Username or Email</label>
             <div className="login-input-wrapper">
               <FaUser className="login-input-icon" />
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@alfahms.com"
+                placeholder="Enter username or email"
+                autoComplete="username"
                 required
               />
             </div>
@@ -57,6 +61,7 @@ const Login = ({ showToast }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                autoComplete="current-password"
                 required
               />
             </div>
@@ -67,7 +72,7 @@ const Login = ({ showToast }) => {
               <input type="checkbox" defaultChecked />
               <span>Remember me</span>
             </label>
-            <span className="login-forgot" onClick={() => showToast("Password reset link sent (Dummy Action)")}>
+            <span className="login-forgot" onClick={() => (showToast || window.showToast)?.("Please contact your system administrator to reset password.")}>
               Forgot password?
             </span>
           </div>
@@ -83,11 +88,6 @@ const Login = ({ showToast }) => {
             )}
           </button>
         </form>
-
-        <div className="login-help-note">
-          <FaInfoCircle />
-          <span>Demo Credentials: <strong>admin@alfahms.com</strong> / <strong>password</strong></span>
-        </div>
       </div>
     </div>
   );

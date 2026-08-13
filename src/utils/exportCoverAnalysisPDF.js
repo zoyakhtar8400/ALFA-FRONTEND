@@ -1,5 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -8,6 +11,7 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -18,7 +22,7 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -27,7 +31,7 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
 
@@ -85,15 +89,15 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
       const items = grouped[outlet][waiter];
       items.forEach((item) => {
         tableRows.push([
-          { content: item.c1, styles: { halign: 'center' } }, // S.No.
-          { content: item.c2, styles: { halign: 'center' } }, // Bill Date
-          { content: item.c3, styles: { halign: 'center' } }, // Bill No.
-          { content: item.c4, styles: { halign: 'center' } }, // Time
-          { content: item.c5, styles: { halign: 'center' } }, // No. of Pax
-          { content: item.c6, styles: { halign: 'right' } },  // Bill Amount
-          { content: item.c7, styles: { halign: 'right' } },  // Avg. Amt.
-          { content: item.c8, styles: { halign: 'center' } }, // User Name
-          { content: item.c9, styles: { halign: 'center' } }  // Duration
+          { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // S.No.
+          { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Bill Date
+          { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Bill No.
+          { content: cleanPdfText(item.c4), styles: { halign: 'center' } }, // Time
+          { content: cleanPdfText(item.c5), styles: { halign: 'center' } }, // No. of Pax
+          { content: cleanPdfText(item.c6), styles: { halign: 'right' } },  // Bill Amount
+          { content: cleanPdfText(item.c7), styles: { halign: 'right' } },  // Avg. Amt.
+          { content: cleanPdfText(item.c8), styles: { halign: 'center' } }, // User Name
+          { content: cleanPdfText(item.c9), styles: { halign: 'center' } }  // Duration
         ]);
       });
     });
@@ -105,6 +109,7 @@ export const exportCoverAnalysisPDF = (columns, data, filters = {}, printedOn = 
     head: [['S.No.', 'Bill Date', 'Bill No.', 'Time', 'No. of Pax', 'Bill Amount', 'Avg. Amt.', 'User Name', 'Duration']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 8,

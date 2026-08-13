@@ -2,8 +2,9 @@
  * Reusable StatusBadge component to display active, inactive, yes, no,
  * checkin, checkout, dirty, clean, or cancelled statuses consistently.
  */
-const StatusBadge = ({ value, activeValue }) => {
-  const valStr = String(value || '');
+const StatusBadge = ({ value, status, activeValue }) => {
+  const raw = value ?? status;
+  const valStr = String(raw || '');
   const valLower = valStr.replace(/[\s_]+/g, '-').toLowerCase();
 
   const getStatusClass = () => {

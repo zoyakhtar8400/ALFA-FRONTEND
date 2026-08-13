@@ -4,6 +4,8 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import F from '../../../../components/common/F';
 import { FaStore, FaCogs, FaPrint } from 'react-icons/fa';
 
+const parseVal = (e) => (e && typeof e === 'object' && e.target !== undefined ? e.target.value : (e ?? ''));
+
 const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
   const [fields, setFields] = useState({
     name: '',
@@ -113,15 +115,15 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
               {sectionTitle(<FaStore />, 'General Details')}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
                 <div style={{ gridColumn: 'span 2' }}>
-                  <F label="Name" required value={fields.name} onChange={e => setFields(p => ({ ...p, name: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                  <F label="Name" required value={fields.name} onChange={val => setFields(p => ({ ...p, name: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 </div>
 
-                <F label="Short Name" required value={fields.shortName} onChange={e => setFields(p => ({ ...p, shortName: e.target.value.toUpperCase() }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Short Name" required value={fields.shortName} onChange={val => setFields(p => ({ ...p, shortName: parseVal(val).toUpperCase() }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 
                 <F label="Status" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.status || 'Active'}
-                    onChange={e => setFields(p => ({ ...p, status: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, status: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -133,7 +135,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Company Title" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.companyTitle || ''}
-                    onChange={e => setFields(p => ({ ...p, companyTitle: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, companyTitle: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -147,7 +149,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Outlet Title" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.outletTitle || ''}
-                    onChange={e => setFields(p => ({ ...p, outletTitle: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, outletTitle: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -159,11 +161,11 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                   </select>
                 </F>
 
-                <F label="Phone Number" value={fields.phone} onChange={e => setFields(p => ({ ...p, phone: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="HSN / SAC" value={fields.hsnSac} onChange={e => setFields(p => ({ ...p, hsnSac: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Phone Number" value={fields.phone} onChange={val => setFields(p => ({ ...p, phone: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="HSN / SAC" value={fields.hsnSac} onChange={val => setFields(p => ({ ...p, hsnSac: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 
                 <div style={{ gridColumn: 'span 2' }}>
-                  <F label="General" value={fields.general} onChange={e => setFields(p => ({ ...p, general: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                  <F label="General" value={fields.general} onChange={val => setFields(p => ({ ...p, general: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 </div>
               </div>
             </div>
@@ -177,7 +179,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Customer Info" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.customerInfo || 'Optional'}
-                    onChange={e => setFields(p => ({ ...p, customerInfo: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, customerInfo: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -190,7 +192,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Auto Settlement" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.autoSettlement || 'No'}
-                    onChange={e => setFields(p => ({ ...p, autoSettlement: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, autoSettlement: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -202,7 +204,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Focus On" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.focusOn || 'Item Search'}
-                    onChange={e => setFields(p => ({ ...p, focusOn: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, focusOn: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -216,7 +218,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="KOT" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.kot || 'Print & Save'}
-                    onChange={e => setFields(p => ({ ...p, kot: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, kot: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -229,7 +231,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="KOT Print" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.kotPrint || 'Immediate'}
-                    onChange={e => setFields(p => ({ ...p, kotPrint: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, kotPrint: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -242,7 +244,7 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 <F label="Room Service" style={{ marginBottom: 0 }}>
                   <select
                     value={fields.roomService || 'Disabled'}
-                    onChange={e => setFields(p => ({ ...p, roomService: e.target.value }))}
+                    onChange={e => setFields(p => ({ ...p, roomService: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
@@ -251,22 +253,22 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                   </select>
                 </F>
 
-                <F label="No of KOT" type="number" value={fields.noOfKOT} onChange={e => setFields(p => ({ ...p, noOfKOT: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="No of Bills" type="number" value={fields.noOfBills} onChange={e => setFields(p => ({ ...p, noOfBills: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="No of KOT" type="number" value={fields.noOfKOT} onChange={val => setFields(p => ({ ...p, noOfKOT: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="No of Bills" type="number" value={fields.noOfBills} onChange={val => setFields(p => ({ ...p, noOfBills: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
               </div>
             </div>
 
             <div style={cardStyle}>
               {sectionTitle(<FaPrint />, 'Bill Print Settings')}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
-                <F label="Bill Header 1" value={fields.billHeader1} onChange={e => setFields(p => ({ ...p, billHeader1: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="Bill Slogan 1" value={fields.billSlogan1} onChange={e => setFields(p => ({ ...p, billSlogan1: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Header 1" value={fields.billHeader1} onChange={val => setFields(p => ({ ...p, billHeader1: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Slogan 1" value={fields.billSlogan1} onChange={val => setFields(p => ({ ...p, billSlogan1: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 
-                <F label="Bill Header 2" value={fields.billHeader2} onChange={e => setFields(p => ({ ...p, billHeader2: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="Bill Slogan 2" value={fields.billSlogan2} onChange={e => setFields(p => ({ ...p, billSlogan2: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Header 2" value={fields.billHeader2} onChange={val => setFields(p => ({ ...p, billHeader2: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Slogan 2" value={fields.billSlogan2} onChange={val => setFields(p => ({ ...p, billSlogan2: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
                 
-                <F label="Bill Header 3" value={fields.billHeader3} onChange={e => setFields(p => ({ ...p, billHeader3: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="Bill Slogan 3" value={fields.billSlogan3} onChange={e => setFields(p => ({ ...p, billSlogan3: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Header 3" value={fields.billHeader3} onChange={val => setFields(p => ({ ...p, billHeader3: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Bill Slogan 3" value={fields.billSlogan3} onChange={val => setFields(p => ({ ...p, billSlogan3: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
               </div>
             </div>
           </div>

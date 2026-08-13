@@ -1,5 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -8,6 +11,7 @@ export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printe
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -18,7 +22,7 @@ export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printe
   const subStr = `Track frequency of guest visits across specific outlets (Cafe, Restaurant, Bar).`;
 
   // 2. Report Header (Plain text matching layout style)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -27,7 +31,7 @@ export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printe
   doc.text(titleStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(subStr, leftMargin, 23.5);
 
@@ -35,11 +39,11 @@ export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printe
 
   // 3. Build Table Rows
   const tableRows = data.map(item => [
-    { content: item.c1, styles: { halign: 'left' } },   // Customer Name
-    { content: item.c2, styles: { halign: 'center' } }, // Mobile
-    { content: item.c3, styles: { halign: 'center' } }, // Main Restaurant
-    { content: item.c4, styles: { halign: 'center' } }, // Bar Outlet
-    { content: item.c5, styles: { halign: 'center' } }  // Cafe Outlet
+    { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // Customer Name
+    { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Mobile
+    { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Main Restaurant
+    { content: cleanPdfText(item.c4), styles: { halign: 'center' } }, // Bar Outlet
+    { content: cleanPdfText(item.c5), styles: { halign: 'center' } }  // Cafe Outlet
   ]);
 
   // 4. Draw Plain Table
@@ -48,6 +52,7 @@ export const exportCustomerOutletVisitPDF = (columns, data, filters = {}, printe
     head: [['Customer Name', 'Mobile', 'Main Restaurant', 'Bar Outlet', 'Cafe Outlet']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 7.5,

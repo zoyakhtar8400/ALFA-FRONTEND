@@ -434,23 +434,53 @@ const SidebarMenu = ({
         </div>
       )}
 
-      {/* Settings Link */}
+      {/* Settings Link & Drawer */}
       {matchesFilter('System Settings') && (
-        <Link
-          to="/setting"
-          onClick={handleMobileNav}
-          onMouseEnter={handleOtherItemMouseEnter}
-          className={`sidebar-menu-link ${isActive('/setting') ? 'active' : ''}`}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-            borderRadius: '6px', fontSize: '0.8rem', fontWeight: isActive('/setting') ? 800 : 600,
-            color: isActive('/setting') ? '#0e7490' : '#475569', background: isActive('/setting') ? '#ecfeff' : 'transparent',
-            textDecoration: 'none', transition: 'all 0.15s'
-          }}
-        >
-          <FaCogs size={15} />
-          {!isCollapsed && <span>System Settings</span>}
-        </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <Link
+            to="/setting"
+            onClick={handleMobileNav}
+            onMouseEnter={handleOtherItemMouseEnter}
+            className={`sidebar-menu-link ${currentPath.startsWith('/setting') ? 'active-parent' : ''}`}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between',
+              padding: '10px 14px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600,
+              color: currentPath.startsWith('/setting') ? '#0f172a' : '#475569', textDecoration: 'none'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FaCogs size={15} style={{ color: currentPath.startsWith('/setting') ? '#0e7490' : '#64748b' }} />
+              {!isCollapsed && <span>System Settings</span>}
+            </div>
+          </Link>
+
+          {!isCollapsed && (
+            <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
+              <Link
+                to="/setting/user-management"
+                onClick={handleMobileNav}
+                style={{
+                  display: 'block', padding: '6px 12px 6px 20px', fontSize: '0.74rem', fontWeight: isActive('/setting/user-management') ? 800 : 600,
+                  color: isActive('/setting/user-management') ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive('/setting/user-management') ? '#ecfeff' : 'transparent',
+                  borderRadius: '4px'
+                }}
+              >
+                User Management
+              </Link>
+              <Link
+                to="/setting"
+                onClick={handleMobileNav}
+                style={{
+                  display: 'block', padding: '6px 12px 6px 20px', fontSize: '0.74rem', fontWeight: isActive('/setting') ? 800 : 600,
+                  color: isActive('/setting') ? '#0e7490' : '#64748b', textDecoration: 'none', background: isActive('/setting') ? '#ecfeff' : 'transparent',
+                  borderRadius: '4px'
+                }}
+              >
+                All Settings
+              </Link>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -10,7 +10,10 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
         className={`form-input${disabled ? ' bg-slate-50 cursor-not-allowed' : ''} ${inputClassName || ''}`}
         type={type}
         value={value ?? ''}
-        onChange={disabled ? undefined : onChange}
+        onChange={disabled ? undefined : (e) => {
+          const val = e && e.target !== undefined ? e.target.value : e;
+          if (onChange) onChange(val);
+        }}
         disabled={disabled}
         placeholder={placeholder}
         required={required}

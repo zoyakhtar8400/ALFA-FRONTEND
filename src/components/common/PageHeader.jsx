@@ -30,12 +30,14 @@ const PageHeader = ({
 
       {/* Title & Actions Row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--dark)', letterSpacing: '-0.5px' }}>
-          {title}
-        </h2>
+        {showBack && <BackButton onClick={onBack} label="Back" />}
+        <div style={{ flex: '1 1 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--dark)', letterSpacing: '-0.5px', textAlign: 'center', margin: 0 }}>
+            {title}
+          </h2>
+        </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           {children}
-          {showBack && <BackButton onClick={onBack} label="Back" />}
           {showPrint && <PrintButton onClick={onPrint} label="Print" />}
         </div>
       </div>

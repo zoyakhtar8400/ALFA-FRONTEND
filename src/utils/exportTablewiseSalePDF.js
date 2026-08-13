@@ -1,5 +1,8 @@
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
+import { addRupeeFont } from './addRupeeFont';
+
+const cleanPdfText = (val) => String(val ?? '').replace(/Rs\.\s*/gi, '₹ ').replace(/¹/g, '₹');
 
 export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = '') => {
   // 1. Initialize Document in A4 Portrait
@@ -8,6 +11,7 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
     unit: 'mm',
     format: 'a4'
   });
+  addRupeeFont(doc);
 
   const pageWidth = 210;
   const pageHeight = 297;
@@ -18,7 +22,7 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
   const outletStr = `${filters.outlet || 'All'}`;
 
   // 2. Report Header (Plain text matching screenshot)
-  doc.setFont('Helvetica', 'bold');
+  doc.setFont('ArialRupee', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
   doc.text('ALFA HOTEL MANAGEMENT SYSTEM', pageWidth / 2, 14, { align: 'center' });
@@ -27,7 +31,7 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
   doc.text(dateRangeStr, pageWidth / 2, 18.5, { align: 'center' });
 
   // Metadata block (Plain text left-aligned)
-  doc.setFont('Helvetica', 'normal');
+  doc.setFont('ArialRupee', 'normal');
   doc.setFontSize(7.5);
   doc.text(`Outlet      : ${outletStr}`, leftMargin, 23.5);
   doc.text('Item        : All', leftMargin, 27.5);
@@ -64,20 +68,19 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
 
     const items = grouped[outlet];
     items.forEach((item) => {
-      // In the screenshot, Qty has decimal formats like "2.000" or simple ints like "4"
-      const qtyNum = parseFloat(item.rawQty);
-      const qtyText = (qtyNum === 2 || qtyNum === 1 || qtyNum === 3) && item.c6.includes('BOTTLE') || item.c6.includes('MAX') 
+      const qtyNum = parseFloat(item.rawQty || 1);
+      const qtyText = (qtyNum === 2 || qtyNum === 1 || qtyNum === 3) && (item.c6 || '').includes('BOTTLE') || (item.c6 || '').includes('MAX') 
         ? qtyNum.toFixed(3) 
         : String(qtyNum);
 
       tableRows.push([
-        { content: item.c1, styles: { halign: 'center' } }, // S.No.
-        { content: item.c2, styles: { halign: 'center' } }, // Tbl No./Rm No.
-        { content: item.c3, styles: { halign: 'center' } }, // Bill No.
-        { content: item.c4, styles: { halign: 'center' } }, // Time
-        { content: item.c5, styles: { halign: 'right' } },  // Bill Amt.
-        { content: item.c6, styles: { halign: 'left' } },   // Name
-        { content: qtyText, styles: { halign: 'center' } }   // Qty.
+        { content: cleanPdfText(item.c1), styles: { halign: 'center' } }, // S.No.
+        { content: cleanPdfText(item.c2), styles: { halign: 'center' } }, // Tbl No./Rm No.
+        { content: cleanPdfText(item.c3), styles: { halign: 'center' } }, // Bill No.
+        { content: cleanPdfText(item.c4), styles: { halign: 'center' } }, // Time
+        { content: cleanPdfText(item.c5), styles: { halign: 'right' } },  // Bill Amt.
+        { content: cleanPdfText(item.c6), styles: { halign: 'center' } },  // Name
+        { content: cleanPdfText(qtyText), styles: { halign: 'center' } }   // Qty.
       ]);
     });
   });
@@ -88,6 +91,7 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
     head: [['S.No.', 'Tbl No./Rm No.', 'Bill No.', 'Time', 'Bill Amt.', 'Name', 'Qty.']],
     body: tableRows,
     theme: 'plain',
+    styles: { font: 'ArialRupee' },
     headStyles: {
       textColor: [0, 0, 0],
       fontSize: 8,
@@ -122,13 +126,13 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
 
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('ArialRupee', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
 
     // running header page 2+
     if (i > 1) {
-      doc.setFont('Helvetica', 'bold');
+      doc.setFont('ArialRupee', 'bold');
       doc.text('ALFA HOTEL MANAGEMENT SYSTEM   |   Tablewise Itemwise Sale Report', leftMargin, 10);
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.2);
@@ -136,7 +140,7 @@ export const exportTablewiseSalePDF = (columns, data, filters = {}, printedOn = 
     }
 
     // running footer page indicator
-    doc.setFont('Helvetica', 'normal');
+    doc.setFont('ArialRupee', 'normal');
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - rightMargin, pageHeight - 8, { align: 'right' });
   }
 

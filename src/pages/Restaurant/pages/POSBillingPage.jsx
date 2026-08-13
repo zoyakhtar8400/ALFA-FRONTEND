@@ -562,7 +562,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
 
 
-  const toast = (msg) => {
+  const toast = useCallback((msg) => {
     if (window.showToast) {
       window.showToast(msg);
     } else {
@@ -581,7 +581,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       document.body.appendChild(alertBox);
       setTimeout(() => alertBox.remove(), 2500);
     }
-  };
+  }, []);
+  toast.error = (msg) => toast(msg);
+  toast.success = (msg) => toast(msg);
 
   const filteredGridItems = useMemo(() => {
     const q = searchItem.toLowerCase().trim();
@@ -977,20 +979,28 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
 
     try {
+      const itemsForApi = rowsToCut.map(r => ({
+        itemId: r.id || r.itemId || r.item_id || 1,
+        itemName: r.name || r.itemName || r.title || 'Item',
+        qty: Number(r.qty || r.quantity || 1),
+        unitPrice: Number(r.unitPrice || r.price || r.rate || 0),
+        total: Number(r.qty || 1) * Number(r.unitPrice || r.price || 0)
+      }));
+
       const kotResult = await kotService.createKOT({
         kotNo: newKotNo,
-        tableId: resolvedTableId,
+        tableId: Number(resolvedTableId) || 1,
         tableNo,
         customerName: customerName || 'Walk-in',
         mobileNo: mobileNumber || '',
         waiter: activeWaiter,
-        items: rowsToCut,
+        items: itemsForApi,
         isNewSession: isNewSession
       });
       
       // Check if backend returned stock or validation error message
       if (kotResult && kotResult.statusCode && kotResult.statusCode >= 400) {
-        toast.error(kotResult.message || 'Failed to cut KOT');
+        toast(kotResult.message || 'Failed to cut KOT');
         return;
       }
       
@@ -1001,7 +1011,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     } catch (err) {
       console.warn('Error calling KOT API:', err);
       const errMsg = err.response?.data?.message || err.message || 'Stock insufficient or KOT failed';
-      toast.error(`⛔ ${errMsg}`);
+      toast(`⛔ ${errMsg}`);
       return;
     }
 

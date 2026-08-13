@@ -5,10 +5,10 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 
 const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
   const [fields, setFields] = useState({
-    department: '',
+    department: 'Restaurant',
     name: '',
     pax: '4',
-    floor: '',
+    floor: 'Ground Floor',
     description: '',
     isActive: true
   });
@@ -16,18 +16,18 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
   useEffect(() => {
     if (isOpen) {
       setFields(isEdit ? {
-        department: '',
+        department: 'Restaurant',
         name: '',
         pax: '4',
-        floor: '',
+        floor: 'Ground Floor',
         description: '',
         isActive: true,
         ...initialData
       } : {
-        department: '',
+        department: 'Restaurant',
         name: '',
         pax: '4',
-        floor: '',
+        floor: 'Ground Floor',
         description: '',
         isActive: true
       });

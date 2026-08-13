@@ -11,6 +11,7 @@ export const authService = {
 
   logout() {
     localStorage.removeItem('alfa_token');
+    localStorage.removeItem('alfa_user');
   },
 
   getToken() {
