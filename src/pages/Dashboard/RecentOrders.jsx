@@ -9,9 +9,35 @@ const STATUS_STYLE = {
   Pending:   { bg: '#fee2e2', color: '#b91c1c' },
 };
 
-const RecentOrders = memo(({ showToast }) => {
+const RecentOrders = memo(({ stats, tables = [], showToast }) => {
   const navigate = useNavigate();
-  const rows = RECENT_ORDERS.slice(0, 5);
+
+  // 1. Extract live orders from tables that are Running or Paid
+  const liveTableRows = (tables || [])
+    .filter(t => (t.status === 'Running' || t.status === 'Paid' || t.status === 'KOT Generated') && Number(t.amount || 0) > 0)
+    .map(t => ({
+      table: `Table T${t.no}`,
+      kot: (t.kots && t.kots[0]?.kotNo) || (t.kotNo) || `KOT-T${t.no}`,
+      item: (t.customer && t.customer !== 'Walk-in') ? `${t.customer}'s Order` : `Dining Table T${t.no} Order`,
+      time: t.openedAt || 'Active',
+      status: t.status === 'Paid' ? 'Served' : 'Preparing',
+      steward: t.waiter || t.captain || 'Assigned',
+      amt: `₹${Number(t.amount || 0).toLocaleString('en-IN')}`
+    }));
+
+  // 2. Extract database settled bills
+  const dbRows = (stats?.recentOrders || []).map(o => ({
+    table: o.table || `Table #${o.id}`,
+    kot: o.billNo || `BILL-${o.id}`,
+    item: o.customer ? `${o.customer} (${o.paymentType})` : `Order #${o.id}`,
+    time: o.createdAt || 'Settled',
+    status: o.status || 'Paid',
+    steward: o.paymentType || 'Cashier',
+    amt: o.amount
+  }));
+
+  const combined = [...liveTableRows, ...dbRows];
+  const rows = combined.length > 0 ? combined.slice(0, 6) : [];
 
   return (
     <div>

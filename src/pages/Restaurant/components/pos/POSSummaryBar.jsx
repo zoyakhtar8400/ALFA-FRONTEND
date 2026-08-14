@@ -55,20 +55,20 @@ const POSSummaryBar = ({ totalBill, discountAmt = 0, originalBill, onSplitClick 
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '14px 20px',
+        padding: '8px 14px',
       }}>
         {/* Left: Split button */}
         <button
           type="button"
           onClick={onSplitClick}
           style={{
-            padding: '8px 16px',
+            padding: '5px 12px',
             borderRadius: '6px',
             background: '#f1f5f9',
             border: '1px solid #cbd5e1',
             color: '#475569',
             fontWeight: 800,
-            fontSize: '0.78rem',
+            fontSize: '0.74rem',
             cursor: 'pointer',
             transition: 'all 0.15s'
           }}
@@ -81,14 +81,14 @@ const POSSummaryBar = ({ totalBill, discountAmt = 0, originalBill, onSplitClick 
         {/* Right: Net Total Amount */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
           <span style={{
-            fontSize: '0.85rem', fontWeight: 700,
+            fontSize: '0.75rem', fontWeight: 700,
             color: hasDiscount ? '#16a34a' : '#64748b',
             textTransform: 'uppercase'
           }}>
             {hasDiscount ? 'Net Total' : 'Total Amount'}
           </span>
           <strong style={{
-            fontSize: '1.6rem', fontWeight: 900,
+            fontSize: '1.35rem', fontWeight: 900,
             color: hasDiscount ? '#15803d' : '#0f172a',
             letterSpacing: '-0.5px'
           }}>

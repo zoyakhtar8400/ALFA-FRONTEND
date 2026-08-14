@@ -5,29 +5,27 @@ import CommonModal from '../../../components/common/CommonModal';
 import CommonActionButtons from '../../../components/common/CommonActionButtons';
 import F from '../../../components/common/F';
 import StatusBadge from '../../../components/common/StatusBadge';
-import { INITIAL_PRINTERS } from '../constants/printerData';
 import apiClient from '../../../services/apiClient';
 
 const PRINTER_TYPES = ['Network', 'USB', 'Windows'];
 const emptyPrinter = { id: '', name: '', type: 'Network', ip: '', port: 9100, status: 'Active', isDefault: false };
 
 const PrinterMasterPage = () => {
-  const [printers, setPrinters] = useState(() => {
-    const saved = localStorage.getItem('alfa_pos_printers');
-    return saved ? JSON.parse(saved) : INITIAL_PRINTERS;
-  });
+  const [printers, setPrinters] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [modal, setModal] = useState({ open: false, mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [form, setForm] = useState(emptyPrinter);
 
   const fetchPrinters = async () => {
+    setLoading(true);
     try {
       const res = await apiClient.get('/printers');
       const apiList = res?.data || res || [];
-      if (Array.isArray(apiList) && apiList.length > 0) {
+      if (Array.isArray(apiList)) {
         const mapped = apiList.map((p, idx) => ({
-          id: p.id || p.printer_id || `p_${idx + 1}`,
+          id: p.id || p.printer_id || idx + 1,
           name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
           type: p.printer_type === 2 ? 'USB' : (p.printer_type === 3 ? 'Windows' : 'Network'),
           ipPort: (p.printer_type === 2 ? 'USB Local' : `${p.printer_ip || '192.168.1.100'} : ${p.printer_port_number || 9100}`),
@@ -38,25 +36,17 @@ const PrinterMasterPage = () => {
           isSinglePrinter: p.no_of_prints === 1 || idx === 0
         }));
         setPrinters(mapped);
-        localStorage.setItem('alfa_pos_printers', JSON.stringify(mapped));
-
-        const activeSingle = mapped.find(p => p.isDefault || p.isSinglePrinter);
-        if (activeSingle) {
-          localStorage.setItem('alfa_active_single_printer', JSON.stringify(activeSingle));
-        }
       }
     } catch (err) {
       console.warn('Printer API load error:', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchPrinters();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('alfa_pos_printers', JSON.stringify(printers));
-  }, [printers]);
 
   const handleToggleSinglePrinter = async (targetId) => {
     const updated = printers.map((p) => {
@@ -176,19 +166,10 @@ const PrinterMasterPage = () => {
 
     try {
       await apiClient.post('/printers', payload);
+      await fetchPrinters();
     } catch (err) {
       console.warn('Save printer API error:', err.message);
     }
-
-    const ipPortStr = form.type === 'USB' ? 'USB Local' : `${form.ip || '192.168.1.100'} : ${form.port || 9100}`;
-    const newRecord = { ...form, ipPort: ipPortStr };
-
-    if (modal.mode === 'edit' && modal.row) {
-      setPrinters((prev) => prev.map((p) => (p.id === modal.row.id ? { ...newRecord, id: p.id } : p)));
-    } else {
-      setPrinters((prev) => [{ ...newRecord, id: `p_${Date.now()}` }, ...prev]);
-    }
-
     setModal({ open: false, mode: 'add', row: null });
   };
 
@@ -198,11 +179,11 @@ const PrinterMasterPage = () => {
     try {
       if (typeof id === 'number' || !isNaN(Number(id))) {
         await apiClient.delete(`/printers/${id}`);
+        await fetchPrinters();
       }
     } catch (err) {
       console.warn('Delete printer API error:', err.message);
     }
-    setPrinters((prev) => prev.filter((p) => p.id !== id));
     setDeleteModal({ open: false, row: null });
   };
 

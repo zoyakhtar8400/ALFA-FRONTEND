@@ -5,8 +5,10 @@ import { LuEye, LuPencil, LuTrash2, LuCheck, LuChefHat, LuPrinter, LuRefreshCw }
 import PageHeader from '../../../components/common/PageHeader';
 import CommonModal from '../../../components/common/CommonModal';
 import { useRestaurant } from '../../../context/RestaurantContext';
-import { printKitchenKOT, printTaxInvoice } from '../utils/printInvoice';
+import { printKitchenKOT, printTaxInvoice, printStationKOT } from '../utils/printInvoice';
 import { kotService } from '../../../services/kotService';
+import { groupItemsByPrinter, generateKOTPayload, printAllStationKOTs } from '../services/kotEngine';
+import apiClient from '../../../services/apiClient';
 
 const STATUS_CONFIG = {
   'Sent to Kitchen': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
@@ -35,6 +37,34 @@ const ViewKOTPage = () => {
   const [activeFilter, setActiveFilter] = useState('active'); // 'active' | 'inactive' | 'all'
   const [loadingKots, setLoadingKots]   = useState(false);
   const [dbKots, setDbKots]             = useState([]);
+  const [categories, setCategories]     = useState([]);
+  const [printers, setPrinters]         = useState([]);
+  const [menuItems, setMenuItems]       = useState([]);
+
+  // Load masters for station routing
+  useEffect(() => {
+    async function loadMasters() {
+      try {
+        const [catRes, printRes, menuRes] = await Promise.allSettled([
+          apiClient.get('/production-categories'),
+          apiClient.get('/printers'),
+          apiClient.get('/menu-items')
+        ]);
+        if (catRes.status === 'fulfilled' && catRes.value) {
+          setCategories(catRes.value.data || catRes.value || []);
+        }
+        if (printRes.status === 'fulfilled' && printRes.value) {
+          setPrinters(printRes.value.data || printRes.value || []);
+        }
+        if (menuRes.status === 'fulfilled' && menuRes.value) {
+          setMenuItems(menuRes.value.data || menuRes.value || []);
+        }
+      } catch (e) {
+        console.warn('Error loading masters in ViewKOTPage:', e);
+      }
+    }
+    loadMasters();
+  }, []);
 
   // ── Fetch from backend with active/inactive/all param ──────────────────────
   const loadKots = async (filterVal) => {
@@ -114,7 +144,17 @@ const ViewKOTPage = () => {
     if (closed) {
       printTaxInvoice({ tableNo: kot.tableId, kotId: kot.id, items: kot.items || [], time: kot.time, status: kot.status });
     } else {
-      printKitchenKOT({ id: kot.id, tableId: kot.tableId, time: kot.time, items: kot.items || [] });
+      const groups = groupItemsByPrinter(kot.items || [], menuItems, categories, printers);
+      const isReprint = !!(kot.print_count && kot.print_count > 0);
+      const payloads = groups.map(g => generateKOTPayload({
+        tableNo: kot.tableId,
+        tableId: kot.tableId,
+        kotNo: kot.id,
+        group: g,
+        waiter: kot.waiter || 'Staff',
+        isReprint
+      }));
+      printAllStationKOTs(payloads);
     }
   };
 

@@ -430,7 +430,10 @@ export const useTableOperations = (location, navigate) => {
           ...t,
           kots: nextKots,
           kotCount: nextKots.length,
-          status: 'KOT Generated'
+          status: 'Running',
+          order_state: 'KOT_CUT',
+          color: 'yellow',
+          available_actions: ['print_kot', 'view_kot']
         };
       }
       return t;

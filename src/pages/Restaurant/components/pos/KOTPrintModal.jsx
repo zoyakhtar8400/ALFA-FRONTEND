@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { FaPrint, FaCheck, FaExclamationTriangle, FaTimes, FaSpinner } from 'react-icons/fa';
-import { simulatePrint } from '../../services/kotEngine';
+import { printKOTPayload } from '../../services/kotEngine';
 
 const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, tableNo, onKOTSuccess }) => {
   const [printStatuses, setPrintStatuses] = useState({});
@@ -13,7 +14,10 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
   useEffect(() => {
     if (isOpen && hasGroups) {
       const initial = {};
-      kotGroups.forEach(g => { initial[g.printer.id] = { state: 'idle', error: null }; });
+      kotGroups.forEach(g => {
+        const key = g.printer?.id || g.key;
+        initial[key] = { state: 'idle', error: g.hasError ? g.errorMessage : null };
+      });
       setPrintStatuses(initial);
       setAllDone(false);
       setAutoPrinted(false);
@@ -45,14 +49,25 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
   }, [isOpen, onClose]);
 
   const printOne = useCallback(async (group, payload) => {
-    const pid = group.printer.id;
+    const pid = group.printer?.id || group.key;
     setPrintStatuses(prev => ({ ...prev, [pid]: { state: 'printing', error: null } }));
-    const result = await simulatePrint(payload);
+    
+    // Check if configuration error exists
+    if (group.hasError || payload.hasError) {
+      const errMsg = group.errorMessage || payload.errorMessage || 'No printer configured for this station.';
+      setPrintStatuses(prev => ({
+        ...prev,
+        [pid]: { state: 'failed', error: errMsg },
+      }));
+      return { success: false, error: errMsg };
+    }
+
+    const success = printKOTPayload(payload);
     setPrintStatuses(prev => ({
       ...prev,
-      [pid]: { state: result.success ? 'success' : 'failed', error: result.error },
+      [pid]: { state: success ? 'success' : 'failed', error: success ? null : 'Failed to send print job.' },
     }));
-    return result;
+    return { success, error: success ? null : 'Failed to send print job.' };
   }, []);
 
   const runPrintAll = useCallback(async () => {
@@ -68,35 +83,44 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
 
   // If no groups at all show a fallback
   if (!hasGroups) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-        <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center', maxWidth: '360px' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🖨️</div>
-          <div style={{ fontWeight: 800, color: '#0e7490', fontSize: '1.1rem', marginBottom: '8px' }}>KOT Generated</div>
-          <div style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '20px' }}>No printer stations were matched. Items sent to default printer.</div>
+    const fallback = (
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 999999, background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', boxSizing: 'border-box' }}>
+        <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center', maxWidth: '380px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🖨️</div>
+          <div style={{ fontWeight: 800, color: '#0e7490', fontSize: '1.2rem', marginBottom: '8px' }}>KOT Generated</div>
+          <div style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px' }}>No printer stations were matched. Items sent to default printer.</div>
           <button ref={closeRef} onClick={onClose} style={{ padding: '10px 28px', borderRadius: '8px', border: 'none', background: '#0e7490', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Close</button>
         </div>
       </div>
     );
+    return typeof document !== 'undefined' ? createPortal(fallback, document.body) : fallback;
   }
 
   const successCount = Object.values(printStatuses).filter(s => s.state === 'success').length;
   const failCount = Object.values(printStatuses).filter(s => s.state === 'failed').length;
   const printingCount = Object.values(printStatuses).filter(s => s.state === 'printing').length;
 
-  return (
+  const modalJSX = (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)',
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      width: '100vw', height: '100vh',
+      zIndex: 999999,
+      background: 'rgba(15, 23, 42, 0.75)',
+      backdropFilter: 'blur(6px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '16px',
+      padding: '20px',
+      boxSizing: 'border-box'
     }}>
       <div style={{
-        background: '#fff', borderRadius: '16px',
-        width: '100%', maxWidth: '740px', maxHeight: '92vh',
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 32px 72px rgba(0,0,0,0.28)',
-        overflow: 'hidden',
+        background: '#ffffff',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '820px',
+        maxHeight: '88vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+        overflow: 'hidden'
       }}>
 
         {/* Header */}
@@ -104,13 +128,13 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '18px 24px',
           background: 'linear-gradient(135deg, #0c4a6e 0%, #0e7490 60%, #0891b2 100%)',
-          color: '#fff',
+          color: '#fff'
         }}>
           <div>
             <div style={{ fontSize: '1.2rem', fontWeight: 900, letterSpacing: '0.5px' }}>
               🖨️ &nbsp;{kotNo} — KOT Sent
             </div>
-            <div style={{ fontSize: '0.78rem', opacity: 0.8, marginTop: '3px' }}>
+            <div style={{ fontSize: '0.78rem', opacity: 0.85, marginTop: '3px' }}>
               Table {tableNo} &nbsp;·&nbsp; {kotGroups.length} printer station{kotGroups.length > 1 ? 's' : ''}
             </div>
           </div>
@@ -131,7 +155,7 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
           <div style={{
             height: '100%', background: failCount > 0 ? '#ef4444' : '#16a34a',
             width: `${kotGroups.length > 0 ? ((successCount + failCount) / kotGroups.length) * 100 : 0}%`,
-            transition: 'width 400ms ease',
+            transition: 'width 400ms ease'
           }} />
         </div>
 
@@ -160,7 +184,7 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
                 overflow: 'hidden',
                 background: cardBg,
                 boxShadow: `0 4px 16px ${catColor}22`,
-                transition: 'all 300ms ease',
+                transition: 'all 300ms ease'
               }}>
                 {/* Colored top accent bar */}
                 <div style={{ height: '6px', background: catColor, opacity: status.state === 'idle' ? 0.6 : 1 }} />
@@ -243,7 +267,7 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
               background: printingCount > 0 ? '#94a3b8' : 'linear-gradient(135deg, #0e7490, #0891b2)',
               color: '#fff', fontWeight: 800, fontSize: '0.88rem', cursor: printingCount > 0 ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', gap: '7px',
-              boxShadow: printingCount > 0 ? 'none' : '0 4px 12px rgba(14,116,144,0.3)',
+              boxShadow: printingCount > 0 ? 'none' : '0 4px 12px rgba(14,116,144,0.3)'
             }}>
               {printingCount > 0
                 ? <><FaSpinner style={{ animation: 'spin 0.8s linear infinite' }} /> Printing {printingCount} station{printingCount > 1 ? 's' : ''}…</>
@@ -254,7 +278,7 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
             <button ref={closeRef} onClick={onClose} style={{
               padding: '10px 26px', borderRadius: '8px', border: 'none',
               background: failCount > 0 ? '#ef4444' : '#16a34a',
-              color: '#fff', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer',
+              color: '#fff', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer'
             }}>
               {failCount > 0 ? `✗ ${failCount} Failed — Close` : '✓ KOT Sent — Close'}
             </button>
@@ -268,6 +292,8 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalJSX, document.body) : modalJSX;
 };
 
 export default KOTPrintModal;

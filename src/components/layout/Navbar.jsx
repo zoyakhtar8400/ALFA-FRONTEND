@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaBell, FaSearch, FaUserCircle, FaFlask, FaTimes, FaHistory, FaCheckCircle, FaTrash } from 'react-icons/fa';
 import { useFrontDesk } from '../../context/FrontDeskContext';
+import companyProfileService from '../../services/companyProfileService';
 
 // Enterprise Global Search Mock Data (Guests, Rooms, Bookings, Companies, Bills, GRC records)
 const SEARCH_DATA = [
@@ -24,11 +25,40 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
 
-  // Notifications and Audit states
+  // Notifications, Audit, and Company Profile states
   const { notifications, auditLogs, markAllNotificationsRead, clearNotification } = useFrontDesk();
   const [showNotif, setShowNotif] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState(null);
   const notifRef = useRef(null);
+
+  // Load real Company Profile from PostgreSQL on mount and listen for live updates
+  useEffect(() => {
+    let isMounted = true;
+    const loadComp = async () => {
+      try {
+        const res = await companyProfileService.getProfile();
+        const p = res?.data || res?.companyProfile || (res && res.id ? res : null);
+        if (isMounted && p) {
+          setCompanyProfile(p);
+        }
+      } catch (e) {
+        console.warn('Failed to load company profile in Navbar:', e);
+      }
+    };
+    loadComp();
+
+    const handleUpdate = (e) => {
+      if (isMounted) {
+        setCompanyProfile(e.detail);
+      }
+    };
+    window.addEventListener('companyProfileUpdated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('companyProfileUpdated', handleUpdate);
+    };
+  }, []);
 
   // Close dropdowns on outside clicks
   useEffect(() => {
@@ -254,14 +284,53 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
           )}
         </div>
 
-        {/* User Profile */}
-        <div className="user-profile" onClick={() => showToast("Active session details: Admin User")}>
-          <div className="user-avatar">
-            <FaUserCircle size={22} />
+        {/* User Profile / Company Header */}
+        <div
+          className="user-profile"
+          onClick={() => navigate('/company-profile')}
+          style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+          title="Open Company Profile"
+        >
+          <div
+            className="user-avatar"
+            style={{
+              width: '42px',
+              height: '42px',
+              minWidth: '42px',
+              borderRadius: '8px',
+              background: '#ffffff',
+              border: '1.5px solid #cbd5e1',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: companyProfile?.logo ? '3px' : '0'
+            }}
+          >
+            {companyProfile?.logo ? (
+              <img
+                src={companyProfile.logo}
+                alt="Logo"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  objectPosition: 'center',
+                  imageRendering: '-webkit-optimize-contrast'
+                }}
+              />
+            ) : (
+              <FaUserCircle size={24} style={{ color: '#0f766e' }} />
+            )}
           </div>
           <div className="user-info">
-            <span className="user-name">Zoya</span>
-            <span className="user-role">Hotel Manager</span>
+            <span className="user-name" style={{ fontWeight: 800 }}>
+              {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
+            </span>
+            <span className="user-role" style={{ fontSize: '11px', color: '#64748b' }}>
+              {companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Profile'}
+            </span>
           </div>
         </div>
       </div>

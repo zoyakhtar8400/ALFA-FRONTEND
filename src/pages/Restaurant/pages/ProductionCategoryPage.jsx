@@ -11,65 +11,62 @@ import apiClient from '../../../services/apiClient';
 const emptyCategory = { id: '', name: '', printerId: '', status: 'Active' };
 
 const ProductionCategoryPage = () => {
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('alfa_production_categories');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTION_CATEGORIES;
-  });
-
-  const [printers, setPrinters] = useState(() => {
-    const saved = localStorage.getItem('alfa_pos_printers');
-    return saved ? JSON.parse(saved) : INITIAL_PRINTERS;
-  });
+  const [categories, setCategories] = useState([]);
+  const [printers, setPrinters] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [modal, setModal] = useState({ open: false, mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [form, setForm] = useState(emptyCategory);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [catRes, printRes] = await Promise.allSettled([
         apiClient.get('/production-categories'),
         apiClient.get('/printers')
       ]);
 
-      if (catRes.status === 'fulfilled' && catRes.value) {
-        const list = catRes.value.data || catRes.value || [];
-        if (Array.isArray(list) && list.length > 0) {
-          const mapped = list.map((c, idx) => ({
-            id: c.id || `pc_${idx + 1}`,
-            name: c.name || c.kitchen_dept_name || c.department_name || `Category ${idx + 1}`,
-            printerId: c.printerId || 'p1',
-            printerName: c.printerName || 'Kitchen Printer',
-            status: (c.status === 'Active' || c.is_active === 1 || c.isactive === 1) ? 'Active' : 'Inactive'
+      let plist = [];
+      if (printRes.status === 'fulfilled' && printRes.value) {
+        const rawP = printRes.value.data || printRes.value || [];
+        if (Array.isArray(rawP)) {
+          plist = rawP.map((p, idx) => ({
+            id: p.id || p.printer_id || idx + 1,
+            name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
+            ip: p.printer_ip || p.ip_address || ''
           }));
-          setCategories(mapped);
-          localStorage.setItem('alfa_production_categories', JSON.stringify(mapped));
+          setPrinters(plist);
         }
       }
 
-      if (printRes.status === 'fulfilled' && printRes.value) {
-        const plist = printRes.value.data || printRes.value || [];
-        if (Array.isArray(plist) && plist.length > 0) {
-          const mappedPrinters = plist.map((p, idx) => ({
-            id: p.id || p.printer_id || `p_${idx + 1}`,
-            name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`
-          }));
-          setPrinters(mappedPrinters);
-          localStorage.setItem('alfa_pos_printers', JSON.stringify(mappedPrinters));
+      if (catRes.status === 'fulfilled' && catRes.value) {
+        const list = catRes.value.data || catRes.value || [];
+        if (Array.isArray(list)) {
+          const mapped = list.map((c, idx) => {
+            const pId = c.printer_id || c.printerId || null;
+            const assignedP = plist.find(p => String(p.id) === String(pId));
+            return {
+              id: c.id || idx + 1,
+              name: c.name || c.kitchen_dept_name || c.department_name || `Category ${c.id || idx + 1}`,
+              printerId: pId ? String(pId) : '',
+              printerName: assignedP ? assignedP.name : (c.printer_name || c.printerName || 'Unassigned'),
+              status: (c.status === 'Active' || c.is_active === 1 || c.isactive === 1) ? 'Active' : 'Inactive'
+            };
+          });
+          setCategories(mapped);
         }
       }
     } catch (err) {
-      console.warn('Error loading backend data:', err.message);
+      console.warn('Error loading production categories data:', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('alfa_production_categories', JSON.stringify(categories));
-  }, [categories]);
 
   const columns = [
     { key: 'name', label: 'Category Name', sortable: true },
@@ -78,7 +75,12 @@ const ProductionCategoryPage = () => {
       label: 'Assigned Printer',
       sortable: true,
       render: (val, row) => {
-        const pName = printers.find(p => String(p.id) === String(row.printerId))?.name || val || 'Kitchen Printer';
+        const pId = row.printerId;
+        const matched = printers.find(p => String(p.id) === String(pId));
+        const pName = matched ? matched.name : (val && val !== 'Unassigned' ? val : null);
+        if (!pName) {
+          return <span style={{ fontWeight: 600, color: '#ef4444', fontStyle: 'italic' }}>Unassigned (Missing Printer)</span>;
+        }
         return <span style={{ fontWeight: 600, color: '#0e7490' }}>{pName}</span>;
       }
     },
@@ -102,26 +104,20 @@ const ProductionCategoryPage = () => {
     const isNumericId = modal.row && (typeof modal.row.id === 'number' || !isNaN(Number(modal.row.id)));
     const payload = {
       id: isNumericId ? Number(modal.row.id) : undefined,
-      name: form.name,
-      department_name: form.name,
-      kitchen_dept_name: form.name,
+      name: form.name.trim(),
+      department_name: form.name.trim(),
+      kitchen_dept_name: form.name.trim(),
+      printer_id: form.printerId ? Number(form.printerId) : null,
+      printerId: form.printerId ? Number(form.printerId) : null,
       is_active: form.status === 'Active' ? 1 : 0
     };
 
     try {
       await apiClient.post('/production-categories', payload);
+      await fetchData();
     } catch (err) {
       console.warn('Save category API error:', err.message);
-    }
-
-    const assignedPrinter = printers.find(p => String(p.id) === String(form.printerId));
-    const pName = assignedPrinter ? assignedPrinter.name : 'Kitchen Printer';
-    const newRecord = { ...form, printerName: pName };
-
-    if (modal.mode === 'edit' && modal.row) {
-      setCategories((prev) => prev.map((c) => (c.id === modal.row.id ? { ...newRecord, id: c.id } : c)));
-    } else {
-      setCategories((prev) => [{ ...newRecord, id: `pc_${Date.now()}` }, ...prev]);
+      alert('Failed to save category: ' + (err.response?.data?.message || err.message));
     }
 
     setModal({ open: false, mode: 'add', row: null });
@@ -133,11 +129,11 @@ const ProductionCategoryPage = () => {
     try {
       if (typeof id === 'number' || !isNaN(Number(id))) {
         await apiClient.delete(`/production-categories/${id}`);
+        await fetchData();
       }
     } catch (err) {
       console.warn('Delete category API error:', err.message);
     }
-    setCategories((prev) => prev.filter((c) => c.id !== id));
     setDeleteModal({ open: false, row: null });
   };
 

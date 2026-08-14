@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaArrowLeft, FaSearch, FaUndo, FaPrint, FaEye, FaEdit, FaSort, FaSortUp, FaSortDown, FaPlus, FaTimes } from 'react-icons/fa';
+import { FaArrowLeft, FaSearch, FaUndo, FaEye, FaEdit, FaSort, FaSortUp, FaSortDown, FaPlus, FaTimes } from 'react-icons/fa';
 import { reservationService } from '../../../services/reservationService';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
@@ -16,6 +16,48 @@ const STATUS_COLORS = {
 };
 
 const PAGE_SIZE = 10;
+
+// Safe Date and Time formatters preventing 'Invalid Date'
+function formatBookingDate(r) {
+  const val = r.booking_date || r.bookingDate || r.check_in || r.checkIn || r.created_at || r.createdAt;
+  if (!val) return new Date().toLocaleDateString('en-IN');
+
+  const str = String(val).trim();
+  // Pure time string like "12:05:36", return today's date
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
+    return new Date().toLocaleDateString('en-IN');
+  }
+
+  // Attempt standard date parsing
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString('en-IN');
+  }
+  return new Date().toLocaleDateString('en-IN');
+}
+
+function formatBookingTime(r) {
+  const val = r.check_in || r.checkIn || r.booking_time || r.bookingTime || r.created_at || r.createdAt;
+  if (!val) return '—';
+
+  const str = String(val).trim();
+  // Pure time string: "12:05:36" or "12:05"
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
+    const parts = str.split(':');
+    let hours = parseInt(parts[0], 10);
+    const minutes = parts[1];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+  }
+
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  }
+  return str || '—';
+}
 
 const BookingListPage = () => {
   const navigate = useNavigate();
@@ -94,12 +136,8 @@ const BookingListPage = () => {
             occasion: r.occasion || '',
             checkIn: r.check_in || r.checkIn || null,
             checkOut: r.check_out || r.checkOut || null,
-            date: (r.check_in || r.checkIn || r.created_at || r.createdAt)
-              ? new Date(r.check_in || r.checkIn || r.created_at || r.createdAt).toLocaleDateString('en-IN')
-              : '—',
-            time: (r.check_in || r.checkIn)
-              ? new Date(r.check_in || r.checkIn).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-              : '—',
+            date: formatBookingDate(r),
+            time: formatBookingTime(r),
             status: r.status || 'Reserved',
             waiter: '—',
             amount: 0,
@@ -213,10 +251,6 @@ const BookingListPage = () => {
     } else {
       navigate(-1);
     }
-  };
-
-  const handlePrint = (booking) => {
-    window.print();
   };
 
   const handleView = () => {
@@ -375,11 +409,6 @@ const BookingListPage = () => {
                           onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                           onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                         ><FaEdit size={12} /></button>
-                        <button title="Print" onClick={() => handlePrint(b)}
-                          style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center' }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                          onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                        ><FaPrint size={12} /></button>
                         {b.status === 'Reserved' && b.id && !String(b.bookingNo).startsWith('TBL-') && (
                           <button title="Cancel Booking" onClick={() => handleCancel(b)}
                             style={{ padding: '5px 8px', borderRadius: '6px', border: '1px solid #fca5a5', background: '#fff', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center' }}

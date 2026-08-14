@@ -2,23 +2,120 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import { floorService } from '../../../../services/floorService';
+import posApi from '../../../../api/posApi';
 
 const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
+  const [dbFloors, setDbFloors] = useState([]);
+  const [dbOutlets, setDbOutlets] = useState([]);
+
+  // Determine user role and open outlet
+  const outletInfo = useMemo(() => {
+    try {
+      const userRaw = localStorage.getItem('alfa_user') || localStorage.getItem('user');
+      const selectedOutletId = localStorage.getItem('activeOutletId');
+
+      let isAdmin = true;
+      let assignedOutletIds = [];
+      let userStoreId = 'STORE_1';
+
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        isAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
+        assignedOutletIds = Array.isArray(u.assigned_outlets) && u.assigned_outlets.length > 0
+          ? u.assigned_outlets
+          : [u.store_id || 'STORE_1'];
+        userStoreId = u.store_id || 'STORE_1';
+      }
+
+      const all = dbOutlets.length > 0
+        ? dbOutlets
+        : [{ id: 1, store_id: 'STORE_1', name: 'Main Restaurant', store_name: 'Main Restaurant' }];
+
+      if (isAdmin) {
+        const active = all.find(o => o.store_id === selectedOutletId || String(o.id) === String(selectedOutletId)) ||
+                       all.find(o => /main restaurant|main/i.test(o.store_name || o.name)) ||
+                       all[0];
+        const openName = active?.store_name || active?.name || 'Main Restaurant';
+        const options = all.map(o => o.store_name || o.name || `Outlet ${o.id}`);
+        return { openName, options, isAdmin: true };
+      } else {
+        const staffOutlets = all.filter(o => 
+          assignedOutletIds.includes(o.store_id) || 
+          assignedOutletIds.includes(String(o.id)) ||
+          o.store_id === userStoreId
+        );
+        const validList = staffOutlets.length > 0 ? staffOutlets : [all[0]];
+        const active = validList.find(o => o.store_id === selectedOutletId) || validList[0];
+        const openName = active?.store_name || active?.name || 'Main Restaurant';
+        const options = validList.map(o => o.store_name || o.name || `Outlet ${o.id}`);
+        return { openName, options, isAdmin: false };
+      }
+    } catch (e) {
+      return { openName: 'Main Restaurant', options: ['Main Restaurant'], isAdmin: true };
+    }
+  }, [dbOutlets]);
+
   const [fields, setFields] = useState({
     prefix: 'T',
     startNum: '1',
     endNum: '10',
-    department: 'Restaurant',
-    floor: 'Dining',
+    department: 'Main Restaurant',
+    floor: 'Ground Floor',
     pax: '4',
     isActive: true
   });
 
   useEffect(() => {
+    let isMounted = true;
     if (isOpen) {
-      setFields({ prefix: 'T', startNum: '1', endNum: '10', department: 'Restaurant', floor: 'Dining', pax: '4', isActive: true });
+      // 1. Floors
+      floorService.getFloors()
+        .then(res => {
+          const list = res?.data || res?.floors || (Array.isArray(res) ? res : []);
+          if (isMounted && Array.isArray(list) && list.length > 0) {
+            setDbFloors(list.filter(f => f.active !== 'No').map(f => f.name));
+          }
+        })
+        .catch(err => console.warn('Error fetching floors for TableMasterBulkForm:', err));
+
+      // 2. Outlets
+      posApi.getOutlets()
+        .then(res => {
+          const stores = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          if (isMounted && Array.isArray(stores) && stores.length > 0) {
+            setDbOutlets(stores.map(s => ({
+              id: s.id,
+              store_id: s.store_id || `STORE_${s.id}`,
+              name: s.store_name || s.name || `Outlet ${s.id}`,
+              store_name: s.store_name || s.name || `Outlet ${s.id}`
+            })));
+          }
+        })
+        .catch(err => console.warn('Error fetching outlets for TableMasterBulkForm:', err));
     }
+    return () => { isMounted = false; };
   }, [isOpen]);
+
+  const floorOptions = useMemo(() => {
+    const defaults = ['Ground Floor', 'First Floor', 'Second Floor', 'Balcony', 'Garden'];
+    const merged = new Set(dbFloors.length > 0 ? dbFloors : defaults);
+    return Array.from(merged);
+  }, [dbFloors]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFields({
+        prefix: 'T',
+        startNum: '1',
+        endNum: '10',
+        department: outletInfo.openName || 'Main Restaurant',
+        floor: dbFloors[0] || 'Ground Floor',
+        pax: '4',
+        isActive: true
+      });
+    }
+  }, [isOpen, outletInfo, dbFloors]);
 
   const preview = useMemo(() => {
     const start = parseInt(fields.startNum);
@@ -66,26 +163,34 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
                 className="form-input" required />
             </div>
 
+            {/* Department (Open Outlet) */}
             <div className="form-field">
-              <label className="form-label">Section (Department) *</label>
-              <select value={fields.department}
+              <label className="form-label">Section / Department (Open Outlet) *</label>
+              <select
+                value={fields.department || outletInfo.openName || ''}
                 onChange={(e) => setFields(p => ({ ...p, department: e.target.value }))}
-                className="form-select" required>
-                <option value="Restaurant">Restaurant</option>
+                className="form-select"
+                required
+              >
+                {outletInfo.options.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
             </div>
 
+            {/* Floor Name */}
             <div className="form-field">
-              <label className="form-label">Table Type *</label>
-              <select value={fields.floor}
+              <label className="form-label">Floor Name</label>
+              <select
+                value={fields.floor || ''}
                 onChange={(e) => setFields(p => ({ ...p, floor: e.target.value }))}
-                className="form-select" required>
-                <option value="">--Select Table Type--</option>
-                <option value="Dining">Dining</option>
-                <option value="Bar Stool">Bar Stool</option>
-                <option value="Lounge">Lounge</option>
-                <option value="Banquet">Banquet</option>
-                <option value="Cafe">Cafe</option>
+                className="form-select"
+              >
+                {floorOptions.map(fl => (
+                  <option key={fl} value={fl}>{fl}</option>
+                ))}
               </select>
             </div>
 

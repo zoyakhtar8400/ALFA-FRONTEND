@@ -42,16 +42,21 @@ export const RestaurantProvider = ({ children }) => {
 
   // Map raw table API response to normalized table object
   function mapTable(t) {
-    const rawStatus = t.status || t.order_state || 'AVAILABLE';
+    const extra = t.extra_details || {};
+    const rawStatus = (extra.status === 'Reserved' || String(t.status).toLowerCase() === 'reserved' || String(t.order_state).toUpperCase() === 'RESERVED') ? 'Reserved' : (t.status || t.order_state || 'AVAILABLE');
     const statusUpper = String(rawStatus).toUpperCase();
-    const color = (['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper)) ? 'green' :
-      (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (t.amount && t.amount > 0)) ? 'orange' : 'white';
+    const isReserved = statusUpper === 'RESERVED' || rawStatus === 'Reserved';
+    const isPaid = ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
+    const isRunning = !isReserved && !isPaid && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(t.amount || 0) > 0));
+
+    const color = isPaid ? 'green' : isReserved ? 'orange' : isRunning ? 'yellow' : 'white';
+    const normalizedStatus = isReserved ? 'Reserved' : isPaid ? 'Paid' : isRunning ? 'Running' : 'Blank';
     
     const isPaymentCompleted = color === 'green';
     const isAvailable = color === 'white';
     const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0
       ? t.available_actions
-      : (isPaymentCompleted ? ['print_kot'] : !isAvailable ? ['print_kot', 'view_kot'] : []);
+      : (isPaymentCompleted ? ['print_kot'] : (!isAvailable && !isReserved) ? ['print_kot', 'view_kot'] : []);
 
     return {
       id: t.id,
@@ -59,7 +64,8 @@ export const RestaurantProvider = ({ children }) => {
       no: String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '').padStart(2, '0') || String(t.id).padStart(2, '0'),
       table_name: t.table_name || `Table ${t.no}`,
       seats: Number(t.seats || t.max_person) || 4,
-      status: rawStatus,
+      status: normalizedStatus,
+      raw_status: rawStatus,
       current_order_id: t.current_order_id || 0,
       payment_status: t.payment_status || (isPaymentCompleted ? 'PAID' : 'UNPAID'),
       kot_status: t.kot_status || (color === 'orange' ? 'CUT' : 'NONE'),
@@ -71,8 +77,10 @@ export const RestaurantProvider = ({ children }) => {
       amount: Number(t.amount || 0),
       waiter: t.waiter || null,
       customer: t.customer || 'Walk-in',
-      floor: t.floor || 'Ground',
-      section: t.section || 'Main Area',
+      floor: t.floor || (t.extra_details && t.extra_details.floor) || t.floor_name || t.floorName || 'Ground Floor',
+      section: t.section || (t.extra_details && t.extra_details.section) || t.department || 'Restaurant',
+      department: t.department || (t.extra_details && (t.extra_details.department || t.extra_details.section)) || 'Restaurant',
+      store_id: t.store_id || (t.extra_details && t.extra_details.store_id) || 'STORE_1',
       kots: Array.isArray(t.kots) ? t.kots : [],
       kotCount: Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0))
     };
@@ -82,7 +90,7 @@ export const RestaurantProvider = ({ children }) => {
   // Clears tables if DB is empty so stale cache never shows phantom tables.
   const refreshTables = React.useCallback(async () => {
     try {
-      const tableRes = await tableService.getTables();
+      const tableRes = await tableService.getTables({ store_id: 'all' });
       const rawTables = tableRes?.tables || tableRes?.data || [];
       // Always update — even if empty, so deleted tables disappear
       const uniqueMap = new Map();

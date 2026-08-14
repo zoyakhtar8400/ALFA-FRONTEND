@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   FaChartLine, FaBed, FaUtensils, FaChevronDown, FaChevronRight,
   FaHome, FaExchangeAlt, FaFolder, FaFileAlt, FaSignOutAlt,
   FaConciergeBell, FaFolderOpen, FaBuilding, FaWrench, FaCogs,
@@ -37,7 +37,7 @@ const SidebarMenu = ({
 
   // Highlight check
   const isActive = (path) => currentPath === path;
-  
+
   // Accordions filter match check
   const matchesFilter = (label) => {
     if (!isQuery) return true;
@@ -60,8 +60,8 @@ const SidebarMenu = ({
   };
 
   return (
-    <div 
-      className="sidebar-menu-scroll custom-scrollbar" 
+    <div
+      className="sidebar-menu-scroll custom-scrollbar"
       style={{ flex: 1, overflowY: 'auto', padding: '0 12px 16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}
     >
       {/* Dashboard Link */}
@@ -85,7 +85,7 @@ const SidebarMenu = ({
 
       {/* Front Desk Module Section */}
       {hasMatchesFD() && (
-        <div 
+        <div
           onMouseEnter={handleFrontDeskMouseEnter}
           onMouseLeave={handleFrontDeskMouseLeave}
           style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
@@ -111,8 +111,8 @@ const SidebarMenu = ({
             <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
               {/* Masters Accordion */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div 
-                  onClick={() => setMasterOpen(p => !p)} 
+                <div
+                  onClick={() => setMasterOpen(p => !p)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
                 >
                   <span>MASTERS</span>
@@ -134,7 +134,7 @@ const SidebarMenu = ({
                 ))}
               </div>
 
-              {/* Operations Accordion */}
+              {/* Operations Accordion (Commented)
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div 
                   onClick={() => setOperationOpen(p => !p)} 
@@ -158,8 +158,9 @@ const SidebarMenu = ({
                   </Link>
                 ))}
               </div>
+              */}
 
-              {/* MIS Report Accordion */}
+              {/* MIS Report Accordion (Commented)
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div 
                   onClick={() => setMisOpen(p => !p)} 
@@ -183,6 +184,7 @@ const SidebarMenu = ({
                   </Link>
                 ))}
               </div>
+              */}
             </div>
           )}
         </div>
@@ -190,7 +192,7 @@ const SidebarMenu = ({
 
       {/* Restaurant POS Section */}
       {hasMatchesRest() && (
-        <div 
+        <div
           onMouseEnter={handleRestaurantMouseEnter}
           onMouseLeave={handleRestaurantMouseLeave}
           style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}
@@ -214,8 +216,8 @@ const SidebarMenu = ({
           {/* Restaurant Nested Links */}
           {restaurantOpen && !isCollapsed && (
             <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
-              <div 
-                onClick={() => setPosOpen(p => !p)} 
+              <div
+                onClick={() => setPosOpen(p => !p)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
               >
                 <span>POS SERVICE</span>
@@ -236,8 +238,8 @@ const SidebarMenu = ({
                 </Link>
               ))}
 
-              <div 
-                onClick={() => setPosMasterOpen(p => !p)} 
+              <div
+                onClick={() => setPosMasterOpen(p => !p)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', cursor: 'pointer', marginTop: '4px' }}
               >
                 <span>POS CONFIGS</span>
@@ -262,7 +264,8 @@ const SidebarMenu = ({
         </div>
       )}
 
-      {/* Direct Module Links */}
+      {/* Direct Module Links (Commented out Housekeeping & Room Services) */}
+      {/*
       {matchesFilter('Housekeeping') && (
         <Link
           to="/housekeeping"
@@ -281,7 +284,6 @@ const SidebarMenu = ({
         </Link>
       )}
 
-      {/* Room Service Link */}
       {matchesFilter('Room Services') && (
         <Link
           to="/room-services"
@@ -299,8 +301,10 @@ const SidebarMenu = ({
           {!isCollapsed && <span>Room Services</span>}
         </Link>
       )}
+      */}
 
-      {/* Purchase Module Section */}
+      {/* Purchase Module Section (Commented Out) */}
+      {/*
       {matchesFilter('Purchase') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           <div
@@ -319,7 +323,6 @@ const SidebarMenu = ({
             {!isCollapsed && (purchaseOpen ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />)}
           </div>
 
-          {/* Purchase Nested Accordion Drawer */}
           {purchaseOpen && !isCollapsed && (
             <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
               <Link
@@ -334,7 +337,6 @@ const SidebarMenu = ({
                 Dashboard
               </Link>
 
-              {/* MASTERS Accordion */}
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div
                   onClick={() => setPMasterOpen((p) => !p)}
@@ -359,7 +361,6 @@ const SidebarMenu = ({
                 ))}
               </div>
 
-              {/* OPERATIONS Accordion */}
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div
                   onClick={() => setPOperationOpen((p) => !p)}
@@ -417,7 +418,6 @@ const SidebarMenu = ({
                 )}
               </div>
 
-              {/* REPORTS Link */}
               <Link
                 to="/purchase/reports"
                 onClick={handleMobileNav}
@@ -433,6 +433,7 @@ const SidebarMenu = ({
           )}
         </div>
       )}
+      */}
 
       {/* Settings Link & Drawer */}
       {matchesFilter('System Settings') && (

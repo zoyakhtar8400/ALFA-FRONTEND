@@ -12,13 +12,18 @@ import TableOperationsModal from '../components/TableOperationsModal';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 import BookTableModal from '../components/BookTableModal';
 import CommonModal from '../../../components/common/CommonModal';
+import QuickPaymentModal from '../components/QuickPaymentModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
 import { printTaxInvoice } from '../utils/printInvoice';
 import { tableService } from '../../../services/tableService';
 import { kotService } from '../../../services/kotService';
+import { menuService } from '../../../services/menuService';
+import { reservationService } from '../../../services/reservationService';
+import { floorService } from '../../../services/floorService';
 import { restaurantApi } from '../../../api/restaurantApi';
+import posApi from '../../../api/posApi';
 
 const DisplayTablePage = () => {
   const navigate = useNavigate();
@@ -92,11 +97,88 @@ const DisplayTablePage = () => {
 
   const [filter, setFilter] = useState('All');
   const [service, setService] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [search, setSearch] = useState('');
-  const [activeRestaurant, setActiveRestaurant] = useState('Main Dining Room');
+  const [activeRestaurant, setActiveRestaurant] = useState('All Outlets');
+  const [dbOutlets, setDbOutlets] = useState([]);
+  const [rawOutletsList, setRawOutletsList] = useState([]);
   const [focusedTableIndex, setFocusedTableIndex] = useState(-1);
   const [isKeyboardNav, setIsKeyboardNav] = useState(false); // only show selection ring during keyboard nav
   const [previewTable, setPreviewTable] = useState(null);
+  const [quickPaymentTable, setQuickPaymentTable] = useState(null);
+
+  // Load real outlets directly from Outlet Master (/stores) & Department API
+  useEffect(() => {
+    async function loadOutlets() {
+      try {
+        const [storesRes, depsRes] = await Promise.allSettled([
+          posApi.getOutlets(),
+          menuService.getDepartments()
+        ]);
+
+        const outletMap = new Map();
+        const rawList = [];
+        
+        // 1. From Outlet Master (/stores)
+        if (storesRes.status === 'fulfilled') {
+          const stores = Array.isArray(storesRes.value?.data) ? storesRes.value.data : (Array.isArray(storesRes.value) ? storesRes.value : []);
+          stores.forEach((s, idx) => {
+            const extra = typeof s.settings === 'object' && s.settings ? s.settings : {};
+            const title = s.store_name || s.name || extra.outletTitle || `Outlet ${idx + 1}`;
+            const sId = s.store_id || `STORE_${s.id || idx + 1}`;
+            if (title && title.trim()) {
+              outletMap.set(title.trim(), { id: s.id, store_id: sId, name: title.trim(), title: extra.outletTitle || title.trim() });
+              rawList.push({ id: s.id, store_id: sId, name: title.trim(), title: extra.outletTitle || title.trim() });
+            }
+          });
+        }
+
+        // 2. From Departments (/department)
+        if (depsRes.status === 'fulfilled') {
+          const deps = depsRes.value?.departments || depsRes.value?.data || [];
+          if (Array.isArray(deps)) {
+            deps.forEach((d, idx) => {
+              const name = d.department_name || d.name || d.title;
+              if (name && name.trim() && !outletMap.has(name.trim())) {
+                const sId = d.store_id || `STORE_${idx + 1}`;
+                outletMap.set(name.trim(), { id: d.id, store_id: sId, name: name.trim(), title: name.trim() });
+                rawList.push({ id: d.id, store_id: sId, name: name.trim(), title: name.trim() });
+              }
+            });
+          }
+        }
+
+        setRawOutletsList(rawList);
+
+        if (outletMap.size > 0) {
+          const list = Array.from(outletMap.keys());
+          setDbOutlets(list);
+          // Set default to Main Restaurant or the first restaurant outlet
+          setActiveRestaurant(prev => {
+            if (prev && prev !== 'All Outlets' && list.includes(prev)) return prev;
+            const mainRes = list.find(o => /main restaurant|restaurant|main/i.test(o)) || list[0];
+            return mainRes;
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load database outlets:', err.message);
+      }
+    }
+    loadOutlets();
+  }, []);
+
+  const outletOptions = React.useMemo(() => {
+    const set = new Set();
+    dbOutlets.forEach(d => {
+      if (d && d.trim()) set.add(d.trim());
+    });
+    if (set.size === 0) {
+      set.add('Main Restaurant');
+    }
+    // 'All Outlets' option
+    const result = ['All Outlets', ...Array.from(set)];
+    return result;
+  }, [dbOutlets]);
 
   // Listen for live sync events while this page is open
   useEffect(() => {
@@ -107,6 +189,49 @@ const DisplayTablePage = () => {
     };
     window.addEventListener('tableMasterSync', handleSync);
     return () => window.removeEventListener('tableMasterSync', handleSync);
+  }, []);
+
+  // 1-second interval for green (Paid) table cleaning countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTables(prev => {
+        let hasChanges = false;
+        const updated = prev.map(t => {
+          const statusUpper = (t.status || '').toUpperCase();
+          const isPaidTable = ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING'].includes(statusUpper) || t.color === 'green';
+          if (!isPaidTable) return t;
+
+          const currentRem = t.remaining_seconds !== undefined ? t.remaining_seconds : 60;
+          if (currentRem > 1) {
+            hasChanges = true;
+            return { ...t, remaining_seconds: currentRem - 1 };
+          } else if (currentRem === 1) {
+            // Timer expired -> table is cleaned and returns to Blank
+            hasChanges = true;
+            tableService.patchTableStatus(t.id, {
+              status: 'AVAILABLE',
+              amount: 0,
+              customer: 'Walk-in',
+              waiter: null
+            }).catch(() => {});
+            return {
+              ...t,
+              status: 'Blank',
+              color: 'white',
+              amount: 0,
+              customer: 'Walk-in',
+              waiter: null,
+              remaining_seconds: 0,
+              available_actions: [],
+              updatedAt: Date.now()
+            };
+          }
+          return t;
+        });
+        return hasChanges ? updated : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   // Automatically reload live tables from PostgreSQL database whenever this page is mounted or navigated to
@@ -127,6 +252,29 @@ const DisplayTablePage = () => {
 
   // Book Table modal state and handlers
   const [bookModalOpen, setBookModalOpen] = useState(false);
+
+  // Date Filter & Reservations for selected date
+  const todayStr = React.useMemo(() => new Date().toISOString().split('T')[0], []);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [dateReservations, setDateReservations] = useState([]);
+  const [loadingDateReservations, setLoadingDateReservations] = useState(false);
+
+  const fetchReservationsForDate = React.useCallback(async (targetDate) => {
+    try {
+      setLoadingDateReservations(true);
+      const res = await reservationService.getReservations({ date: targetDate || selectedDate });
+      const list = res?.reservations || res?.data || (Array.isArray(res) ? res : []);
+      setDateReservations(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.warn('Error loading reservations for date:', err);
+    } finally {
+      setLoadingDateReservations(false);
+    }
+  }, [selectedDate]);
+
+  useEffect(() => {
+    fetchReservationsForDate(selectedDate);
+  }, [selectedDate, fetchReservationsForDate]);
 
   // Booking flow states
   const [showSelectTableDialog, setShowSelectTableDialog] = useState(false);
@@ -243,26 +391,81 @@ const DisplayTablePage = () => {
   const [newTableSection, setNewTableSection] = useState('Main Area');
   const [newTableError, setNewTableError] = useState('');
 
-  const handleBookTable = (bookingData) => {
-    const { tableId, customerName, guestsCount, waiter, captain } = bookingData;
+  const handleBookTable = async (bookingData) => {
+    const { tableId, tableNo, tableName, customerName, phone, guestsCount, persons, occasion, bookingDate, bookingTime, checkIn, isToday } = bookingData;
 
-    setTables(prev => prev.map(t => {
-      if (t.id === tableId) {
-        return {
-          ...t,
+    try {
+      // 1. Persist reservation to PostgreSQL database TableReservation
+      await reservationService.createReservation({
+        tableId: Number(tableId),
+        tableNo: String(tableNo || ''),
+        tableName: tableName || `Table ${tableNo || tableId}`,
+        customerName: customerName.trim(),
+        name: customerName.trim(),
+        phone: phone || '',
+        persons: Number(persons || guestsCount || 4),
+        guestsCount: Number(persons || guestsCount || 4),
+        occasion: occasion || '',
+        bookingDate: bookingDate,
+        booking_date: bookingDate,
+        bookingTime: bookingTime,
+        booking_time: bookingTime,
+        status: 'Reserved',
+        isToday: isToday,
+        checkIn: checkIn || `${bookingDate}T${bookingTime}:00`,
+        check_in: bookingTime || `${bookingDate} ${bookingTime}`,
+        created_at: bookingDate || new Date().toISOString().split('T')[0]
+      });
+
+      // 2. If booking date is for today, mark the table as Reserved in database & state
+      if (isToday) {
+        setTables(prev => prev.map(t => {
+          if (String(t.id) === String(tableId)) {
+            return {
+              ...t,
+              status: 'Reserved',
+              customer: customerName.trim(),
+              seats: Number(guestsCount || 4),
+              color: 'orange',
+              openedAt: Date.now()
+            };
+          }
+          return t;
+        }));
+
+        await tableService.patchTableStatus(tableId, {
           status: 'Reserved',
-          customer: customerName,
-          seats: guestsCount,
-          waiter,
-          captain,
-          openedAt: t.openedAt || Date.now()
-        };
-      }
-      return t;
-    }));
+          customer: customerName.trim(),
+          seats: Number(guestsCount || 4)
+        }).catch(() => {});
 
-    toast(`Table reserved successfully for ${customerName}!`);
-    setService('Reserved');
+        await refreshTables();
+        toast(`Table T${tableNo || tableId} reserved for today (${customerName})!`);
+      } else {
+        toast(`Table T${tableNo || tableId} booked for ${bookingDate} (${customerName})!`);
+      }
+
+      await fetchReservationsForDate(selectedDate);
+    } catch (err) {
+      console.error('Error creating table booking in PostgreSQL:', err);
+      if (isToday) {
+        setTables(prev => prev.map(t => {
+          if (String(t.id) === String(tableId)) {
+            return {
+              ...t,
+              status: 'Reserved',
+              customer: customerName,
+              seats: guestsCount,
+              openedAt: Date.now()
+            };
+          }
+          return t;
+        }));
+        toast(`Table T${tableNo || tableId} reserved for today!`);
+      } else {
+        toast(`Table booked for ${bookingDate}!`);
+      }
+    }
   };
 
   // Card triggers & routing
@@ -447,23 +650,179 @@ const DisplayTablePage = () => {
     }
   };
 
-  // Sections and filters
-  const SECTIONS = ['All', 'Ground', 'First', 'Balcony', 'Garden'];
+  // Floors from Floor Master database
+  const [dbFloorsList, setDbFloorsList] = useState([]);
+
+  const fetchDbFloors = React.useCallback(async () => {
+    try {
+      const res = await floorService.getFloors();
+      const list = res?.data || res?.floors || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        const names = list.filter(f => f.active !== 'No').map(f => f.name);
+        setDbFloorsList(names);
+      }
+    } catch (err) {
+      console.warn('Error loading floors from Floor Master for DisplayTablePage:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDbFloors();
+
+    const handleSync = () => {
+      fetchDbFloors();
+    };
+
+    window.addEventListener('floorsMasterRefreshed', handleSync);
+    window.addEventListener('tableMasterSync', handleSync);
+    window.addEventListener('tablesMasterRefreshed', handleSync);
+    window.addEventListener('focus', handleSync);
+
+    return () => {
+      window.removeEventListener('floorsMasterRefreshed', handleSync);
+      window.removeEventListener('tableMasterSync', handleSync);
+      window.removeEventListener('tablesMasterRefreshed', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, [fetchDbFloors]);
+
+  // Floors and Status Filters
+  const dynamicFloors = React.useMemo(() => {
+    const floorSet = new Set(['All']);
+    // 1. Add all active floors from Floor Master database
+    dbFloorsList.forEach(f => {
+      if (f && f.trim()) floorSet.add(f.trim());
+    });
+    // 2. Add floors from current tables
+    tables.forEach(t => {
+      if (t.floor && typeof t.floor === 'string' && t.floor.trim()) {
+        floorSet.add(t.floor.trim());
+      }
+    });
+    // If empty fallback defaults
+    if (floorSet.size === 1) {
+      ['Ground Floor', 'First Floor', 'Second Floor', 'Balcony', 'Garden'].forEach(f => floorSet.add(f));
+    }
+    return Array.from(floorSet);
+  }, [tables, dbFloorsList]);
+
   const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Reserved', 'Paid', 'Cleaning'];
 
-  const filteredData = React.useMemo(() => tables.filter(t => {
-    const matchesSearch = t.no.includes(search) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
-    const matchesSection = filter === 'All' || t.floor === filter || t.section === filter;
-    let matchesStatus = true;
-    if (service !== 'All' && service !== 'Restaurant') {
-      if (service === 'Blank') matchesStatus = t.status === 'Blank';
-      else if (service === 'Running') matchesStatus = (t.status !== 'Blank' && t.status !== 'Paid' && t.status !== 'Cleaning' && t.status !== 'Reserved');
-      else if (service === 'Reserved') matchesStatus = t.status === 'Reserved';
-      else if (service === 'Paid') matchesStatus = t.status === 'Paid';
-      else if (service === 'Cleaning') matchesStatus = t.status === 'Cleaning';
+  // When viewing a future/specific date, tables reflect reservations on that date only (all other tables are completely blank)
+  const dateAdjustedTables = React.useMemo(() => {
+    if (!selectedDate || selectedDate === todayStr) {
+      return tables;
     }
-    return matchesSearch && matchesSection && matchesStatus;
-  }), [tables, search, filter, service]);
+    return tables.map(t => {
+      const cleanTNo = String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '');
+      const matchedRes = dateReservations.find(r =>
+        (r.tableId && String(r.tableId) === String(t.id)) ||
+        (r.tableNo && String(r.tableNo).replace(/[^0-9]/g, '') === cleanTNo)
+      );
+
+      if (matchedRes && matchedRes.status !== 'Cancelled') {
+        return {
+          ...t,
+          status: 'Reserved',
+          order_state: 'RESERVED',
+          orderState: 'RESERVED',
+          color: 'orange',
+          customer: matchedRes.customerName || matchedRes.name || 'Walk-in',
+          seats: matchedRes.persons || t.seats,
+          amount: 0,
+          waiter: null,
+          openedAt: null,
+          available_actions: [],
+          reservation: matchedRes
+        };
+      }
+
+      return {
+        ...t,
+        status: 'Blank',
+        order_state: 'AVAILABLE',
+        orderState: 'AVAILABLE',
+        color: 'white',
+        amount: 0,
+        waiter: null,
+        openedAt: null,
+        available_actions: [],
+        customer: 'Walk-in',
+        reservation: null
+      };
+    });
+  }, [tables, selectedDate, todayStr, dateReservations]);
+
+  const filteredData = React.useMemo(() => dateAdjustedTables.filter(t => {
+    const tableNoStr = String(t.no || '');
+    const matchesSearch = !search || tableNoStr.toLowerCase().includes(search.toLowerCase()) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
+    
+    // 1. Floor filter matching (All Floors / specific floor)
+    let matchesFloor = true;
+    if (filter && filter !== 'All' && filter !== 'All Floors') {
+      const tf = String(t.floor || '').toLowerCase().trim();
+      const selF = filter.toLowerCase().trim();
+      const normTf = tf.replace(/\s*floor\s*$/i, '').trim();
+      const normSel = selF.replace(/\s*floor\s*$/i, '').trim();
+      matchesFloor = tf === selF || normTf === normSel || tf.includes(normSel) || normSel.includes(normTf);
+    }
+
+    // 2. Outlet filter matching (All Outlets / specific outlet)
+    let matchesOutlet = true;
+    if (activeRestaurant && activeRestaurant !== 'All' && activeRestaurant !== 'All Outlets') {
+      const act = activeRestaurant.toLowerCase().trim();
+      const tStore = String(t.store_id || '').trim();
+      const tDept = String(t.department || '').toLowerCase().trim();
+      const tSec = String(t.section || '').toLowerCase().trim();
+
+      const matchedOutlet = rawOutletsList.find(o =>
+        String(o.name || '').toLowerCase().trim() === act ||
+        String(o.title || '').toLowerCase().trim() === act ||
+        String(o.store_id || '').toLowerCase().trim() === act
+      );
+
+      const targetStoreId = matchedOutlet ? String(matchedOutlet.store_id || '').trim() : '';
+      const isTargetPrimary = targetStoreId === 'STORE_1' || targetStoreId === '1' || (!targetStoreId && (act === 'main restaurant' || act === 'main'));
+
+      if (tStore) {
+        if (targetStoreId) {
+          matchesOutlet = tStore.toUpperCase() === targetStoreId.toUpperCase() ||
+                          tStore.replace(/[^0-9]/g, '') === targetStoreId.replace(/[^0-9]/g, '');
+        } else {
+          matchesOutlet = tDept === act || tSec === act;
+        }
+      } else {
+        // Table has no store_id (legacy unassigned) -> only belongs to Primary / Main Restaurant
+        matchesOutlet = isTargetPrimary;
+      }
+    }
+
+    // 3. Status filter
+    let matchesStatus = true;
+    if (statusFilter && statusFilter !== 'All') {
+      const st = String(t.status || '').toLowerCase().trim();
+      const hasAmount = Number(t.amount || 0) > 0;
+      const isBlank = !t.status || st === 'blank' || st === 'available' || st === 'white';
+      const isReserved = st === 'reserved';
+      const isPaid = st === 'paid' || st === 'bill generated';
+      const isCleaning = st === 'cleaning';
+      const isRunning = (st === 'running' || st === 'kot generated' || st === 'kot_cut' || st === 'billed' || st === 'occupied' || hasAmount) && !isPaid && !isReserved && !isCleaning;
+
+      if (statusFilter === 'Blank') {
+        matchesStatus = isBlank && !hasAmount;
+      } else if (statusFilter === 'Running') {
+        matchesStatus = isRunning;
+      } else if (statusFilter === 'Reserved') {
+        matchesStatus = isReserved;
+      } else if (statusFilter === 'Paid') {
+        matchesStatus = isPaid;
+      } else if (statusFilter === 'Cleaning') {
+        matchesStatus = isCleaning;
+      }
+    }
+
+    return matchesSearch && matchesFloor && matchesOutlet && matchesStatus;
+  }), [dateAdjustedTables, search, filter, activeRestaurant, rawOutletsList, statusFilter]);
 
   // Keep refs in sync for keyboard handler (avoids stale closures)
   filteredDataRef.current = filteredData;
@@ -504,11 +863,13 @@ const DisplayTablePage = () => {
           <select
             value={activeRestaurant}
             onChange={(e) => setActiveRestaurant(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '0.85rem', fontWeight: 700, color: '#475569', outline: 'none' }}
+            style={{ padding: '8px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#fff', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
           >
-            <option value="Main Dining Room">Main Dining Room</option>
-            <option value="Rooftop Grill">Rooftop Grill</option>
-            <option value="Poolside Cafe">Poolside Cafe</option>
+            {outletOptions.map(out => (
+              <option key={out} value={out}>
+                {out}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -530,7 +891,7 @@ const DisplayTablePage = () => {
 
           {/* Book Table Button */}
           <button
-            onClick={() => setIsBookingMode(true)}
+            onClick={() => setBookModalOpen(true)}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -603,8 +964,8 @@ const DisplayTablePage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status:-</span>
             <select
-              value={service}
-              onChange={(e) => setService(e.target.value)}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
               style={{
                 padding: '8px 14px',
                 borderRadius: '8px',
@@ -627,41 +988,36 @@ const DisplayTablePage = () => {
             </select>
           </div>
 
-          <div style={{ height: '20px', width: '1px', background: '#cbd5e1' }} />
-
-          {/* Section tabs */}
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {SECTIONS.map(sec => {
-              const isSel = filter === sec;
-              return (
-                <button
-                  key={sec}
-                  onClick={() => setFilter(sec)}
-                  style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, border: isSel ? '1px solid #0f172a' : '1px solid #cbd5e1', background: isSel ? '#0f172a' : '#fff', color: isSel ? '#fff' : '#475569', cursor: 'pointer', transition: 'all 120ms' }}
-                >
-                  {sec}
-                </button>
-              );
-            })}
+          {/* Floor Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Floor:-</span>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#1e293b',
+                outline: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'border-color 150ms'
+              }}
+            >
+              {dynamicFloors.map(fl => (
+                <option key={fl} value={fl}>
+                  {fl === 'All' ? 'All Floors' : fl}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Move KOT button */}
-          <button
-            onClick={() => {
-              const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
-              setFromTableId(String(activeT.id));
-              setToTableId('');
-              setShowQuickSwitch(true);
-            }}
-            style={{ background: '#fff', color: '#374151', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '7px 16px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-          >
-            Move KOT / Items
-          </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {/* Search box */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <FaSearch style={{ position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '0.85rem' }} />
@@ -670,11 +1026,52 @@ const DisplayTablePage = () => {
               placeholder="Search table/waiter..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '220px', padding: '8px 12px 8px 30px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', outline: 'none', transition: 'border-color 150ms' }}
+              style={{ width: '200px', padding: '8px 12px 8px 30px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', outline: 'none', transition: 'border-color 150ms' }}
             />
           </div>
 
-
+          {/* Date Filter (right side of search bar) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date:-</span>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={{
+                  padding: '7px 10px',
+                  borderRadius: '8px',
+                  border: selectedDate !== todayStr ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
+                  background: selectedDate !== todayStr ? '#f0fdfa' : '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  color: selectedDate !== todayStr ? '#0e7490' : '#1e293b',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                }}
+              />
+            </div>
+            {selectedDate !== todayStr && (
+              <button
+                onClick={() => setSelectedDate(todayStr)}
+                title="Reset to today"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #0e7490',
+                  background: '#0e7490',
+                  color: '#fff',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 120ms'
+                }}
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -697,7 +1094,15 @@ const DisplayTablePage = () => {
           Reserved
         </span>
         <span style={{ marginLeft: 'auto', color: '#94a3b8', fontWeight: 600 }}>
-          {tables.filter(t => t.status === 'Running' || t.status === 'KOT Generated').length} Running &nbsp;·&nbsp; {tables.filter(t => t.status === 'Blank').length} Blank
+          {selectedDate !== todayStr ? (
+            <>
+              {dateAdjustedTables.filter(t => t.status === 'Reserved' || t.color === 'orange' || t.order_state === 'RESERVED').length} Reserved &nbsp;·&nbsp; {dateAdjustedTables.filter(t => t.status === 'Blank' || t.status === 'AVAILABLE' || t.color === 'white' || !t.color).length} Blank
+            </>
+          ) : (
+            <>
+              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
+            </>
+          )}
         </span>
       </div>
 
@@ -759,14 +1164,7 @@ const DisplayTablePage = () => {
                   onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
                   onView={(e) => {
                     e?.stopPropagation?.();
-                    const tableRows = (
-                      orderItemsMap[table.id] ||
-                      orderItemsMap[table.no] ||
-                      orderItemsMap[String(table.no)] ||
-                      orderItemsMap[Number(table.no)] ||
-                      (table.kots ? table.kots.flatMap(k => k.items || []) : [])
-                    );
-                    navigate('/restaurant/pos-billing', { state: { table, tableId: table.id, tableNumber: table.no, rows: tableRows } });
+                    setQuickPaymentTable(table);
                   }}
                   onSave={(e) => {
                     e?.stopPropagation?.();
@@ -790,8 +1188,8 @@ const DisplayTablePage = () => {
           })}
 
           {filteredData.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.85rem' }}>
-              No tables match the selected filter.
+            <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600 }}>
+              No tables found for {activeRestaurant === 'All Outlets' ? 'any outlet' : `outlet "${activeRestaurant}"`}{filter && filter !== 'All' && filter !== 'All Floors' ? ` on ${filter}` : ''}.
             </div>
           )}
         </div>
@@ -873,6 +1271,7 @@ const DisplayTablePage = () => {
         onClose={() => setBookModalOpen(false)}
         tables={tables}
         onBook={handleBookTable}
+        initialDate={selectedDate}
       />
 
       {/* Select Table First Dialog */}
@@ -1133,6 +1532,23 @@ const DisplayTablePage = () => {
           </div>
         </div>
       )}
+
+      {/* Quick Payment & Discount Options Modal (Triggered on clicking View / Edit icon) */}
+      <QuickPaymentModal
+        isOpen={!!quickPaymentTable}
+        onClose={() => setQuickPaymentTable(null)}
+        table={quickPaymentTable}
+        items={quickPaymentTable ? (
+          orderItemsMap[quickPaymentTable.id] ||
+          orderItemsMap[quickPaymentTable.no] ||
+          orderItemsMap[String(quickPaymentTable.no)] ||
+          orderItemsMap[Number(quickPaymentTable.no)] ||
+          (quickPaymentTable.kots ? quickPaymentTable.kots.flatMap(k => k.items || []) : []) ||
+          (quickPaymentTable.items || [])
+        ) : []}
+        onTableUpdated={refreshTables}
+        showToast={toast}
+      />
 
       {/* Keyboard shortcut hint bar */}
       <div style={{ padding: '8px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>

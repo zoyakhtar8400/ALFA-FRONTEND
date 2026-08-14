@@ -12,8 +12,8 @@ const POSActionButtons = ({
     <div style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(3, 1fr)',
-      gap: '8px',
-      padding: '12px 16px',
+      gap: '6px',
+      padding: '6px 10px',
       background: '#f8fafc',
       borderTop: '1px solid #e2e8f0'
     }}>
@@ -23,14 +23,14 @@ const POSActionButtons = ({
         onClick={onSave}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#991b1b', color: '#ffffff',
-          fontWeight: 800, fontSize: '0.74rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#991b1b', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
         onMouseEnter={e => e.currentTarget.style.background = '#7f1d1d'}
         onMouseLeave={e => e.currentTarget.style.background = '#991b1b'}
       >
         <span>Save</span>
-        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F5</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F5</span>
       </button>
 
       <button
@@ -38,14 +38,14 @@ const POSActionButtons = ({
         onClick={onSaveAndPrint}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#991b1b', color: '#ffffff',
-          fontWeight: 800, fontSize: '0.74rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#991b1b', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
         onMouseEnter={e => e.currentTarget.style.background = '#7f1d1d'}
         onMouseLeave={e => e.currentTarget.style.background = '#991b1b'}
       >
         <span>Save & Print</span>
-        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F6</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F6</span>
       </button>
 
       <button
@@ -53,14 +53,14 @@ const POSActionButtons = ({
         onClick={onSaveAndEBill}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#991b1b', color: '#ffffff',
-          fontWeight: 800, fontSize: '0.74rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#991b1b', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
         onMouseEnter={e => e.currentTarget.style.background = '#7f1d1d'}
         onMouseLeave={e => e.currentTarget.style.background = '#991b1b'}
       >
         <span>Save & E-Bill</span>
-        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F7</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F7</span>
       </button>
 
       {/* Secondary dark buttons */}
@@ -69,14 +69,14 @@ const POSActionButtons = ({
         onClick={onKOT}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#1f2937', color: '#ffffff',
-          fontWeight: 800, fontSize: '0.74rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#1f2937', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
         onMouseEnter={e => e.currentTarget.style.background = '#111827'}
         onMouseLeave={e => e.currentTarget.style.background = '#1f2937'}
       >
         <span>KOT</span>
-        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F8</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F8</span>
       </button>
 
       <button
@@ -84,14 +84,14 @@ const POSActionButtons = ({
         onClick={onKOTAndPrint}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#1f2937', color: '#ffffff',
-          fontWeight: 800, fontSize: '0.74rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#1f2937', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
         onMouseEnter={e => e.currentTarget.style.background = '#111827'}
         onMouseLeave={e => e.currentTarget.style.background = '#1f2937'}
       >
         <span>KOT & Print</span>
-        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F9</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F9</span>
       </button>
 
       {/* Hold button */}
@@ -100,14 +100,14 @@ const POSActionButtons = ({
         onClick={onHold}
         style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '10px 12px', borderRadius: '8px', background: '#ffffff', color: '#374151',
-          fontWeight: 800, fontSize: '0.74rem', border: '1px solid #d1d5db', cursor: 'pointer', transition: 'all 0.15s'
+          padding: '6px 10px', height: '32px', borderRadius: '6px', background: '#475569', color: '#ffffff',
+          fontWeight: 800, fontSize: '0.72rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
         }}
-        onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-        onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+        onMouseEnter={e => e.currentTarget.style.background = '#334155'}
+        onMouseLeave={e => e.currentTarget.style.background = '#475569'}
       >
         <span>Hold Draft</span>
-        <span style={{ background: 'rgba(0,0,0,0.06)', color: '#4b5563', borderRadius: '4px', padding: '2px 6px', fontSize: '9px' }}>F10</span>
+        <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 5px', fontSize: '9px' }}>F10</span>
       </button>
     </div>
   );

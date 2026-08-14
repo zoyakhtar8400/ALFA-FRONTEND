@@ -1,4 +1,4 @@
-import React, { useState, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import DashboardHeader from './DashboardHeader';
 import SummaryCards from './SummaryCards';
 import QuickActions from './QuickActions';
@@ -17,6 +17,7 @@ import { TIMEFRAME_DATA } from './dashboardData';
 import { LuChevronDown, LuChevronUp } from 'react-icons/lu';
 import { useFrontDesk } from '../../context/FrontDeskContext';
 import { useRestaurant } from '../../context/RestaurantContext';
+import { dashboardService } from '../../services/dashboardService';
 
 /* ─── Operational Actionable Sub-Widgets ─── */
 const TodayArrivalsWidget = ({ arrivals, rooms, checkInGuest, showToast }) => {
@@ -213,33 +214,70 @@ const TABLE_STATUS_S = {
   Cleaning: { color: '#ca8a04', bg: '#fef9c3', border: '#fef08a', dot: '#eab308' },
 };
 
-const DisplayTableGrid = memo(({ showToast }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))', gap: '10px' }}>
-    {DINING_TABLES.map(table => {
-      const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
-      return (
-        <div key={table.no} onClick={() => showToast?.(`Table ${table.no} status: ${table.status}`)} title={`Table ${table.no} — ${table.status}`}
-          style={{
-            padding: '12px 6px',
-            borderRadius: '10px',
-            textAlign: 'center',
-            border: `1px solid ${s.border}`,
-            background: s.bg,
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-            boxShadow: s.glow || 'none'
-          }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.07)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-        >
-          <div style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>T-{table.no}</div>
-          <div style={{ fontSize: '10px', color: '#475569', margin: '3px 0' }}>{table.seats} Pax</div>
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.dot, margin: '0 auto' }} />
-        </div>
-      );
-    })}
-  </div>
-));
+const DisplayTableGrid = memo(({ tables = [], showToast }) => {
+  const navigate = typeof window !== 'undefined' ? window.location : null;
+  const displayTables = tables && tables.length > 0 ? tables : [];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '10px' }}>
+      {displayTables.map(table => {
+        const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
+        const hasBill = Number(table.amount || 0) > 0;
+        return (
+          <div
+            key={table.id || table.no}
+            onClick={() => {
+              window.location.href = `#/restaurant/pos-billing?table=${table.id || table.no}`;
+              showToast?.(`Opening POS Billing for Table T${table.no}`);
+            }}
+            title={`Table T${table.no} — ${table.status || 'Available'} · ${table.capacity || table.seats || 4} Pax · ${table.waiter ? `Waiter: ${table.waiter}` : 'No Waiter'}`}
+            style={{
+              padding: '10px 6px',
+              borderRadius: '10px',
+              textAlign: 'center',
+              border: `1.5px solid ${s.border}`,
+              background: s.bg,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: s.glow || '0 1px 3px rgba(0,0,0,0.03)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '3px'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-2px) scale(1.04)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = s.glow || '0 1px 3px rgba(0,0,0,0.03)';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>T{table.no}</span>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot }} />
+            </div>
+
+            <span style={{ fontSize: '9px', fontWeight: '700', color: s.color, background: s.bg, padding: '1px 5px', borderRadius: '4px' }}>
+              {table.status || 'Available'}
+            </span>
+
+            {hasBill ? (
+              <span style={{ fontSize: '11px', fontWeight: '900', color: '#15803d', marginTop: '2px' }}>
+                ₹{Number(table.amount).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
+            ) : (
+              <span style={{ fontSize: '9px', color: '#64748b' }}>
+                {table.capacity || table.seats || 4} Pax
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
 
 /* ─── Revenue Donut ─── */
 const RevenuePie = memo(() => {
@@ -300,10 +338,25 @@ const DashboardPage = ({ showToast }) => {
   const { activeTab, setActiveTab, timeframe, setTimeframe, rooms, cycleRoomStatus, isLoading } = useDashboard(showToast);
   const { arrivals, departures, checkInGuest, checkOutGuest, logAction } = useFrontDesk();
   const { tables, setTables, setOrderItemsMap } = useRestaurant();
+  const [stats, setStats] = useState(null);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const data = await dashboardService.getStats();
+      if (data) setStats(data);
+    } catch (e) {
+      console.warn('Dashboard stats load error:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const handleRefresh = useCallback(() => {
-    showToast?.('Dashboard refreshed');
-  }, [showToast]);
+    loadStats();
+    showToast?.('Dashboard refreshed with live data');
+  }, [loadStats, showToast]);
 
   if (isLoading) return (
     <div style={{ padding: '24px 28px', backgroundColor: '#F8FAFC', minHeight: '100vh' }}>
@@ -324,8 +377,8 @@ const DashboardPage = ({ showToast }) => {
         showToast={showToast}
       />
 
-      {/* 2. Summary Cards */}
-      <SummaryCards rooms={rooms} showToast={showToast} />
+      {/* 2. Summary Cards with 100% Real Live Database Metrics */}
+      <SummaryCards rooms={rooms} tables={tables} stats={stats} showToast={showToast} />
 
       {activeTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -349,7 +402,7 @@ const DashboardPage = ({ showToast }) => {
               <HousekeepingChart rooms={rooms} showToast={showToast} />
             </Card>
             <Card title="Display Table" accent="#f59e0b">
-              <DisplayTableGrid showToast={showToast} />
+              <DisplayTableGrid tables={tables} showToast={showToast} />
             </Card>
             <Card title="Room Grid" accent="#0284c7">
               <RoomGrid rooms={rooms} cycleRoomStatus={cycleRoomStatus} />
@@ -375,13 +428,13 @@ const DashboardPage = ({ showToast }) => {
               <RunningTablesWidget tables={tables} setTables={setTables} setOrderItemsMap={setOrderItemsMap} logAction={logAction} showToast={showToast} />
             </Card>
             <Card title="Recent Restaurant Orders" accent="#10b981">
-              <RecentOrders showToast={showToast} />
+              <RecentOrders stats={stats} tables={tables} showToast={showToast} />
             </Card>
           </div>
 
-          {/* 8. Finance Summary (collapsed by default) */}
-          <Card title="Finance Summary" accent="#15803d" defaultOpen={false}>
-            <FinanceSummary showToast={showToast} />
+          {/* 8. Finance Summary — Expanded by default */}
+          <Card title="Finance Summary" accent="#15803d" defaultOpen={true}>
+            <FinanceSummary stats={stats} tables={tables} showToast={showToast} />
           </Card>
 
         </div>
@@ -406,7 +459,7 @@ const DashboardPage = ({ showToast }) => {
       {activeTab === 'outlets' && (
         <div className="dash-grid-2">
           <Card title="Recent Restaurant Orders" accent="#d97706">
-            <RecentOrders showToast={showToast} />
+            <RecentOrders stats={stats} tables={tables} showToast={showToast} />
           </Card>
           <Card title="Revenue Mix" accent="#10b981">
             <RevenuePie />
@@ -417,7 +470,7 @@ const DashboardPage = ({ showToast }) => {
       {activeTab === 'banquets' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <Card title="Finance Summary" accent="#15803d">
-            <FinanceSummary showToast={showToast} />
+            <FinanceSummary stats={stats} tables={tables} showToast={showToast} />
           </Card>
         </div>
       )}

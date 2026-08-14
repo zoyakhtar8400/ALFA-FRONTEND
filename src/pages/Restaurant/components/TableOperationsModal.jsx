@@ -1,8 +1,9 @@
-import React from 'react';
-import { FaTimes } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import MoveKOTTab from './tabs/MoveKOTTab';
 
 const TableOperationsModal = (props) => {
+  const [isTablesCollapsed, setIsTablesCollapsed] = useState(true);
   const {
     isOpen, onClose,
     tables,
@@ -50,56 +51,82 @@ const TableOperationsModal = (props) => {
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Table capsules */}
-          <div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>
-              Select Tables
+          {/* Collapsible Table Capsules Section */}
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+            <div
+              onClick={() => setIsTablesCollapsed(prev => !prev)}
+              style={{
+                padding: '10px 14px',
+                background: '#f8fafc',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                userSelect: 'none',
+                transition: 'background 0.15s ease'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+              onMouseLeave={e => e.currentTarget.style.background = '#f8fafc'}
+            >
+              <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>Select Tables (Occupied = From, Target = To)</span>
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#0e7490', fontWeight: 700 }}>
+                {isTablesCollapsed ? 'Show Table Map' : 'Hide Table Map'}
+                {isTablesCollapsed ? <FaChevronRight size={10} /> : <FaChevronDown size={10} />}
+              </span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {tables.map(t => {
-                const active = t.status !== 'Blank';
-                const isFrom = fromTableId === String(t.id);
-                const isTo = toTableId === String(t.id);
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => {
-                      if (active) {
-                        setFromTableId(String(t.id));
-                        setSelectedGuests(t.seats || 4);
-                        setSelectedWaiter(t.waiter || '');
-                        setSelectedCaptain(t.captain || '');
-                        setSelectedTransferKots({});
-                      } else {
-                        setToTableId(String(t.id));
-                      }
-                    }}
-                    style={{
-                      border: isFrom ? '2px solid #3b82f6' : isTo ? '2px solid #db2777' : active ? '1px solid #eab308' : '1px dashed #cbd5e1',
-                      background: isFrom ? '#eff6ff' : isTo ? '#fdf2f8' : active ? '#fefce8' : '#fff',
-                      color: isFrom ? '#1d4ed8' : isTo ? '#be185d' : active ? '#713f12' : '#94a3b8',
-                      borderRadius: '6px', padding: '5px 12px',
-                      fontSize: '0.78rem', fontWeight: 800,
-                      cursor: 'pointer', userSelect: 'none', transition: 'all 100ms',
-                    }}
-                  >
-                    T{parseInt(t.no)}
-                    {isFrom && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>FROM</span>}
-                    {isTo && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>TO</span>}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '0.68rem', color: '#94a3b8' }}>
-              <span><span style={{ color: '#1d4ed8', fontWeight: 700 }}>Blue border</span> = From table (active)</span>
-              <span><span style={{ color: '#be185d', fontWeight: 700 }}>Pink border</span> = To table (target)</span>
-            </div>
+
+            {!isTablesCollapsed && (
+              <div style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {tables.map(t => {
+                    const st = String(t.status || '').toLowerCase().trim();
+                    const isOccupied = Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
+                    const isFrom = fromTableId === String(t.id);
+                    const isTo = toTableId === String(t.id);
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => {
+                          if (isOccupied) {
+                            setFromTableId(String(t.id));
+                            setSelectedGuests(t.seats || 4);
+                            setSelectedWaiter(t.waiter || '');
+                            setSelectedCaptain(t.captain || '');
+                            setSelectedTransferKots({});
+                          } else {
+                            setToTableId(String(t.id));
+                          }
+                        }}
+                        style={{
+                          border: isFrom ? '2px solid #3b82f6' : isTo ? '2px solid #db2777' : isOccupied ? '1.5px solid #eab308' : '1px dashed #cbd5e1',
+                          background: isFrom ? '#eff6ff' : isTo ? '#fdf2f8' : isOccupied ? '#fefce8' : '#fff',
+                          color: isFrom ? '#1d4ed8' : isTo ? '#be185d' : isOccupied ? '#713f12' : '#94a3b8',
+                          borderRadius: '6px', padding: '5px 12px',
+                          fontSize: '0.78rem', fontWeight: 800,
+                          cursor: 'pointer', userSelect: 'none', transition: 'all 100ms',
+                        }}
+                      >
+                        T{parseInt(t.no)}
+                        {isFrom && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>FROM</span>}
+                        {isTo && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>TO</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '0.68rem', color: '#94a3b8' }}>
+                  <span><span style={{ color: '#1d4ed8', fontWeight: 700 }}>Blue border</span> = From table (occupied)</span>
+                  <span><span style={{ color: '#be185d', fontWeight: 700 }}>Pink border</span> = To table (target)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* From / To dropdowns */}
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '200px' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', whiteSpace: 'nowrap' }}>From:</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#475569', whiteSpace: 'nowrap' }}>From </span>
               <select
                 value={fromTableId}
                 onChange={e => {
@@ -110,9 +137,12 @@ const TableOperationsModal = (props) => {
                 }}
                 style={{ flex: 1, padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #3b82f6', background: '#eff6ff', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
               >
-                <option value="">Select table...</option>
-                {tables.filter(t => t.status !== 'Blank').map(t => (
-                  <option key={t.id} value={t.id}>T{parseInt(t.no)} — ₹{t.amount.toLocaleString('en-IN')}</option>
+                <option value="">Select occupied table...</option>
+                {tables.filter(t => {
+                  const st = String(t.status || '').toLowerCase().trim();
+                  return Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
+                }).map(t => (
+                  <option key={t.id} value={t.id}>T{parseInt(t.no)} ({t.status || 'Occupied'}) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
                 ))}
               </select>
             </div>
@@ -124,7 +154,7 @@ const TableOperationsModal = (props) => {
                 onChange={e => setToTableId(e.target.value)}
                 style={{ flex: 1, padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #db2777', background: '#fdf2f8', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
               >
-                <option value="">Select table...</option>
+                <option value="">Select target table...</option>
                 {tables.filter(t => String(t.id) !== fromTableId).map(t => (
                   <option key={t.id} value={t.id}>T{parseInt(t.no)} ({t.status})</option>
                 ))}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   FaTachometerAlt,
   FaConciergeBell,
@@ -17,7 +17,8 @@ import {
   FaChartBar,
   FaFileAlt,
   FaReceipt,
-  FaBars
+  FaBars,
+  FaUserCircle
 } from 'react-icons/fa';
 
 // Import split modules
@@ -29,8 +30,38 @@ import {
 import SidebarFlyoutL1 from './components/SidebarFlyoutL1';
 import SidebarFlyoutL2 from './components/SidebarFlyoutL2';
 import SidebarFlyoutL3 from './components/SidebarFlyoutL3';
+import companyProfileService from '../../services/companyProfileService';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout }) => {
+  const navigate = useNavigate();
+  const [companyProfile, setCompanyProfile] = useState(null);
+
+  // Load real Company Profile from PostgreSQL and listen for live updates
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadComp = async () => {
+      try {
+        const res = await companyProfileService.getProfile();
+        const p = res?.data || res?.companyProfile || (res && res.id ? res : null);
+        if (isMounted && p) {
+          setCompanyProfile(p);
+        }
+      } catch (e) {}
+    };
+    loadComp();
+
+    const handleUpdate = (e) => {
+      if (isMounted) {
+        setCompanyProfile(e.detail);
+      }
+    };
+    window.addEventListener('companyProfileUpdated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('companyProfileUpdated', handleUpdate);
+    };
+  }, []);
+
   // Global Keyboard Navigation for Sidebar
   React.useEffect(() => {
     const handleAltS = (e) => {
@@ -453,7 +484,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                   )}
                 </div>
 
-                {/* Operations Sub-Accordion */}
+                {/* Operations Sub-Accordion (Commented)
                 <div>
                   <div tabIndex={0}
                     className="sidebar-subitem"
@@ -465,7 +496,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     <FaChevronRight className={`chevron-icon ${operationOpen ? 'open' : ''}`} />
                   </div>
 
-                  {/* Operations Subitems list */}
                   {operationOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {operations.map((o) => (
@@ -481,8 +511,9 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     </div>
                   )}
                 </div>
+                */}
 
-                {/* MIS Sub-Accordion */}
+                {/* MIS Sub-Accordion (Commented)
                 <div>
                   <div tabIndex={0}
                     className="sidebar-subitem"
@@ -494,7 +525,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     <FaChevronRight className={`chevron-icon ${misOpen ? 'open' : ''}`} />
                   </div>
 
-                  {/* MIS Subitems list */}
                   {misOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {misItems.map((mis) => (
@@ -510,21 +540,24 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     </div>
                   )}
                 </div>
+                */}
 
-                {/* Report */}
+                {/* Report (Commented)
                 <NavLink to="/front-desk/report" tabIndex={0} className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`} onClick={handleMobileNav}>
                   <FaFileAlt style={{ fontSize: '0.95rem' }} />
                   <span>Report</span>
                 </NavLink>
+                */}
               </div>
             )}
           </div>
 
-          {/* House Keeping */}
+          {/* House Keeping (Commented)
           <NavLink to="/housekeeping" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "House Keeping" : ""}>
             <FaBroom className="sidebar-icon" />
             <span>House Keeping</span>
           </NavLink>
+          */}
 
           {/* Point Of Sale Accordion Container */}
           <div>
@@ -634,11 +667,12 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             )}
           </div>
 
-          {/* Room Services */}
+          {/* Room Services (Commented)
           <NavLink to="/room-services" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Room Services" : ""}>
             <FaUtensils className="sidebar-icon" />
             <span>Room Services</span>
           </NavLink>
+          */}
 
           {/* Restaurant Accordion Container */}
           <div>
@@ -689,13 +723,15 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             )}
           </div>
 
-          {/* Banquet */}
+          {/* Banquet (Commented)
           <NavLink to="/banquet" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Banquet" : ""}>
             <FaGlassCheers className="sidebar-icon" />
             <span>Banquet</span>
           </NavLink>
+          */}
 
-          {/* Purchase Accordion Container */}
+          {/* Purchase Accordion Container (Commented Out) */}
+          {/*
           <div onMouseEnter={handlePurchaseMouseEnter} onMouseLeave={handlePurchaseMouseLeave}>
             <div
               tabIndex={0}
@@ -716,10 +752,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
               <FaChevronRight className={`chevron-icon ${purchaseOpen ? 'open' : ''}`} />
             </div>
 
-            {/* Purchase Submenu (only when NOT collapsed) */}
             {purchaseOpen && !isCollapsed && (
               <div className="sidebar-submenu">
-                {/* Master Sub-Accordion */}
                 <div>
                   <div
                     tabIndex={0}
@@ -749,7 +783,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                   )}
                 </div>
 
-                {/* Operation Sub-Accordion */}
                 <div>
                   <div
                     tabIndex={0}
@@ -823,7 +856,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                   )}
                 </div>
 
-                {/* Reports */}
                 <NavLink
                   to="/purchase/reports"
                   tabIndex={0}
@@ -836,6 +868,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
               </div>
             )}
           </div>
+          */}
 
           {/* Setting */}
           <NavLink to="/setting" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Setting" : ""}>
@@ -846,10 +879,47 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
 
         {/* Sidebar Footer with Logout Button & Profile */}
         <div className="sidebar-footer" onMouseEnter={handleOtherItemMouseEnter}>
-          <div className="sidebar-profile">
-            <div className="profile-details">
-              <span className="profile-name">Zoya</span>
-              <span className="profile-role">Hotel Manager</span>
+          <div className="sidebar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              onClick={() => navigate('/company-profile')}
+              style={{
+                width: '36px',
+                height: '36px',
+                minWidth: '36px',
+                borderRadius: '6px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: companyProfile?.logo ? '2px' : '0'
+              }}
+              title="Open Company Profile"
+            >
+              {companyProfile?.logo ? (
+                <img
+                  src={companyProfile.logo}
+                  alt="Logo"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: '-webkit-optimize-contrast' }}
+                />
+              ) : (
+                <FaUserCircle size={22} style={{ color: '#0f766e' }} />
+              )}
+            </div>
+            <div
+              className="profile-details"
+              onClick={() => navigate('/company-profile')}
+              style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}
+              title="Open Company Profile"
+            >
+              <span className="profile-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
+              </span>
+              <span className="profile-role" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                {companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Details'}
+              </span>
             </div>
             <button className="logout-btn" onClick={handleLogoutClick} title="Log Out">
               <FaSignOutAlt />

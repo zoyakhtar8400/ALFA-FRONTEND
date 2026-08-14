@@ -30,12 +30,15 @@ const Restaurant = lazyWithRetry(() => import('../pages/Restaurant/Restaurant'))
 const Banquet = lazyWithRetry(() => import('../pages/Banquet/Banquet'));
 const Purchase = lazyWithRetry(() => import('../pages/Purchase/Purchase'));
 const Setting = lazyWithRetry(() => import('../pages/Setting/Setting'));
+const CompanyProfilePage = lazyWithRetry(() => import('../pages/Setting/CompanyProfile/CompanyProfilePage'));
 
 const AppRoutes = ({ showToast }) => {
   return (
     <Suspense fallback={<LoadingState message="Loading module workspace..." />}>
       <Routes>
         <Route path="/" element={<Dashboard showToast={showToast} />} />
+        <Route path="/profile" element={<CompanyProfilePage showToast={showToast} />} />
+        <Route path="/company-profile" element={<CompanyProfilePage showToast={showToast} />} />
         <Route path="/front-desk/*" element={<FrontDesk showToast={showToast} />} />
         <Route path="/housekeeping" element={<HouseKeeping />} />
         <Route path="/pos/*" element={<PointOfSale showToast={showToast} />} />

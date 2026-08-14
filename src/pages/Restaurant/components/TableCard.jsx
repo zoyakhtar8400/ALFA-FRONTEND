@@ -3,30 +3,38 @@ import { FaPrint, FaEye } from 'react-icons/fa';
 
 const COLOR_MAP = {
   white: { bg: '#ffffff', text: '#6b7280', border: '1px solid #d1d5db' },
-  orange: { bg: '#f5c518', text: '#1a0f00', border: '1px solid #d4a800' },
-  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' }
+  yellow: { bg: '#f5c842', text: '#1e293b', border: '1px solid #d4a800' }, // Running Table (Yellow)
+  orange: { bg: '#f97316', text: '#ffffff', border: '1px solid #ea580c' }, // Reserved Table (Orange)
+  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' }   // Paid / Cleaning (Green)
 };
 
 const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) => {
   // Determine color theme strictly and instantly from backend/frontend status attributes
   const statusUpper = (table.status || table.order_state || '').toUpperCase();
-  const colorKey = (
-    (['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper)) ? 'green' :
-    (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (table.amount && table.amount > 0)) ? 'orange' :
-    (table.color || 'white')
-  ).toLowerCase();
+  const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
+  const isReserved = !isBlank && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
+  const isPaidOrCleaning = !isBlank && !isReserved && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
+  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(table.amount || 0) > 0));
+
+  const colorKey = isPaidOrCleaning
+    ? 'green'
+    : isReserved
+    ? 'orange'
+    : isRunning
+    ? 'yellow'
+    : 'white';
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
-  const isAvailable = colorKey === 'white' || statusUpper === 'AVAILABLE' || statusUpper === 'BLANK';
-  const isPaymentCompleted = colorKey === 'green' || statusUpper === 'PAYMENT_COMPLETED' || statusUpper === 'CLEANUP_RUNNING' || statusUpper === 'CLEANING' || statusUpper === 'PAID';
+  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaidOrCleaning);
+  const isPaymentCompleted = isPaidOrCleaning;
 
-  // Backend controls available actions:
-  // Green table -> ['print_kot'] (View KOT is REMOVED!)
-  // Orange table -> ['print_kot', 'view_kot']
-  // White table -> []
-  const actions = Array.isArray(table.available_actions)
+  // Action icons:
+  // Green table (Paid) -> ['print_kot']
+  // Yellow table (Running / KOT Cut) -> ['print_kot', 'view_kot'] (two icons)
+  // White/Reserved table -> []
+  const actions = (Array.isArray(table.available_actions) && table.available_actions.length > 0)
     ? table.available_actions
-    : (isPaymentCompleted ? ['print_kot'] : !isAvailable ? ['print_kot', 'view_kot'] : []);
+    : (isPaymentCompleted ? ['print_kot'] : (colorKey === 'yellow' || isRunning || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
 
   // Format remaining_seconds into 00:SS or MM:SS
   const formatTimer = (totalSec) => {
@@ -98,12 +106,16 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) =>
         T{parseInt(table.no || table.table_no || '1', 10)}
       </div>
 
-      {/* ── Amount ── */}
-      {!isAvailable && !isPaymentCompleted && table.amount > 0 && (
+      {/* ── Reserved label or Amount ── */}
+      {isReserved ? (
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: '4px', lineHeight: 1, color: '#fff', opacity: 0.95, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Reserved
+        </div>
+      ) : (!isAvailable && !isPaymentCompleted && table.amount > 0) ? (
         <div style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '5px', lineHeight: 1 }}>
           ₹{table.amount.toLocaleString('en-IN')}
         </div>
-      )}
+      ) : null}
 
       {/* ── Backend Driven Action Icons ── */}
       {showActions && (

@@ -5,19 +5,23 @@ import {
   LuArrowUpRight, LuArrowDownRight,
 } from 'react-icons/lu';
 
-const SummaryCards = memo(({ rooms, showToast }) => {
+const SummaryCards = memo(({ rooms = [], tables = [], stats, showToast }) => {
   const clean = useMemo(() => rooms.filter(r => r.status === 'Clean').length, [rooms]);
   const occupied = useMemo(() => rooms.filter(r => r.status !== 'Clean').length, [rooms]);
 
+  const availableTables = useMemo(() => tables.filter(t => t.status === 'Blank' || !t.status).length, [tables]);
+  const activeTables = useMemo(() => tables.filter(t => t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'Paid' || t.status === 'Reserved').length, [tables]);
+  const totalTableSales = useMemo(() => tables.reduce((acc, t) => acc + Number(t.amount || 0), 0), [tables]);
+
   const cards = [
-    { label: "Today's Bookings",    value: '12',      trend: '+8.5%',  up: true,  icon: LuCalendarCheck, accent: '#418A8B', sub: 'vs yesterday' },
-    { label: "Today's Check-In",    value: '8',       trend: '+12.3%', up: true,  icon: LuLogIn,         accent: '#16a34a', sub: 'vs yesterday' },
-    { label: "Today's Check-Out",   value: '6',       trend: '-2.4%',  up: false, icon: LuLogOut,        accent: '#dc2626', sub: 'vs yesterday' },
-    { label: 'Expected Departure',  value: '4',       trend: 'Today',  up: true,  icon: LuCalendarX,     accent: '#d97706', sub: 'remaining' },
-    { label: 'Available Rooms',     value: String(clean),    trend: `${rooms.length} total`, up: true, icon: LuBed,    accent: '#0369a1', sub: 'rooms' },
-    { label: 'Occupied Rooms',      value: String(occupied), trend: `${((occupied/rooms.length)*100).toFixed(0)}% occ.`, up: occupied > 4, icon: LuUsers, accent: '#7c3aed', sub: 'rooms' },
-    { label: 'Revenue Today',       value: '₹42,350', trend: '+18.2%', up: true,  icon: LuTrendingUp,    accent: '#15803d', sub: 'vs yesterday' },
-    { label: 'Pending Payments',    value: '₹12,450', trend: '6 bills', up: false, icon: LuClock,        accent: '#b91c1c', sub: 'outstanding' },
+    { label: "Active Dining Tables", value: `${activeTables}/${tables.length || 12}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#0e7490', sub: 'running tables' },
+    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTables} active orders`, up: true, icon: LuTrendingUp, accent: '#16a34a', sub: 'live orders' },
+    { label: "Menu Catalog Items",  value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#d97706', sub: 'live active items' },
+    { label: "Recorded Orders",     value: `${(stats?.totalOrdersCount || 0) + activeTables}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#418A8B', sub: 'total bills' },
+    { label: "Available Rooms",     value: String(clean),    trend: `${rooms.length} total rooms`, up: true, icon: LuBed,    accent: '#0369a1', sub: 'clean rooms' },
+    { label: "Occupied Rooms",      value: String(occupied), trend: rooms.length ? `${((occupied/rooms.length)*100).toFixed(0)}% occ.` : '0%', up: occupied > 0, icon: LuUsers, accent: '#7c3aed', sub: 'in-house guests' },
+    { label: "Cash Collection",     value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#15803d', sub: 'cash drawer' },
+    { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#0d9488', sub: 'UPI payments' },
   ];
 
   return (

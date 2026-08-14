@@ -202,26 +202,35 @@ const HeaderActions = ({
       </div>
 
       {/* Row 2: Waiter & Delivery Boy dropdowns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minWidth: 0 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',
           padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '8px',
-          background: '#ffffff'
+          background: '#ffffff', minWidth: 0, overflow: 'hidden'
         }}>
           <FaUserTie size={12} color="#0e7490" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap' }}>Waiter:</span>
+          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap', flexShrink: 0 }}>Waiter:</span>
           <select
+            id="pos-waiter-select"
             value={waiter || ''}
             onChange={e => onWaiterChange && onWaiterChange(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                const searchInput = document.querySelector('input[placeholder*="SEARCH MENU ITEM"]');
+                if (searchInput) searchInput.focus();
+              }
+            }}
             disabled={isPaid}
             style={{
-              flex: 1, height: '26px', borderRadius: '4px',
+              flex: 1, minWidth: 0, width: '100%', height: '26px', borderRadius: '4px',
               border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
               fontSize: '0.72rem', fontWeight: 700, color: waiter ? '#0f172a' : '#94a3b8',
-              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px'
+              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
             }}
           >
-            <option value="">— Select Waiter —</option>
+            <option value="">— Waiter (Alt+W) —</option>
             {waitersList.map((w, idx) => (
               <option key={`waiter-${w}-${idx}`} value={w}>{w}</option>
             ))}
@@ -231,22 +240,31 @@ const HeaderActions = ({
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',
           padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '8px',
-          background: '#ffffff'
+          background: '#ffffff', minWidth: 0, overflow: 'hidden'
         }}>
           <FaTruck size={12} color="#0e7490" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap' }}>Delivery:</span>
+          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap', flexShrink: 0 }}>Delivery:</span>
           <select
+            id="pos-delivery-select"
             value={deliveryBoy || ''}
             onChange={e => onDeliveryBoyChange && onDeliveryBoyChange(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                const searchInput = document.querySelector('input[placeholder*="SEARCH MENU ITEM"]');
+                if (searchInput) searchInput.focus();
+              }
+            }}
             disabled={isPaid}
             style={{
-              flex: 1, height: '26px', borderRadius: '4px',
+              flex: 1, minWidth: 0, width: '100%', height: '26px', borderRadius: '4px',
               border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
               fontSize: '0.72rem', fontWeight: 700, color: deliveryBoy ? '#0f172a' : '#94a3b8',
-              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px'
+              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
             }}
           >
-            <option value="">— Select Delivery Partner —</option>
+            <option value="">— Delivery (Alt+L) —</option>
             {deliveryBoysList.map((b, idx) => (
               <option key={`delivery-${b}-${idx}`} value={b}>{b}</option>
             ))}

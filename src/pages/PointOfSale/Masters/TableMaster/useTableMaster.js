@@ -161,6 +161,8 @@ export const useTableMaster = (showToast) => {
       showToast('Table deleted successfully.');
       setDeleteModal({ open: false, row: null });
       await fetchTables();
+      window.dispatchEvent(new CustomEvent('tablesMasterRefreshed'));
+      window.dispatchEvent(new CustomEvent('tableMasterSync'));
     } catch (err) {
       showToast(err?.response?.data?.message || 'Failed to delete table.');
     }

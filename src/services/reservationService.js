@@ -1,9 +1,9 @@
 import apiClient from './apiClient';
 
 export const reservationService = {
-  // Load all reservations from PostgreSQL
-  async getReservations() {
-    return await apiClient.get('/reservations');
+  // Load all reservations from PostgreSQL (optionally by date or store_id)
+  async getReservations(params = {}) {
+    return await apiClient.get('/reservations', { params });
   },
 
   // Create a new booking/reservation

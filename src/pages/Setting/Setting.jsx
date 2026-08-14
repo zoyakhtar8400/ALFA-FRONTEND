@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   FaReceipt, FaClipboardList, FaUtensils, FaPrint, FaShoppingBag, FaWallet,
   FaTable, FaDesktop, FaMotorcycle, FaSlidersH, FaCoins, FaArrowCircleUp,
@@ -15,8 +15,10 @@ import ExpenseList from './Expense/ExpenseList';
 import ExpenseForm from './Expense/ExpenseForm';
 import BillingScreenConfiguration from './BillingScreenConfiguration';
 import UserManagementList from './User/UserManagementList';
+import CompanyProfilePage from './CompanyProfile/CompanyProfilePage';
 
 const ALL_SETTINGS_MODULES = [
+  { id: 'company-profile', title: 'Company Profile', description: 'Business identity, GSTIN, FSSAI & Branding', icon: FaBuilding, section: 'Restaurant Operations', path: '/setting/company-profile' },
   { id: 'user-management', title: 'User Management', description: 'Admin user accounts & role management', icon: FaUser, section: 'Restaurant Operations', path: '/setting/user-management' },
   // Orders & Billing
   { id: 'billing', title: 'Billing', description: 'Open POS Billing Workspace', icon: FaReceipt, section: 'Orders & Billing', path: '/restaurant/pos-billing' },
@@ -40,7 +42,7 @@ const ALL_SETTINGS_MODULES = [
   { id: 'currency-conversion', title: 'Currency Conversion', description: 'Multi-currency exchange rates', icon: FaSyncAlt, section: 'Payments & Finance', path: '/setting/tax-structure' },
 
   // Menu & Inventory
-  { id: 'menu', title: 'Menu', description: 'Manage outlet menu & pricing catalog', icon: FaUtensils, section: 'Menu & Inventory', path: '/setting/menu' },
+  { id: 'menu', title: 'Menu', description: 'Manage outlet menu & pricing catalog', icon: FaUtensils, section: 'Menu & Inventory', path: '/pos/master/item-menu/menu-item' },
   { id: 'menu-item-on-off', title: 'Menu Item On Off', description: 'Instantly toggle item availability', icon: FaToggleOn, section: 'Menu & Inventory', path: '/pos/master/item-menu/menu-item' },
   { id: 'tax', title: 'Tax', description: 'GST slabs & tax calculation rules', icon: FaPercent, section: 'Menu & Inventory', path: '/setting/tax-structure' },
   { id: 'discount', title: 'Discount', description: 'Discounts & tax categories', icon: FaTag, section: 'Menu & Inventory', path: '/pos/master/tax-category' },
@@ -163,6 +165,11 @@ const Setting = ({ showToast = () => { } }) => {
       .filter(Boolean);
   }, [recentlyOpened, moduleMap]);
 
+  // Sub-route Check: /setting/company-profile or /setting/profile
+  if (path.includes('/setting/company-profile') || path.includes('/setting/profile')) {
+    return <CompanyProfilePage showToast={showToast} />;
+  }
+
   // Sub-route Check: /setting/expense/new or edit
   if (path.includes('/setting/expense/new') || path.includes('/setting/expense/edit')) {
     return <ExpenseForm showToast={showToast} />;
@@ -185,11 +192,7 @@ const Setting = ({ showToast = () => { } }) => {
 
   // Sub-route Check: /setting/menu
   if (path.includes('/setting/menu')) {
-    return (
-      <div style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', padding: '24px 32px' }}>
-        <MenuList showToast={showToast} />
-      </div>
-    );
+    return <Navigate to="/pos/master/item-menu/menu-item" replace />;
   }
 
   // Sub-route Check: /setting/tax-structure

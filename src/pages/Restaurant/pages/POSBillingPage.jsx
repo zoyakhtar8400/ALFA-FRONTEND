@@ -6,10 +6,9 @@ import { kotService } from '../../../services/kotService';
 import { orderService } from '../../../services/orderService';
 import { tableService } from '../../../services/tableService';
 import { restaurantApi } from '../../../api/restaurantApi';
+import apiClient from '../../../services/apiClient';
 
 // KOT Engine & Printer data
-import { ALL_FOOD_ITEMS } from '../constants/printerData';
-import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { groupItemsByPrinter, generateKOTPayload } from '../services/kotEngine';
 
 // Presentation splits & layout
@@ -26,18 +25,56 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   const [loadingMenu, setLoadingMenu] = useState(true);
   const [allMenuItems, setAllMenuItems] = useState([]);
+  const [dbCategories, setDbCategories] = useState([]);
+  const [dbPrinters, setDbPrinters] = useState([]);
+
+  const toast = useCallback((msg) => {
+    if (window.showToast) {
+      window.showToast(msg);
+    } else {
+      const alertBox = document.createElement('div');
+      alertBox.innerText = msg;
+      alertBox.style.position = 'fixed';
+      alertBox.style.bottom = '20px';
+      alertBox.style.right = '20px';
+      alertBox.style.backgroundColor = '#0e7490';
+      alertBox.style.color = '#fff';
+      alertBox.style.padding = '12px 24px';
+      alertBox.style.borderRadius = '8px';
+      alertBox.style.zIndex = '9999';
+      alertBox.style.fontSize = '0.85rem';
+      alertBox.style.fontWeight = '700';
+      document.body.appendChild(alertBox);
+      setTimeout(() => alertBox.remove(), 2500);
+    }
+  }, []);
+  toast.error = (msg) => toast(msg);
+  toast.success = (msg) => toast(msg);
 
   // Shared menu loader — used on mount AND when storage/focus events fire
   const loadRealMenu = useCallback(async () => {
     try {
-      const res = await menuService.getMenu();
+      const [res, catRes, printRes] = await Promise.allSettled([
+        menuService.getMenu(),
+        apiClient.get('/production-categories'),
+        apiClient.get('/printers')
+      ]);
+
+      if (catRes.status === 'fulfilled' && catRes.value) {
+        setDbCategories(catRes.value.data || catRes.value || []);
+      }
+      if (printRes.status === 'fulfilled' && printRes.value) {
+        setDbPrinters(printRes.value.data || printRes.value || []);
+      }
+
+      const menuVal = res.status === 'fulfilled' ? res.value : null;
       const rawItems = (
-        res?.data?.items ||
-        res?.items ||
-        res?.catalouge?.items ||
-        res?.data?.catalouge?.items ||
-        (Array.isArray(res?.data) && res.data.length > 0 ? res.data : null) ||
-        (Array.isArray(res) && res.length > 0 ? res : null) ||
+        menuVal?.data?.items ||
+        menuVal?.items ||
+        menuVal?.catalouge?.items ||
+        menuVal?.data?.catalouge?.items ||
+        (Array.isArray(menuVal?.data) && menuVal.data.length > 0 ? menuVal.data : null) ||
+        (Array.isArray(menuVal) && menuVal.length > 0 ? menuVal : null) ||
         []
       );
       if (Array.isArray(rawItems) && rawItems.length > 0) {
@@ -46,6 +83,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           id: item.item_id || item.id,
           name: item.title || item.name || item.item_name || 'Item',
           shortCode: item.short_code || String(item.item_id || item.id || ''),
+          kitchen_dept: item.kitchen_dept || item.kitchen_department_id || null,
+          productionCategory: item.kitchen_dept || item.kitchen_department_id || null,
           category: item['mpos_category.category_name']
             ? item['mpos_category.category_name'].toUpperCase()
             : (item.category ? String(item.category).toUpperCase() : (item.category_name ? String(item.category_name).toUpperCase() : 'FOOD')),
@@ -59,11 +98,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         setAllMenuItems(mapped);
       }
     } catch (err) {
-      console.warn('Real menu loading fallback:', err);
+      console.warn('Real menu loading error:', err);
+      toast('⛔ Failed to load menu from database. Please check backend connection.');
     } finally {
       setLoadingMenu(false);
     }
-  }, []);
+  }, [toast]);
 
   // Re-load menu when storage or window focus changes (e.g. menu updated in settings)
   useEffect(() => {
@@ -461,6 +501,27 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               return modes[next];
             });
             break;
+          case 's':
+            e.preventDefault();
+            handlersRef.current.handleConfirmBooking?.();
+            break;
+          case 'k':
+            e.preventDefault();
+            handlersRef.current.handleAddKOT?.();
+            break;
+          case 'e':
+            e.preventDefault();
+            handlersRef.current.handleDirectComplete?.();
+            break;
+          case 'w':
+            e.preventDefault();
+            document.getElementById('pos-waiter-select')?.focus();
+            break;
+          case 'l':
+          case 'b':
+            e.preventDefault();
+            document.getElementById('pos-delivery-select')?.focus();
+            break;
           case 'y':
             e.preventDefault();
             setPaymentMode(prev => {
@@ -562,28 +623,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
 
 
-  const toast = useCallback((msg) => {
-    if (window.showToast) {
-      window.showToast(msg);
-    } else {
-      const alertBox = document.createElement('div');
-      alertBox.innerText = msg;
-      alertBox.style.position = 'fixed';
-      alertBox.style.bottom = '20px';
-      alertBox.style.right = '20px';
-      alertBox.style.backgroundColor = '#0e7490';
-      alertBox.style.color = '#fff';
-      alertBox.style.padding = '12px 24px';
-      alertBox.style.borderRadius = '8px';
-      alertBox.style.zIndex = '9999';
-      alertBox.style.fontSize = '0.85rem';
-      alertBox.style.fontWeight = '700';
-      document.body.appendChild(alertBox);
-      setTimeout(() => alertBox.remove(), 2500);
-    }
-  }, []);
-  toast.error = (msg) => toast(msg);
-  toast.success = (msg) => toast(msg);
+
 
   const filteredGridItems = useMemo(() => {
     const q = searchItem.toLowerCase().trim();
@@ -660,6 +700,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               itemId: foodItem.id,
               itemName: itemName,
               name: itemName,
+              kitchen_dept: foodItem.kitchen_dept || foodItem.productionCategory || null,
+              productionCategory: foodItem.kitchen_dept || foodItem.productionCategory || null,
               variantId,
               variantName,
               variant: variantName,
@@ -681,6 +723,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             itemId: foodItem.id,
             itemName: itemName,
             name: itemName,
+            kitchen_dept: foodItem.kitchen_dept || foodItem.productionCategory || null,
+            productionCategory: foodItem.kitchen_dept || foodItem.productionCategory || null,
             variantId,
             variantName,
             variant: variantName,
@@ -825,23 +869,48 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const handleGridKeyDown = (e, rowIndex, colIndex) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      // Move from Items(1) -> Remark(2) -> Qty(3) -> Price(4)
+      if (colIndex < 4) {
+        const nextColTarget = document.querySelector(`[data-row="${rowIndex}"][data-col="${colIndex + 1}"]`);
+        if (nextColTarget) {
+          nextColTarget.focus();
+          if (nextColTarget.select) nextColTarget.select();
+          return;
+        }
+      }
+      // If at end of row, go to next row or back to Search Bar
       if (rowIndex === rows.length - 1) {
         if (searchInputRef.current) {
           searchInputRef.current.focus();
           searchInputRef.current.select();
         }
       } else {
-        const nextTarget = document.querySelector(`[data-row="${rowIndex + 1}"][data-col="${colIndex}"]`);
-        if (nextTarget) {
-          nextTarget.focus();
-          if (nextTarget.select) nextTarget.select();
+        const nextRowTarget = document.querySelector(`[data-row="${rowIndex + 1}"][data-col="1"]`) || document.querySelector(`[data-row="${rowIndex + 1}"][data-col="${colIndex}"]`);
+        if (nextRowTarget) {
+          nextRowTarget.focus();
+          if (nextRowTarget.select) nextRowTarget.select();
         }
       }
       return;
     }
 
+    if (e.key === 'Delete' || (e.altKey && e.key.toLowerCase() === 'x')) {
+      e.preventDefault();
+      handleRemoveRow(rowIndex);
+      toast('Row removed');
+      return;
+    }
+
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       if (e.target.tagName === 'SELECT' && ['ArrowUp', 'ArrowDown'].includes(e.key)) {
+        return;
+      }
+      if (e.key === 'ArrowUp' && rowIndex === 0) {
+        e.preventDefault();
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.select();
+        }
         return;
       }
       e.preventDefault();
@@ -937,7 +1006,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const uncutRows = activeRows.filter(r => !r.isCut);
     const rowsToCut = uncutRows.length > 0 ? uncutRows : activeRows;
 
-    const groups = groupItemsByPrinter(rowsToCut, allMenuItems);
+    const groups = groupItemsByPrinter(rowsToCut, allMenuItems, dbCategories, dbPrinters);
 
     const payloads = groups.map(group =>
       generateKOTPayload({
@@ -1019,7 +1088,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const updatedTableForNav = {
       ...(resolvedTable || { id: resolvedTableId, no: tableNo }),
       status: 'KOT_CUT',
-      color: 'orange',
+      color: 'yellow',
+      available_actions: ['print_kot', 'view_kot'],
       updatedAt: Date.now(),
       customer: customerName || resolvedTable?.customer || 'Walk-in',
       mobile: mobileNumber || resolvedTable?.mobile || '',
@@ -1084,7 +1154,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const updatedTableConf = {
       ...(targetTable || { id: assignedTableId, no: String(assignedTableId) }),
       status: 'KOT_CUT',
-      color: 'orange',
+      color: 'yellow',
+      available_actions: ['print_kot', 'view_kot'],
       amount: finalAmt,
       waiter: waiter || 'Staff',
       customer: customerName || 'Walk-in',
@@ -1130,8 +1201,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           waiter: waiter || 'Staff',
           subtotal: finalAmt,
           amount: netBill,
-          tax: taxAmount,
-          discount: discountAmount,
+          tax: 0,
+          discount: totalDiscountAmt,
           status: 'pending',
           items: activeRows
         });
@@ -1160,7 +1231,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const updatedTableSaved = savedTable ? {
       ...savedTable,
       status: activeRows.length > 0 ? 'KOT_CUT' : 'Blank',
-      color: activeRows.length > 0 ? 'orange' : 'white',
+      color: activeRows.length > 0 ? 'yellow' : 'white',
+      available_actions: activeRows.length > 0 ? ['print_kot', 'view_kot'] : [],
       amount: finalAmt,
       customer: customerName || 'Walk-in',
       mobile: cleanMobile,
@@ -1328,6 +1400,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         setShowVariantModal={setShowVariantModal}
         variantModalItem={variantModalItem}
         addOrUpdateItemRow={addOrUpdateItemRow}
+        searchInputRef={searchInputRef}
+        searchItem={searchItem}
+        setSearchItem={setSearchItem}
         isSettling={isSettling}
         showKotPrintModal={showKotPrintModal}
         setShowKotPrintModal={setShowKotPrintModal}

@@ -30,7 +30,7 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
           display: flex;
           width: 100%;
           height: 100%;
-          overflow-y: auto;
+          overflow: hidden;
         }
         
         /* Billing Desk (100% Single Page - Never Divided into 2 parts) */
@@ -46,8 +46,9 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
           width: 100% !important;
           display: flex !important;
           flex-direction: column !important;
-          min-height: 100% !important;
-          overflow-y: auto !important;
+          height: 100% !important;
+          max-height: 100% !important;
+          overflow: hidden !important;
         }
 
         /* Desktop POS Billing Split View (1024px+) */
@@ -56,11 +57,17 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
             flex: 0 0 68% !important;
             max-width: 68% !important;
             display: flex !important;
+            height: 100% !important;
+            overflow: hidden !important;
           }
           .pos-billing-layout-split .pos-billing-section {
             flex: 0 0 32% !important;
             max-width: 32% !important;
             display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
           }
           .pos-billing-layout-split .mobile-tab-bar {
             display: none !important;

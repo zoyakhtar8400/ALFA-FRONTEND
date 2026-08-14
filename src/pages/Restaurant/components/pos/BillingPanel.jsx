@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FaTimes, FaPlus } from 'react-icons/fa';
+import { FaTimes, FaPlus, FaSearch } from 'react-icons/fa';
 
 import POSHeader from './POSHeader';
 import CustomerDrawer from './CustomerDrawer';
@@ -89,6 +89,9 @@ const BillingPanel = ({
   setShowVariantModal,
   variantModalItem,
   addOrUpdateItemRow,
+  searchInputRef,
+  searchItem,
+  setSearchItem,
   isSettling,
   showKotPrintModal,
   setShowKotPrintModal,
@@ -98,28 +101,95 @@ const BillingPanel = ({
   toast
 }) => {
   const [isFooterCollapsed, setIsFooterCollapsed] = React.useState(false);
+  const [showSearchResults, setShowSearchResults] = React.useState(false);
+  const [highlightedIndex, setHighlightedIndex] = React.useState(0);
+  const dropdownRef = React.useRef(null);
 
-  const containerStyle = isFullWidth
+  React.useEffect(() => {
+    if (showSearchResults && dropdownRef.current) {
+      const activeEl = dropdownRef.current.querySelector(`[data-suggestion-idx="${highlightedIndex}"]`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [highlightedIndex, showSearchResults]);
+
+  const matchingSearchItems = React.useMemo(() => {
+    if (!searchItem || !searchItem.trim()) return [];
+    const q = searchItem.toLowerCase().trim();
+    return (allMenuItems || []).filter(item => {
+      if (item.active === 'No') return false;
+      const matchesName = (item.name || item.title || '').toLowerCase().includes(q);
+      const matchesCode = String(item.shortCode || item.id || '').toLowerCase().includes(q);
+      const matchesCat = (item.category || '').toLowerCase().includes(q);
+      return matchesName || matchesCode || matchesCat;
+    });
+  }, [searchItem, allMenuItems]);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      if (showSearchResults && matchingSearchItems.length > 0) {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.min(matchingSearchItems.length - 1, prev + 1));
+      } else {
+        // Move focus directly to first table row
+        e.preventDefault();
+        const firstCell = document.querySelector('[data-row="0"][data-col="1"]') || document.querySelector('[data-row="0"][data-col="3"]');
+        if (firstCell) {
+          firstCell.focus();
+          if (firstCell.select) firstCell.select();
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (showSearchResults && matchingSearchItems.length > 0) {
+        e.preventDefault();
+        setHighlightedIndex(prev => Math.max(0, prev - 1));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matchingSearchItems.length > 0) {
+        const targetIdx = highlightedIndex >= 0 && highlightedIndex < matchingSearchItems.length ? highlightedIndex : 0;
+        const selected = matchingSearchItems[targetIdx];
+        if (addOrUpdateItemRow) {
+          addOrUpdateItemRow(selected);
+        }
+        if (setSearchItem) setSearchItem('');
+        setShowSearchResults(false);
+        if (searchInputRef?.current) searchInputRef.current.focus();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (setSearchItem) setSearchItem('');
+      setShowSearchResults(false);
+      if (searchInputRef?.current) searchInputRef.current.focus();
+    }
+  };
+
+  const containerStyle = isBillingDesk
     ? {
         width: '100%',
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100%',
+        height: '100%',
+        maxHeight: '100%',
         background: '#fff',
         position: 'relative',
-        overflowY: 'auto'
+        overflow: 'hidden'
       }
     : {
-        width: '420px',
+        width: '100%',
+        maxWidth: '100%',
+        flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        minHeight: '100%',
+        height: '100%',
+        maxHeight: '100%',
         background: '#fff',
         boxShadow: '-4px 0 15px rgba(0,0,0,0.03)',
         position: 'relative',
         zIndex: 10,
-        overflowY: 'auto'
+        overflow: 'hidden'
       };
 
   const currentAssignedTable = tablesList.find(t =>
@@ -149,26 +219,170 @@ const BillingPanel = ({
         onRemarksClick={useCallback(() => setIsRemarksModalOpen(true), [setIsRemarksModalOpen])}
       />
 
-      {/* Interactive billing item rows ledger */}
-      <div style={{ padding: '8px', flex: '1 0 auto', minHeight: '220px', overflowX: 'hidden', overflowY: 'visible', maxWidth: '100%' }}>
-        <table className="custom-table-element" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+      {/* Menu Item Search Bar — RENDERED STRICTLY ONLY FOR BILLING DESK (isBillingDesk === true) */}
+      {isBillingDesk && (
+        <div style={{ padding: '10px 12px 6px 12px', background: '#fff', position: 'relative', zIndex: 30 }}>
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              border: '2px solid #0e7490', borderRadius: '8px',
+              padding: '0 14px', background: '#f0fdfa',
+              height: '44px', minHeight: '44px',
+              boxSizing: 'border-box',
+              boxShadow: '0 1px 3px rgba(14, 116, 144, 0.08)',
+              transition: 'all 0.2s ease-in-out'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#0891b2';
+              e.currentTarget.style.boxShadow = '0 3px 10px rgba(14, 116, 144, 0.18)';
+              e.currentTarget.style.background = '#ffffff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#0e7490';
+              e.currentTarget.style.boxShadow = '0 1px 3px rgba(14, 116, 144, 0.08)';
+              e.currentTarget.style.background = '#f0fdfa';
+            }}
+          >
+            <FaSearch size={15} color="#0e7490" style={{ flexShrink: 0 }} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="SEARCH MENU ITEM / CODE / CATEGORY (PRESS ENTER TO ADD)"
+              value={searchItem || ''}
+              onChange={e => {
+                if (setSearchItem) setSearchItem(e.target.value);
+                setShowSearchResults(true);
+                setHighlightedIndex(0);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              onKeyDown={handleSearchKeyDown}
+              style={{
+                flex: 1, height: '100%', border: 'none', background: 'transparent',
+                fontSize: '0.85rem', fontWeight: 700, outline: 'none', color: '#0f172a'
+              }}
+            />
+            {searchItem && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (setSearchItem) setSearchItem('');
+                  setShowSearchResults(false);
+                  if (searchInputRef?.current) searchInputRef.current.focus();
+                }}
+                style={{
+                  border: 'none', background: 'none', color: '#64748b', cursor: 'pointer',
+                  padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#fee2e2';
+                  e.currentTarget.style.color = '#ef4444';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'none';
+                  e.currentTarget.style.color = '#64748b';
+                }}
+              >
+                <FaTimes size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown Overlay Results */}
+          {showSearchResults && searchItem && searchItem.trim() !== '' && (
+            <div
+              ref={dropdownRef}
+              style={{
+                position: 'absolute', top: '100%', left: '12px', right: '12px', zIndex: 100,
+                background: '#ffffff', border: '1.5px solid #0e7490', borderRadius: '0 0 8px 8px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.15)', maxHeight: '250px', overflowY: 'auto'
+              }}
+            >
+              {matchingSearchItems.length === 0 ? (
+                <div style={{ padding: '14px 16px', color: '#ef4444', fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }}>
+                  No records found
+                </div>
+              ) : (
+                matchingSearchItems.map((item, idx) => (
+                  <div
+                    key={item.id ? `${item.id}-${idx}` : idx}
+                    data-suggestion-idx={idx}
+                    onClick={() => {
+                      if (addOrUpdateItemRow) addOrUpdateItemRow(item);
+                      if (setSearchItem) setSearchItem('');
+                      setShowSearchResults(false);
+                      if (searchInputRef?.current) searchInputRef.current.focus();
+                    }}
+                    style={{
+                      padding: '10px 14px',
+                      borderBottom: '1px solid #f1f5f9',
+                      borderLeft: idx === highlightedIndex ? '4px solid #0e7490' : '4px solid transparent',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: idx === highlightedIndex ? '#ecfeff' : '#ffffff',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={() => setHighlightedIndex(idx)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: idx === highlightedIndex ? '#0e7490' : '#0f172a' }}>
+                        {item.name}
+                      </span>
+                      {item.shortCode && (
+                        <span style={{ fontSize: '0.68rem', color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                          #{item.shortCode}
+                        </span>
+                      )}
+                      {item.category && (
+                        <span style={{ fontSize: '0.65rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 7px', borderRadius: '4px', fontWeight: 800 }}>
+                          {item.category}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 800, color: '#0e7490',
+                        background: '#cffafe', padding: '2px 8px', borderRadius: '4px',
+                        opacity: idx === highlightedIndex ? 1 : 0, transition: 'opacity 0.15s ease'
+                      }}>
+                        + Add (↵)
+                      </span>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 900, color: '#047857' }}>
+                        ₹{Number(item.price || 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scrollable Middle Cart & Payment Options Area */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Interactive billing item rows ledger */}
+        <div style={{ padding: '8px', flex: '1 0 auto', minHeight: '180px', overflowX: 'hidden', overflowY: 'visible', maxWidth: '100%' }}>
+        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#0e7490', color: '#fff', fontSize: '0.72rem', textTransform: 'uppercase' }}>
-              <th style={{ padding: '6px 2px', textAlign: 'center', width: '24px' }}></th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', width: '38%' }}>Items</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', width: '22%' }}>Remark</th>
-              <th style={{ padding: '6px 2px', textAlign: 'center', width: '12%' }}>Qty</th>
-              <th style={{ padding: '6px 2px', textAlign: 'center', width: '14%' }}>Price</th>
-              <th style={{ padding: '6px 4px', textAlign: 'right', width: '14%' }}>Amount</th>
+            <tr style={{ background: '#0e7490', color: '#ffffff' }}>
+              <th style={{ padding: '8px 2px', textAlign: 'center', width: '28px', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800 }}></th>
+              <th style={{ padding: '8px 6px', textAlign: 'left', width: '38%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Items</th>
+              <th style={{ padding: '8px 6px', textAlign: 'left', width: '22%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remark</th>
+              <th style={{ padding: '8px 2px', textAlign: 'center', width: '12%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</th>
+              <th style={{ padding: '8px 2px', textAlign: 'center', width: '14%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Price</th>
+              <th style={{ padding: '8px 6px', textAlign: 'right', width: '14%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
+                <td colSpan="6" style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
                   <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>🛒</div>
                   <div>No Active Order</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>Select menu items on the left to start billing</div>
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>Search or select menu items above to start billing</div>
                 </td>
               </tr>
             ) : (
@@ -178,7 +392,12 @@ const BillingPanel = ({
                 (f.name && (row.itemName || row.name || row.title) && String(f.name).toLowerCase() === String(row.itemName || row.name || row.title).toLowerCase())
               );
               return (
-                <tr key={row.lineId || index} style={{ borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
+                <tr
+                  key={row.lineId || index}
+                  style={{ borderBottom: '1px solid #e2e8f0', background: '#fff', transition: 'background-color 0.15s ease' }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                >
                   <td style={{ padding: '4px 2px', textAlign: 'center' }}>
                     <button
                       type="button"
@@ -186,7 +405,19 @@ const BillingPanel = ({
                       data-col={0}
                       onKeyDown={e => handleGridKeyDown(e, index, 0)}
                       onClick={() => handleRemoveRow(index)}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                      style={{
+                        background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer',
+                        padding: '4px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = '#fee2e2';
+                        e.currentTarget.style.color = '#ef4444';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'none';
+                        e.currentTarget.style.color = '#94a3b8';
+                      }}
                     >
                       <FaTimes size={12} />
                     </button>
@@ -213,7 +444,13 @@ const BillingPanel = ({
                           onKeyDown={e => handleGridKeyDown(e, index, 1)}
                           value={selectedVal}
                           onChange={e => updateRowField(index, 'itemName', e.target.value)}
-                          style={{ width: '100%', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem', fontWeight: 600 }}
+                          style={{
+                            width: '100%', boxSizing: 'border-box', padding: '5px 4px', borderRadius: '5px',
+                            border: '1px solid #cbd5e1', fontSize: '0.74rem', fontWeight: 600, outline: 'none',
+                            transition: 'border-color 0.15s ease'
+                          }}
+                          onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
+                          onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
                         >
                           <option value="">SELECT ITEM...</option>
                           {selectedVal && !hasSelectedInOptions && (
@@ -252,7 +489,13 @@ const BillingPanel = ({
                       value={row.remark || ''}
                       onChange={e => updateRowField(index, 'remark', e.target.value)}
                       placeholder="REMARKS"
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '4px 4px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem' }}
+                      style={{
+                        width: '100%', boxSizing: 'border-box', padding: '5px 6px', borderRadius: '5px',
+                        border: '1px solid #cbd5e1', fontSize: '0.74rem', outline: 'none',
+                        transition: 'border-color 0.15s ease'
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
                     />
                   </td>
                   <td style={{ padding: '4px 2px', textAlign: 'center' }}>
@@ -264,7 +507,13 @@ const BillingPanel = ({
                       onKeyDown={e => handleGridKeyDown(e, index, 3)}
                       value={row.qty}
                       onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem', textAlign: 'center' }}
+                      style={{
+                        width: '100%', boxSizing: 'border-box', padding: '5px 2px', borderRadius: '5px',
+                        border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center', outline: 'none',
+                        transition: 'border-color 0.15s ease'
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
                     />
                   </td>
                   <td style={{ padding: '4px 2px', textAlign: 'center' }}>
@@ -276,10 +525,16 @@ const BillingPanel = ({
                       onKeyDown={e => handleGridKeyDown(e, index, 4)}
                       value={row.unitPrice || row.price || 0}
                       onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '0.72rem', textAlign: 'center' }}
+                      style={{
+                        width: '100%', boxSizing: 'border-box', padding: '5px 2px', borderRadius: '5px',
+                        border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center', outline: 'none',
+                        transition: 'border-color 0.15s ease'
+                      }}
+                      onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
+                      onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
                     />
                   </td>
-                  <td style={{ padding: '4px 4px', textAlign: 'right', fontSize: '0.74rem', fontWeight: 700 }}>
+                  <td style={{ padding: '4px 4px', textAlign: 'right', fontSize: '0.76rem', fontWeight: 800, color: '#0f172a' }}>
                     {(row.qty * (row.unitPrice || row.price || 0)).toFixed(2)}
                   </td>
                 </tr>
@@ -289,221 +544,293 @@ const BillingPanel = ({
         </table>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-          <button type="button" onClick={handleAddEmptyRow}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px dashed #0e7490', background: 'transparent', color: '#0e7490', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          <button
+            type="button"
+            onClick={handleAddEmptyRow}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', border: '1.5px dashed #0e7490',
+              background: '#f0fdfa', color: '#0e7490', fontSize: '0.75rem', fontWeight: 800,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#0e7490';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#f0fdfa';
+              e.currentTarget.style.color = '#0e7490';
+            }}
           >
             <FaPlus size={10} /> Add Item Row
           </button>
-          <button type="button" onClick={useCallback(() => setIsClearModalOpen(true), [setIsClearModalOpen])}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#ef4444', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+          <button
+            type="button"
+            onClick={useCallback(() => setIsClearModalOpen(true), [setIsClearModalOpen])}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca',
+              background: '#fef2f2', color: '#ef4444', fontSize: '0.75rem', fontWeight: 800,
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#ef4444';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#fef2f2';
+              e.currentTarget.style.color = '#ef4444';
+            }}
           >
             Clear Cart
           </button>
-          <button type="button" onClick={useCallback(() => setIsGstModalOpen(true), [setIsGstModalOpen])}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#0e7490', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+          <button
+            type="button"
+            onClick={useCallback(() => setIsGstModalOpen(true), [setIsGstModalOpen])}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1',
+              background: '#ffffff', color: '#0e7490', fontSize: '0.75rem', fontWeight: 800,
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#ecfeff';
+              e.currentTarget.style.borderColor = '#0e7490';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+            }}
           >
             GSTIN
           </button>
-          <button type="button" onClick={useCallback(() => setIsSettingsModalOpen(true), [setIsSettingsModalOpen])}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'transparent', color: '#64748b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+          <button
+            type="button"
+            onClick={useCallback(() => setIsSettingsModalOpen(true), [setIsSettingsModalOpen])}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1',
+              background: '#ffffff', color: '#64748b', fontSize: '0.75rem', fontWeight: 800,
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#f1f5f9';
+              e.currentTarget.style.color = '#334155';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#ffffff';
+              e.currentTarget.style.color = '#64748b';
+            }}
           >
             Account settings
           </button>
         </div>
       </div>
+    </div>
 
-      {/* ── Collapsible Payment Options & Discount Dock (Only hides Discount & Payment Mode Pills) ── */}
-      <div style={{ background: '#fff', borderTop: '1px solid #cbd5e1' }}>
-        {/* Header Toggle Handle Bar */}
-        <div
-          onClick={() => setIsFooterCollapsed(!isFooterCollapsed)}
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            padding: '6px 14px',
-            background: isFooterCollapsed ? '#fff7ed' : '#f8fafc',
-            borderBottom: '1px solid #e2e8f0',
-            cursor: 'pointer', fontSize: '0.74rem', fontWeight: 800,
-            color: isFooterCollapsed ? '#c2410c' : '#475569',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = isFooterCollapsed ? '#ffedd5' : '#f1f5f9'}
-          onMouseLeave={e => e.currentTarget.style.background = isFooterCollapsed ? '#fff7ed' : '#f8fafc'}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isFooterCollapsed ? '💳 + Add Discount & Payment Method (Cash, Card, Due)' : '💳 Payment & Discount Options'}
-          </span>
-          <span style={{
-            fontSize: '0.68rem', fontWeight: 800,
-            background: isFooterCollapsed ? '#ffedd5' : '#e2e8f0',
-            color: isFooterCollapsed ? '#9a3412' : '#334155',
-            padding: '2px 8px', borderRadius: '4px'
-          }}>
-            {isFooterCollapsed ? '▲ Expand' : '▼ Collapse'}
-          </span>
-        </div>
+      {/* ── ALWAYS FIXED PINNED BOTTOM DOCK (Payment Options, Discounts, Split Bill, Total Amount, Action Buttons F5-F10) ── */}
+      <div style={{
+        flexShrink: 0,
+        marginTop: 'auto',
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 25,
+        background: '#ffffff',
+        borderTop: '1px solid #cbd5e1',
+        boxShadow: '0 -4px 14px rgba(0, 0, 0, 0.08)'
+      }}>
+        {/* ── Collapsible Payment Options & Discount Dock ── */}
+        <div style={{ background: '#fff' }}>
+          {/* Header Toggle Handle Bar */}
+          <div
+            onClick={() => setIsFooterCollapsed(!isFooterCollapsed)}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '6px 14px',
+              background: isFooterCollapsed ? '#fff7ed' : '#f8fafc',
+              borderBottom: '1px solid #e2e8f0',
+              cursor: 'pointer', fontSize: '0.74rem', fontWeight: 800,
+              color: isFooterCollapsed ? '#c2410c' : '#475569',
+              transition: 'all 0.15s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = isFooterCollapsed ? '#ffedd5' : '#f1f5f9'}
+            onMouseLeave={e => e.currentTarget.style.background = isFooterCollapsed ? '#fff7ed' : '#f8fafc'}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {isFooterCollapsed ? '💳 + Add Discount & Payment Method (Cash, Card, Due)' : '💳 Payment & Discount Options'}
+            </span>
+            <span style={{
+              fontSize: '0.68rem', fontWeight: 800,
+              background: isFooterCollapsed ? '#ffedd5' : '#e2e8f0',
+              color: isFooterCollapsed ? '#9a3412' : '#334155',
+              padding: '2px 8px', borderRadius: '4px'
+            }}>
+              {isFooterCollapsed ? '▲ Expand' : '▼ Collapse'}
+            </span>
+          </div>
 
-        {!isFooterCollapsed && (
-          <>
-            {/* ── Discount Panel ───────────────────────────────────────── */}
-            <div style={{ padding: '6px 8px 6px' }}>
-              {!showDiscountPanel ? (
-                <button
-                  type="button"
-                  onClick={() => setShowDiscountPanel(true)}
-                  style={{
-                    padding: '6px 14px', borderRadius: '6px',
-                    border: '1.5px dashed #f97316', background: 'transparent',
-                    color: '#f97316', fontSize: '0.75rem', fontWeight: 800,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#fff7ed'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  🏷️ Add Discount
-                </button>
-              ) : (
-                <div style={{
-                  background: '#fffbf5', border: '1.5px solid #fed7aa',
-                  borderRadius: '10px', padding: '10px 12px'
-                }}>
-                  {/* Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      🏷️ Discount Options
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowDiscountPanel(false)}
-                      style={{
-                        background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '4px',
-                        padding: '3px 8px', color: '#c2410c', fontSize: '0.72rem', fontWeight: 800,
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
-                      }}
-                    >
-                      ▲ Collapse Discount
-                    </button>
-                  </div>
-
-                  {/* Discount lines */}
-                  {discountLines.map((line) => (
-                    <div key={line.id} style={{
-                      display: 'grid',
-                      gridTemplateColumns: '100px 80px 1fr auto',
-                      gap: '6px', alignItems: 'center', marginBottom: '8px'
-                    }}>
-                      {/* Type toggle */}
-                      <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #fdba74' }}>
-                        {['Percentage', 'Fixed'].map(t => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => updateDiscountLine(line.id, 'type', t)}
-                            style={{
-                              flex: 1, padding: '5px 0', fontSize: '0.68rem', fontWeight: 800, border: 'none',
-                              background: line.type === t ? '#f97316' : '#fff',
-                              color: line.type === t ? '#fff' : '#9a3412',
-                              cursor: 'pointer', transition: 'all 0.15s'
-                            }}
-                          >
-                            {t === 'Percentage' ? '%' : '₹'}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Value input */}
-                      <input
-                        type="number"
-                        min="0"
-                        max={line.type === 'Percentage' ? 100 : undefined}
-                        step="0.01"
-                        placeholder={line.type === 'Percentage' ? '0%' : '0.00'}
-                        value={line.value}
-                        onChange={e => updateDiscountLine(line.id, 'value', e.target.value)}
-                        style={{
-                          padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
-                          fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', outline: 'none',
-                          background: '#fff', color: '#1e293b'
-                        }}
-                      />
-
-                      {/* Reason input */}
-                      <input
-                        type="text"
-                        placeholder="Reason / Note"
-                        value={line.reason}
-                        onChange={e => updateDiscountLine(line.id, 'reason', e.target.value)}
-                        style={{
-                          padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
-                          fontSize: '0.75rem', outline: 'none', background: '#fff', color: '#475569'
-                        }}
-                      />
-
-                      {/* Remove line */}
+          {!isFooterCollapsed && (
+            <>
+              {/* ── Discount Panel ── */}
+              <div style={{ padding: '6px 8px 6px' }}>
+                {!showDiscountPanel ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDiscountPanel(true)}
+                    style={{
+                      padding: '6px 14px', borderRadius: '6px',
+                      border: '1.5px dashed #f97316', background: 'transparent',
+                      color: '#f97316', fontSize: '0.75rem', fontWeight: 800,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#fff7ed'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    🏷️ Add Discount
+                  </button>
+                ) : (
+                  <div style={{
+                    background: '#fffbf5', border: '1.5px solid #fed7aa',
+                    borderRadius: '10px', padding: '10px 12px'
+                  }}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        🏷️ Discount Options
+                      </span>
                       <button
                         type="button"
-                        onClick={() => removeDiscountLine(line.id)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '2px 4px' }}
-                      >✕</button>
+                        onClick={() => setShowDiscountPanel(false)}
+                        style={{
+                          background: '#ffedd5', border: '1px solid #fdba74', borderRadius: '4px',
+                          padding: '3px 8px', color: '#c2410c', fontSize: '0.72rem', fontWeight: 800,
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                        }}
+                      >
+                        ▲ Collapse Discount
+                      </button>
                     </div>
-                  ))}
 
-                  {/* Add more discount + computed total */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed #fed7aa' }}>
-                    <button
-                      type="button"
-                      onClick={addDiscountLine}
-                      style={{
-                        padding: '4px 10px', borderRadius: '5px',
-                        border: '1px dashed #f97316', background: 'transparent',
-                        color: '#f97316', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer'
-                      }}
-                    >
-                      + Add More Discount
-                    </button>
-                    {totalDiscountAmt > 0 && (
-                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a' }}>
-                        Saving ₹{totalDiscountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    )}
+                    {/* Discount lines */}
+                    {discountLines.map((line) => (
+                      <div key={line.id} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '100px 80px 1fr auto',
+                        gap: '6px', alignItems: 'center', marginBottom: '8px'
+                      }}>
+                        {/* Type toggle */}
+                        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #fdba74' }}>
+                          {['Percentage', 'Fixed'].map(t => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => updateDiscountLine(line.id, 'type', t)}
+                              style={{
+                                flex: 1, padding: '5px 0', fontSize: '0.68rem', fontWeight: 800, border: 'none',
+                                background: line.type === t ? '#f97316' : '#fff',
+                                color: line.type === t ? '#fff' : '#9a3412',
+                                cursor: 'pointer', transition: 'all 0.15s'
+                              }}
+                            >
+                              {t === 'Percentage' ? '%' : '₹'}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Value input */}
+                        <input
+                          type="number"
+                          min="0"
+                          max={line.type === 'Percentage' ? 100 : undefined}
+                          step="0.01"
+                          placeholder={line.type === 'Percentage' ? '0%' : '0.00'}
+                          value={line.value}
+                          onChange={e => updateDiscountLine(line.id, 'value', e.target.value)}
+                          style={{
+                            padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
+                            fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', outline: 'none',
+                            background: '#fff', color: '#1e293b'
+                          }}
+                        />
+
+                        {/* Reason input */}
+                        <input
+                          type="text"
+                          placeholder="Reason / Note"
+                          value={line.reason}
+                          onChange={e => updateDiscountLine(line.id, 'reason', e.target.value)}
+                          style={{
+                            padding: '6px 8px', borderRadius: '6px', border: '1px solid #fdba74',
+                            fontSize: '0.75rem', outline: 'none', background: '#fff', color: '#475569'
+                          }}
+                        />
+
+                        {/* Remove line */}
+                        <button
+                          type="button"
+                          onClick={() => removeDiscountLine(line.id)}
+                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem', padding: '2px 4px' }}
+                        >✕</button>
+                      </div>
+                    ))}
+
+                    {/* Add more discount + computed total */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed #fed7aa' }}>
+                      <button
+                        type="button"
+                        onClick={addDiscountLine}
+                        style={{
+                          padding: '4px 10px', borderRadius: '5px',
+                          border: '1px dashed #f97316', background: 'transparent',
+                          color: '#f97316', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer'
+                        }}
+                      >
+                        + Add More Discount
+                      </button>
+                      {totalDiscountAmt > 0 && (
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a' }}>
+                          Saving ₹{totalDiscountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Payment Modes */}
-            <POSPaymentBar
-              activeMode={paymentMode}
-              onSelectMode={setPaymentMode}
-              isPaid={isPaid}
-              onChangeIsPaid={setIsPaid}
-            />
-          </>
-        )}
+              {/* Payment Modes */}
+              <POSPaymentBar
+                activeMode={paymentMode}
+                onSelectMode={setPaymentMode}
+                isPaid={isPaid}
+                onChangeIsPaid={setIsPaid}
+              />
+            </>
+          )}
+        </div>
+
+        {/* ── Summary Bar (Total & Split) ── */}
+        <POSSummaryBar
+          totalBill={netBill}
+          discountAmt={totalDiscountAmt}
+          originalBill={totalBill}
+          onSplitClick={() => { if (toast) toast('Bill split modal triggered'); }}
+        />
+
+        {/* ── Action Buttons (Save F5 - Hold Draft F10) ── */}
+        <POSActionButtons
+          onSave={handleConfirmBooking}
+          onSaveAndPrint={handleSaveAndPrint}
+          onSaveAndEBill={handleDirectComplete}
+          onKOT={handleAddKOT}
+          onKOTAndPrint={handleSaveAndPrint}
+          onHold={handleConfirmBooking}
+        />
+
+        {/* ── Footer Status ── */}
+        <POSFooterStatus
+          billNo={generatedKotNo ? `BILL-${generatedKotNo.split('-')[1] || '000123'}` : 'BILL-000123'}
+          cashierName={captain || 'Admin'}
+          outletName="Main Restaurant"
+        />
       </div>
-
-      {/* ALWAYS VISIBLE: Summary Bar (Total & Split), Action Buttons (Save F5 - Hold Draft F10), Footer Status */}
-      <POSSummaryBar
-        totalBill={netBill}
-        discountAmt={totalDiscountAmt}
-        originalBill={totalBill}
-        onSplitClick={() => { if (toast) toast('Bill split modal triggered'); }}
-      />
-
-      <POSActionButtons
-        onSave={handleConfirmBooking}
-        onSaveAndPrint={handleSaveAndPrint}
-        onSaveAndEBill={handleDirectComplete}
-        onKOT={handleAddKOT}
-        onKOTAndPrint={handleSaveAndPrint}
-        onHold={handleConfirmBooking}
-      />
-
-      <POSFooterStatus
-        billNo={generatedKotNo ? `BILL-${generatedKotNo.split('-')[1] || '000123'}` : 'BILL-000123'}
-        cashierName={captain || 'Admin'}
-        outletName="Main Restaurant"
-      />
 
       {/* Dynamic Overlay Dialogs & Sidebar Drawers */}
       <TableSelector

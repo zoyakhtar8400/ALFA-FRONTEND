@@ -1,146 +1,207 @@
 // ============================================================
-// ALFA HMS — KOT Engine
-// Groups bill items by Production Category → Printer
-// and generates separate KOT payloads per printer station
+// ALFA HMS — KOT Engine (PostgreSQL-Driven Station Routing)
+// Groups bill items by Production Category → Printer Master
+// and generates separate KOT payloads per station
 // ============================================================
 
-import {
-  INITIAL_PRINTERS,
-  INITIAL_PRODUCTION_CATEGORIES,
-  INITIAL_PRINTER_MAPPINGS,
-  ALL_FOOD_ITEMS,
-} from '../constants/printerData';
+import { printStationKOT } from '../utils/printInvoice';
 
 /**
- * Look up what production category an order row belongs to.
- * Tries itemId first, then falls back to name matching.
+ * Look up what production category / kitchen department an order row belongs to.
+ * Checks row properties first (populated from mpos_item), then checks database food items list.
  */
-function resolveProductionCategory(row, foodItems = ALL_FOOD_ITEMS) {
-  const match =
-    foodItems.find(f => f.id === row.itemId) ||
-    foodItems.find(f => f.name === row.itemName || f.name === row.name);
-  return match?.productionCategory || null;
+export function resolveProductionCategory(row, foodItems = []) {
+  if (row.kitchen_dept !== undefined && row.kitchen_dept !== null && row.kitchen_dept !== '') {
+    return row.kitchen_dept;
+  }
+  if (row.productionCategory !== undefined && row.productionCategory !== null && row.productionCategory !== '') {
+    return row.productionCategory;
+  }
+  if (row.kitchen_dept_id !== undefined && row.kitchen_dept_id !== null) {
+    return row.kitchen_dept_id;
+  }
+
+  const match = (foodItems || []).find(f =>
+    (row.itemId && (String(f.id || f.item_id) === String(row.itemId))) ||
+    (row.id && (String(f.id || f.item_id) === String(row.id))) ||
+    (row.itemName && String(f.name || f.title || f.item_name).toLowerCase().trim() === String(row.itemName).toLowerCase().trim()) ||
+    (row.name && String(f.name || f.title || f.item_name).toLowerCase().trim() === String(row.name).toLowerCase().trim())
+  );
+
+  return match?.kitchen_dept || match?.kitchen_dept_id || match?.productionCategory || null;
 }
 
 /**
- * Core routing function.
- * Takes the active bill rows and returns an array of printer groups.
+ * Core database-driven routing function.
+ * Takes the active bill rows and groups them by assigned Printer Master from PostgreSQL.
  *
- * @param {Array} rows          - Active billing rows (from POSBillingPage state)
- * @param {Array} foodItems     - Full food item list (defaults to ALL_FOOD_ITEMS)
- * @param {Array} categories    - Production categories (defaults to INITIAL_PRODUCTION_CATEGORIES)
- * @param {Array} mappings      - Printer mappings (defaults to INITIAL_PRINTER_MAPPINGS)
- * @param {Array} printers      - Printers list (defaults to INITIAL_PRINTERS)
- * @returns {Array} groups      - [{ printer, productionCategory, items, color }]
+ * @param {Array} rows          - Active billing rows (from POSBillingPage / KOT state)
+ * @param {Array} foodItems     - Full food item list from PostgreSQL (/menu-items)
+ * @param {Array} categories    - Production categories from PostgreSQL (/production-categories)
+ * @param {Array} printers      - Printers list from PostgreSQL (/printers)
+ * @returns {Array} groups      - [{ printer, productionCategory, items, hasError, errorMessage }]
  */
 export function groupItemsByPrinter(
-  rows,
-  foodItems = ALL_FOOD_ITEMS,
-  categories = null,
-  mappings = null,
-  printers = null,
+  rows = [],
+  foodItems = [],
+  categories = [],
+  printers = []
 ) {
-  const activeRows = rows.filter(r => r.itemName || r.name);
-  const groupMap = {}; // key: printerId → group
+  const activeRows = (rows || []).filter(r => (r.itemName || r.name) && Number(r.qty || r.quantity || 0) > 0);
+  const groupMap = {}; // key: printerKey → group
 
-  const savedPrinters = typeof localStorage !== 'undefined' ? localStorage.getItem('alfa_pos_printers') : null;
-  const savedCategories = typeof localStorage !== 'undefined' ? localStorage.getItem('alfa_production_categories') : null;
-
-  const activePrinters = printers || (savedPrinters ? JSON.parse(savedPrinters) : INITIAL_PRINTERS);
-  const activeCategories = categories || (savedCategories ? JSON.parse(savedCategories) : INITIAL_PRODUCTION_CATEGORIES);
-  const activeMappings = mappings || activeCategories.map(pc => ({ productionCategoryId: pc.id, printerId: pc.printerId }));
+  const activeCategories = Array.isArray(categories) ? categories : [];
+  const activePrinters = Array.isArray(printers) ? printers : [];
 
   for (const row of activeRows) {
-    const catId = resolveProductionCategory(row, foodItems);
-    const category = activeCategories.find(c => String(c.id) === String(catId));
-    const mapping = activeMappings.find(m => String(m.productionCategoryId) === String(catId));
-    const printer = mapping ? activePrinters.find(p => String(p.id) === String(mapping.printerId)) : null;
+    const rawCatRef = resolveProductionCategory(row, foodItems);
+    
+    // 1. Match by kitchen_dept ID or name
+    let category = null;
+    if (rawCatRef !== null && rawCatRef !== undefined && rawCatRef !== '') {
+      category = activeCategories.find(c =>
+        String(c.id) === String(rawCatRef) ||
+        String(c.kitchen_dept_name || c.name || '').toLowerCase().trim() === String(rawCatRef).toLowerCase().trim()
+      );
+    }
 
-    // Fallback: if no mapping found, route to default printer
-    const effectivePrinter =
-      printer ||
-      activePrinters.find(p => p.isDefault) ||
-      activePrinters[0] ||
-      { id: 'default_p', name: 'Kitchen Printer', type: 'Network', ip: '192.168.1.100', port: 9100 };
+    // 2. If not found, try matching by item category name (e.g. Beverages, Tandoor, Starters, Chinese)
+    if (!category) {
+      const foodCat = String(row.category || '').toLowerCase().trim();
+      if (foodCat) {
+        category = activeCategories.find(c =>
+          String(c.kitchen_dept_name || c.name || '').toLowerCase().trim() === foodCat ||
+          foodCat.includes(String(c.kitchen_dept_name || c.name || '').toLowerCase().trim())
+        );
+      }
+    }
 
-    const key = effectivePrinter.id || 'default_p';
+    // 3. If still no category and activeCategories exist, map to primary default kitchen category
+    if (!category && activeCategories.length > 0) {
+      category = activeCategories.find(c => /main|kitchen|pantry|general/i.test(c.name || c.kitchen_dept_name || '')) || activeCategories[0];
+    }
 
-    if (!groupMap[key]) {
-      groupMap[key] = {
-        printer: effectivePrinter,
-        productionCategory: category || { name: 'General', color: '#64748b' },
+    // Find printer assigned to this category in PostgreSQL
+    let printer = null;
+    const pId = category ? (category.printer_id || category.printerId) : null;
+    if (pId) {
+      printer = activePrinters.find(p => String(p.id) === String(pId));
+    }
+
+    // If category has no printer or category not configured
+    const categoryName = category?.name || category?.kitchen_dept_name || (rawCatRef ? `Dept ${rawCatRef}` : 'Main Kitchen');
+    let groupKey = '';
+    let hasError = false;
+    let errorMessage = null;
+
+    if (printer) {
+      groupKey = `printer_${printer.id}`;
+    } else if (pId && !printer) {
+      groupKey = `missing_printer_${pId}`;
+      hasError = true;
+      errorMessage = `Printer ID ${pId} configured for "${categoryName}" is offline or missing in Printer Master.`;
+    } else if (category && !pId) {
+      groupKey = `unassigned_cat_${category.id}`;
+      hasError = true;
+      errorMessage = `No printer assigned in Production Category Master for "${categoryName}".`;
+    } else {
+      groupKey = `unassigned_general`;
+      hasError = true;
+      errorMessage = `Item "${row.name || row.itemName}" is not mapped to any Production Kitchen Station.`;
+    }
+
+    if (!groupMap[groupKey]) {
+      groupMap[groupKey] = {
+        key: groupKey,
+        printer: printer || { id: groupKey, printer_name: 'Unassigned Printer', printer_ip: 'N/A', printer_type: 1 },
+        printerName: printer ? printer.printer_name : 'Unassigned Printer',
+        productionCategory: category || { id: null, name: categoryName, department_name: categoryName },
+        stationName: categoryName,
         items: [],
-        color: category?.color || '#64748b',
-        isFallback: !printer,
+        hasError,
+        errorMessage,
       };
     }
 
-    groupMap[key].items.push(row);
+    groupMap[groupKey].items.push(row);
   }
 
   return Object.values(groupMap);
 }
 
 /**
- * Generate a structured KOT payload for a single printer group.
+ * Generate a structured KOT payload for a single station printer group.
  */
-export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain }) {
+export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain, isReprint = false }) {
+  const stationName = group.productionCategory?.name || group.stationName || 'Kitchen Station';
+  const printerName = group.printer?.printer_name || group.printerName || 'KOT Printer';
+  const printerIp = group.printer?.printer_ip || '';
+
   return {
-    kotNo,
-    tableNo,
-    tableId,
+    kotNo: kotNo || 'KOT-1',
+    tableNo: String(tableNo || '1'),
+    tableId: tableId || 1,
     customerName: customerName || 'Walk-in',
-    waiter: waiter || '',
+    waiter: waiter || 'Staff',
     captain: captain || '',
+    stationName,
+    printerName,
+    printerIp,
     printer: group.printer,
     productionCategory: group.productionCategory,
+    isReprint: !!isReprint,
+    hasError: !!group.hasError,
+    errorMessage: group.errorMessage || null,
     items: group.items.map(r => ({
+      itemId: r.itemId || r.id,
       name: r.name || r.itemName,
-      qty: r.qty,
+      itemName: r.name || r.itemName,
+      qty: Number(r.qty || r.quantity || 1),
+      quantity: Number(r.qty || r.quantity || 1),
       variant: r.variantName || r.variant || '',
-      remark: r.remark || '',
-      unitPrice: r.unitPrice || r.price || 0,
+      remark: r.remark || r.remarks || '',
+      remarks: r.remark || r.remarks || '',
+      unitPrice: Number(r.unitPrice || r.price || 0),
+      price: Number(r.unitPrice || r.price || 0),
     })),
-    timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
     generatedAt: Date.now(),
   };
 }
 
 /**
- * Simulate sending a KOT to a printer.
- * In production this would call a print API or a USB/network print command.
- * Returns a Promise so UI can show per-printer status.
+ * Executes physical or browser printing of a single Station KOT ticket.
  */
-export function simulatePrint(kotPayload) {
-  return new Promise((resolve) => {
-    const delay = 600 + Math.random() * 400;
-    setTimeout(() => {
-      // Simulate 95% success rate
-      const success = Math.random() > 0.05;
-      resolve({
-        success,
-        printer: kotPayload.printer.name,
-        kotNo: kotPayload.kotNo,
-        itemCount: kotPayload.items.length,
-        timestamp: new Date().toLocaleTimeString('en-IN'),
-        error: success ? null : 'Printer offline or paper jam',
-      });
-    }, delay);
+export function printKOTPayload(payload) {
+  if (payload.hasError) {
+    console.warn(`[KOT Engine] Cannot print station payload: ${payload.errorMessage}`);
+    if (window.showToast) {
+      window.showToast(`⚠️ Print Error: ${payload.errorMessage}`);
+    }
+    return false;
+  }
+
+  printStationKOT({
+    id: payload.kotNo,
+    tableId: payload.tableNo,
+    time: payload.timestamp,
+    items: payload.items,
+    waiter: payload.waiter,
+    stationName: payload.stationName,
+    printerName: payload.printerName,
+    isReprint: payload.isReprint
   });
+  return true;
 }
 
 /**
- * Run the full KOT flow: group → payload → print (all printers in parallel).
- * Returns { groups, results } when all print jobs complete.
+ * Execute station-wise printing for all segregated printer payloads of a KOT.
  */
-export async function executeKOT({ rows, tableNo, tableId, kotNo, customerName, waiter, captain, foodItems, categories, mappings, printers }) {
-  const groups = groupItemsByPrinter(rows, foodItems, categories, mappings, printers);
-
-  const payloads = groups.map(group =>
-    generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain })
-  );
-
-  const results = await Promise.all(payloads.map(p => simulatePrint(p)));
-
-  return { groups, payloads, results };
+export function printAllStationKOTs(payloads = []) {
+  if (!Array.isArray(payloads) || payloads.length === 0) return;
+  payloads.forEach((payload, idx) => {
+    setTimeout(() => {
+      printKOTPayload(payload);
+    }, idx * 600);
+  });
 }

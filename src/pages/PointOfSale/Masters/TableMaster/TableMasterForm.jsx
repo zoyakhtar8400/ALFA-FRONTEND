@@ -1,11 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import { floorService } from '../../../../services/floorService';
+import posApi from '../../../../api/posApi';
 
 const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
+  const [dbFloors, setDbFloors] = useState([]);
+  const [dbOutlets, setDbOutlets] = useState([]);
+  const [activeOutletName, setActiveOutletName] = useState('Main Restaurant');
+
+  // Determine user role and accessible outlets
+  const outletInfo = useMemo(() => {
+    try {
+      const userRaw = localStorage.getItem('alfa_user') || localStorage.getItem('user');
+      const selectedOutletId = localStorage.getItem('activeOutletId');
+
+      let isAdmin = true;
+      let assignedOutletIds = [];
+      let userStoreId = 'STORE_1';
+
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        isAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
+        assignedOutletIds = Array.isArray(u.assigned_outlets) && u.assigned_outlets.length > 0
+          ? u.assigned_outlets
+          : [u.store_id || 'STORE_1'];
+        userStoreId = u.store_id || 'STORE_1';
+      }
+
+      const all = dbOutlets.length > 0
+        ? dbOutlets
+        : [{ id: 1, store_id: 'STORE_1', name: 'Main Restaurant', store_name: 'Main Restaurant' }];
+
+      if (isAdmin) {
+        // Admin: Show currently selected/open outlet (or Main Restaurant) and all outlets
+        const active = all.find(o => o.store_id === selectedOutletId || String(o.id) === String(selectedOutletId)) ||
+                       all.find(o => /main restaurant|main/i.test(o.store_name || o.name)) ||
+                       all[0];
+        const openName = active?.store_name || active?.name || 'Main Restaurant';
+        const options = all.map(o => o.store_name || o.name || `Outlet ${o.id}`);
+        return { openName, options, isAdmin: true };
+      } else {
+        // Staff: ONLY show the outlet(s) assigned to / open by this staff
+        const staffOutlets = all.filter(o => 
+          assignedOutletIds.includes(o.store_id) || 
+          assignedOutletIds.includes(String(o.id)) ||
+          o.store_id === userStoreId
+        );
+        const validList = staffOutlets.length > 0 ? staffOutlets : [all[0]];
+        const active = validList.find(o => o.store_id === selectedOutletId) || validList[0];
+        const openName = active?.store_name || active?.name || 'Main Restaurant';
+        const options = validList.map(o => o.store_name || o.name || `Outlet ${o.id}`);
+        return { openName, options, isAdmin: false };
+      }
+    } catch (e) {
+      return { openName: 'Main Restaurant', options: ['Main Restaurant'], isAdmin: true };
+    }
+  }, [dbOutlets]);
+
   const [fields, setFields] = useState({
-    department: 'Restaurant',
+    department: 'Main Restaurant',
     name: '',
     pax: '4',
     floor: 'Ground Floor',
@@ -13,10 +68,51 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
     isActive: true
   });
 
+  // Fetch Floors and Outlets from backend when modal opens
+  useEffect(() => {
+    let isMounted = true;
+    if (isOpen) {
+      // 1. Floors
+      floorService.getFloors()
+        .then(res => {
+          const list = res?.data || res?.floors || (Array.isArray(res) ? res : []);
+          if (isMounted && Array.isArray(list) && list.length > 0) {
+            setDbFloors(list.filter(f => f.active !== 'No').map(f => f.name));
+          }
+        })
+        .catch(err => console.warn('Error fetching floors for TableMasterForm:', err));
+
+      // 2. Outlets
+      posApi.getOutlets()
+        .then(res => {
+          const stores = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+          if (isMounted && Array.isArray(stores) && stores.length > 0) {
+            setDbOutlets(stores.map(s => ({
+              id: s.id,
+              store_id: s.store_id || `STORE_${s.id}`,
+              name: s.store_name || s.name || `Outlet ${s.id}`,
+              store_name: s.store_name || s.name || `Outlet ${s.id}`
+            })));
+          }
+        })
+        .catch(err => console.warn('Error fetching outlets for TableMasterForm:', err));
+    }
+    return () => { isMounted = false; };
+  }, [isOpen]);
+
+  const floorOptions = useMemo(() => {
+    const defaults = ['Ground Floor', 'First Floor', 'Second Floor', 'Balcony', 'Garden'];
+    const merged = new Set(dbFloors.length > 0 ? dbFloors : defaults);
+    if (fields.floor) merged.add(fields.floor);
+    return Array.from(merged);
+  }, [dbFloors, fields.floor]);
+
+  // Set fields on form open or edit
   useEffect(() => {
     if (isOpen) {
+      const defaultDept = outletInfo.openName || 'Main Restaurant';
       setFields(isEdit ? {
-        department: 'Restaurant',
+        department: defaultDept,
         name: '',
         pax: '4',
         floor: 'Ground Floor',
@@ -24,15 +120,15 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
         isActive: true,
         ...initialData
       } : {
-        department: 'Restaurant',
+        department: defaultDept,
         name: '',
         pax: '4',
-        floor: 'Ground Floor',
+        floor: dbFloors[0] || 'Ground Floor',
         description: '',
         isActive: true
       });
     }
-  }, [isOpen, isEdit, initialData]);
+  }, [isOpen, isEdit, initialData, dbFloors, outletInfo]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -48,18 +144,24 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
       <form onSubmit={handleSubmit}>
         <FormCard>
           <div className="form-grid-2">
+            {/* Department (Open Outlet) */}
             <div className="form-field">
-              <label className="form-label">Department *</label>
+              <label className="form-label">Department (Open Outlet) *</label>
               <select
-                value={fields.department || ''}
+                value={fields.department || outletInfo.openName || ''}
                 onChange={(e) => setFields(p => ({ ...p, department: e.target.value }))}
                 className="form-select"
                 required
               >
-                <option value="Restaurant">Restaurant</option>
+                {outletInfo.options.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
             </div>
 
+            {/* Table Name */}
             <div className="form-field">
               <label className="form-label">Table Name *</label>
               <input
@@ -72,6 +174,7 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               />
             </div>
             
+            {/* PAX Capacity */}
             <div className="form-field">
               <label className="form-label">PAX *</label>
               <input
@@ -84,6 +187,7 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               />
             </div>
 
+            {/* Floor Name */}
             <div className="form-field">
               <label className="form-label">Floor Name</label>
               <select
@@ -92,14 +196,13 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
                 className="form-select"
               >
                 <option value="">--Floor Name--</option>
-                <option value="Ground Floor">Ground Floor</option>
-                <option value="First Floor">First Floor</option>
-                <option value="Second Floor">Second Floor</option>
-                <option value="Balcony">Balcony</option>
-                <option value="Garden">Garden</option>
+                {floorOptions.map(fl => (
+                  <option key={fl} value={fl}>{fl}</option>
+                ))}
               </select>
             </div>
 
+            {/* Description */}
             <div className="form-field form-span-2">
               <label className="form-label">Description</label>
               <input
@@ -111,6 +214,7 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               />
             </div>
 
+            {/* Active Status */}
             <div className="form-field form-span-2 flex flex-row items-center gap-2 mt-2">
               <input
                 type="checkbox"
