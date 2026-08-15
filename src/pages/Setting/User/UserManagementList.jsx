@@ -172,7 +172,7 @@ const UserManagementList = ({ showToast = () => {} }) => {
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Failed to delete user';
       alert(`Error: ${errMsg}`);
-    } fontally: {
+    } finally {
       setDeleteModal({ open: false, row: null });
     }
   };
