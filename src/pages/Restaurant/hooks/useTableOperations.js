@@ -4,7 +4,7 @@ import { useRestaurant } from '../../../context/RestaurantContext';
 import { kotService } from '../../../services/kotService';
 
 export const useTableOperations = (location, navigate) => {
-  const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading } = useRestaurant();
+  const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading, activeStoreId } = useRestaurant();
 
   // Modal open states
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
@@ -73,7 +73,10 @@ export const useTableOperations = (location, navigate) => {
           const hasItems = ur.length > 0 || (ut.amount && ut.amount > 0);
           const nextStatus = hasItems ? (ut.status !== 'Blank' ? ut.status : 'Running') : (ut.status || 'Blank');
           const statusUp = String(nextStatus).toUpperCase();
-          const nextColor = ['RUNNING', 'KOT_CUT', 'ORDERED', 'KOT GENERATED', 'OCCUPIED'].includes(statusUp) || (hasItems && statusUp !== 'PAID' && statusUp !== 'PAYMENT_COMPLETED' && statusUp !== 'CLEANING') ? 'orange' : ['PAID', 'PAYMENT_COMPLETED', 'CLEANING', 'CLEANUP_RUNNING', 'BILL GENERATED'].includes(statusUp) ? 'green' : 'white';
+          const isNCVal = statusUp === 'NC_BLOCKED' || ut.color === 'purple';
+          const isUnpaidVal = statusUp === 'UNPAID_BILL' || statusUp === 'UNPAID' || ut.color === 'blue' || ut.color === 'red';
+          const isPaidVal = ['PAID', 'PAYMENT_COMPLETED', 'CLEANING', 'CLEANUP_RUNNING', 'BILL GENERATED'].includes(statusUp);
+          const nextColor = isNCVal ? 'purple' : isUnpaidVal ? 'red' : isPaidVal ? 'green' : (['RUNNING', 'KOT_CUT', 'ORDERED', 'KOT GENERATED', 'OCCUPIED'].includes(statusUp) || (hasItems && statusUp !== 'AVAILABLE')) ? 'yellow' : 'white';
           return {
             ...t,
             ...ut,
@@ -530,7 +533,8 @@ export const useTableOperations = (location, navigate) => {
         discount: discount,
         amount: grandTotal,
         items: orderItemsMap[srcId] || [],
-        paymentMethod: paymentMethod
+        paymentMethod: paymentMethod,
+        store_id: activeStoreId
       });
 
       const createdOrder = billRes?.data?.data || billRes?.data || billRes?.order;

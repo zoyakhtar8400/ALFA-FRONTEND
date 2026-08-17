@@ -54,15 +54,15 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
         /* Desktop POS Billing Split View (1024px+) */
         @media (min-width: 1024px) {
           .pos-billing-layout-split .pos-menu-section {
-            flex: 0 0 68% !important;
-            max-width: 68% !important;
+            flex: 0 0 55% !important;
+            max-width: 55% !important;
             display: flex !important;
             height: 100% !important;
             overflow: hidden !important;
           }
           .pos-billing-layout-split .pos-billing-section {
-            flex: 0 0 32% !important;
-            max-width: 32% !important;
+            flex: 0 0 45% !important;
+            max-width: 45% !important;
             display: flex !important;
             flex-direction: column !important;
             height: 100% !important;
@@ -71,6 +71,18 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
           }
           .pos-billing-layout-split .mobile-tab-bar {
             display: none !important;
+          }
+        }
+
+        /* Large Desktop Screens (1600px+) */
+        @media (min-width: 1600px) {
+          .pos-billing-layout-split .pos-menu-section {
+            flex: 0 0 52% !important;
+            max-width: 52% !important;
+          }
+          .pos-billing-layout-split .pos-billing-section {
+            flex: 0 0 48% !important;
+            max-width: 48% !important;
           }
         }
 

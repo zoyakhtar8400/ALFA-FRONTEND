@@ -101,15 +101,15 @@ const ItemTaxCategoryForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit
 
       <form onSubmit={handleSubmit} style={{ padding: '0 8px 4px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '4fr 6fr', gap: '10px', alignItems: 'start', marginBottom: '10px' }}>
-          
+
           {/* LEFT COLUMN: Category Details */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={cardStyle}>
               {sectionTitle(<FaFolderOpen />, 'Category Details')}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '4px 8px' }}>
-                <F label="Category Name" required value={fields.name} onChange={e => setFields(p => ({ ...p, name: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                
-                <F label="Applicable Date" required type="date" value={fields.applicableDate} onChange={e => setFields(p => ({ ...p, applicableDate: e.target.value }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Category Name" required value={fields.name} onChange={val => setFields(p => ({ ...p, name: val }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+
+                <F label="Applicable Date" required type="date" value={fields.applicableDate} onChange={val => setFields(p => ({ ...p, applicableDate: val }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
 
                 <F label="Department" required style={{ marginBottom: 0 }}>
                   <select

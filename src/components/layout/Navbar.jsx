@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaBell, FaSearch, FaUserCircle, FaFlask, FaTimes, FaHistory, FaCheckCircle, FaTrash } from 'react-icons/fa';
 import { useFrontDesk } from '../../context/FrontDeskContext';
 import companyProfileService from '../../services/companyProfileService';
+import { useRestaurant } from '../../context/RestaurantContext';
 
 // Enterprise Global Search Mock Data (Guests, Rooms, Bookings, Companies, Bills, GRC records)
 const SEARCH_DATA = [
@@ -24,6 +25,9 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
   const [searchQuery, setSearchQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
+  const { activeOutletId, allOutlets } = useRestaurant();
+  const activeOutlet = allOutlets.find(o => Number(o.id) === Number(activeOutletId));
+  const activeOutletName = activeOutlet ? activeOutlet.name || activeOutlet.store_name : '';
 
   // Notifications, Audit, and Company Profile states
   const { notifications, auditLogs, markAllNotificationsRead, clearNotification } = useFrontDesk();
@@ -328,8 +332,8 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
             <span className="user-name" style={{ fontWeight: 800 }}>
               {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
             </span>
-            <span className="user-role" style={{ fontSize: '11px', color: '#64748b' }}>
-              {companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Profile'}
+             <span className="user-role" style={{ fontSize: '11px', color: activeOutletName ? '#0e7490' : '#64748b', fontWeight: activeOutletName ? '800' : 'normal' }}>
+              {activeOutletName ? `Outlet: ${activeOutletName}` : (companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Profile')}
             </span>
           </div>
         </div>

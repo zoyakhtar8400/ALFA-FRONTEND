@@ -27,8 +27,13 @@ export const kotService = {
   },
 
   // Delete / cancel KOT ticket in PostgreSQL
-  async deleteKOT(kotId) {
-    return await apiClient.delete(`/kot/${kotId}`);
+  async deleteKOT(kotId, data) {
+    return await apiClient.delete(`/kot/${kotId}`, { data });
+  },
+
+  // Close KOTs for a table in PostgreSQL (mark is_active=0)
+  async closeTableKOTs(tableId) {
+    return await apiClient.post(`/kot/close-table/${tableId}`);
   },
 
   // Move KOT from one table to another in PostgreSQL

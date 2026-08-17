@@ -21,8 +21,15 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
       <head>
         <title>KOT Ticket - ${id || 'KOT'}${stationName ? ` [${stationName}]` : ''}</title>
         <style>
-          @page { margin: 2mm; size: auto; }
-          body { font-family: 'Courier New', Courier, monospace; width: 280px; margin: 0 auto; padding: 10px; color: #000000; font-size: 13px; background: #ffffff; }
+          @page { margin: 0mm; size: auto; }
+          body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0; width: 100%; color: #000000; font-size: 13px; background: #ffffff; }
+          .invoice-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 2mm 4mm !important;
+            box-sizing: border-box !important;
+          }
           .text-center { text-align: center; }
           .bold { font-weight: bold; }
           .divider { border-top: 1.5px dashed #000000; margin: 6px 0; }
@@ -36,7 +43,8 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
         </style>
       </head>
       <body>
-        <div class="text-center">
+        <div class="invoice-container">
+          <div class="text-center">
           <div class="title">KITCHEN ORDER TICKET</div>
           <div class="station-banner">${stationHeader}</div>
           ${printerSub ? `<div style="font-size: 11px; color: #333;">${printerSub}</div>` : ''}
@@ -80,6 +88,7 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
             setTimeout(function() { window.close(); }, 500);
           };
         </script>
+        </div>
       </body>
     </html>
   `);
@@ -92,9 +101,9 @@ export const printStationKOT = printKitchenKOT;
  * Prints an Official Hotel & Restaurant Tax Invoice / Customer Bill.
  * Strictly Monochrome (Black / Grey / White Paper) — No Background Colors or Colored Borders.
  */
-export const printTaxInvoice = (data) => {
+export const printTaxInvoice = (data, preOpenedWindow = null) => {
   const invoiceData = data?.invoice || data?.data || data || {};
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
   if (!printWindow) return;
 
   const now = new Date();
@@ -105,79 +114,92 @@ export const printTaxInvoice = (data) => {
   const waiterName = invoiceData.waiter_name || invoiceData.waiter || 'Staff';
   const paymentMethod = invoiceData.payment_method || invoiceData.paymentMethod || 'Cash';
   const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
-  const subtotal = invoiceData.subtotal !== undefined ? Number(invoiceData.subtotal) : items.reduce((sum, item) => sum + ((item.qty || item.quantity || 1) * (item.unitPrice || item.price || item.rate || 0)), 0);
-  const cgst = invoiceData.taxes?.cgst !== undefined ? Number(invoiceData.taxes.cgst) : Math.round((subtotal * 0.025) * 100) / 100;
-  const sgst = invoiceData.taxes?.sgst !== undefined ? Number(invoiceData.taxes.sgst) : Math.round((subtotal * 0.025) * 100) / 100;
-  const grandTotal = invoiceData.grand_total !== undefined ? Number(invoiceData.grand_total) : Math.round(subtotal + cgst + sgst);
-
+  // Use backend-calculated values directly — NO frontend recalculation
+  const subtotal = Number(invoiceData.subtotal || 0);
+  const discount = Number(invoiceData.discount || invoiceData.discount_amount || 0);
+  const cgst = Number(invoiceData.taxes?.cgst || 0);
+  const sgst = Number(invoiceData.taxes?.sgst || 0);
+  const grandTotal = Number(invoiceData.grand_total || invoiceData.total_amount || invoiceData.amount || 0);
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
         <title>Tax Invoice - Table ${tableNo}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
         <style>
-          @page { margin: 2mm; size: auto; }
+          @page { margin: 0mm; size: auto; }
           body {
-            font-family: 'Courier New', Courier, monospace, 'Segoe UI', sans-serif;
-            width: 280px;
-            margin: 0 auto;
-            padding: 8px;
+            font-family: 'Outfit', 'Segoe UI', Tahoma, sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 100%;
             color: #000000;
             font-size: 12px;
             background: #ffffff;
           }
-          .header-title { font-size: 16px; font-weight: bold; color: #000000; text-align: center; text-transform: uppercase; margin-bottom: 2px; }
-          .header-sub { font-size: 10px; color: #333333; text-align: center; margin-bottom: 2px; }
-          .invoice-title-badge { border-top: 1px dashed #000000; border-bottom: 1px dashed #000000; color: #000000; font-size: 12px; font-weight: bold; text-align: center; padding: 4px 0; margin: 6px 0; text-transform: uppercase; letter-spacing: 0.5px; }
-          .meta-info { font-size: 11px; color: #000000; border-bottom: 1px dashed #000000; padding-bottom: 6px; margin-bottom: 6px; line-height: 1.4; }
-          table { width: 100%; border-collapse: collapse; margin: 6px 0; }
-          th { background: #ffffff; color: #000000; font-size: 11px; font-weight: bold; padding: 4px 0; border-bottom: 1px dashed #000000; text-transform: uppercase; }
-          td { padding: 4px 0; border-bottom: 1px dotted #cccccc; font-size: 11px; color: #000000; vertical-align: top; }
-          .summary-box { border-top: 1px dashed #000000; padding-top: 6px; margin-top: 6px; }
-          .summary-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; color: #000000; }
-          .grand-total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; font-weight: bold; color: #000000; border-top: 1px dashed #000000; border-bottom: 1.5px solid #000000; margin-top: 4px; }
-          .footer-note { text-align: center; margin-top: 10px; font-size: 10px; font-weight: bold; color: #000000; border-top: 1px dashed #000000; padding-top: 6px; }
+          .invoice-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 2mm 4mm !important;
+            box-sizing: border-box !important;
+          }
+          .header-title { font-size: 17px; font-weight: 900; color: #000000; text-align: center; text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.5px; }
+          .header-sub { font-size: 10px; color: #333333; text-align: center; margin-bottom: 2px; font-weight: 600; }
+          .invoice-title-badge { border-top: 1.5px dashed #000000; border-bottom: 1.5px dashed #000000; color: #000000; font-size: 11px; font-weight: 900; text-align: center; padding: 5px 0; margin: 8px 0; text-transform: uppercase; letter-spacing: 1.5px; }
+          .meta-info { font-size: 11px; color: #000000; border-bottom: 1.5px dashed #000000; padding-bottom: 6px; margin-bottom: 8px; line-height: 1.4; font-family: monospace; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin: 6px 0; font-family: monospace; }
+          th { background: #ffffff; color: #000000; font-size: 11px; font-weight: bold; padding: 5px 0; border-bottom: 1.5px dashed #000000; text-transform: uppercase; }
+          td { padding: 5px 0; border-bottom: 1px dotted #888888; font-size: 11px; color: #000000; vertical-align: top; }
+          .summary-box { border-top: 1.5px dashed #000000; padding-top: 6px; margin-top: 8px; font-family: monospace; }
+          .summary-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; color: #000000; font-weight: bold; }
+          .grand-total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; font-weight: 900; color: #000000; border-top: 1.5px dashed #000000; border-bottom: 1.5px dashed #000000; margin-top: 4px; }
+          .footer-note { text-align: center; margin-top: 12px; font-size: 10px; font-weight: bold; color: #000000; border-top: 1.5px dashed #000000; padding-top: 8px; }
         </style>
       </head>
       <body>
-        <div>
+        <div class="invoice-container">
           <div class="header-title">${invoiceData.restaurant_name || 'ALFA HMS RESTAURANT'}</div>
           <div class="header-sub">Fine Dining & Luxury Hospitality</div>
-          <div class="header-sub">${invoiceData.address || 'Main Dining Area'} | Ph: ${invoiceData.phone || '+91 98765 43210'}</div>
-          <div class="header-sub">GSTIN: 22AAAAA0000A1Z5 | FSSAI: 10020021000123</div>
+          <div class="header-sub">${invoiceData.address || 'Main Dining Area'}</div>
+          <div class="header-sub">GSTIN: ${invoiceData.gstin || '27AAAAA0000A1Z5'} | FSSAI: ${invoiceData.fssai || '10020021000123'}</div>
+          <div class="header-sub">Ph: ${invoiceData.phone || '+91 98765 43210'}</div>
 
-          <div class="invoice-title-badge">TAX INVOICE / RESTAURANT BILL</div>
+          <div class="invoice-title-badge">TAX INVOICE</div>
 
           <div class="meta-info">
-            <div><strong>Inv No:</strong> ${invNo}</div>
-            <div><strong>Table:</strong> Table ${tableNo} &nbsp;|&nbsp; <strong>Server:</strong> ${waiterName}</div>
-            <div><strong>Customer:</strong> ${customerName} &nbsp;|&nbsp; <strong>Date:</strong> ${dateTimeStr}</div>
-            <div><strong>Payment Mode:</strong> ${paymentMethod} &nbsp;|&nbsp; <strong>Status:</strong> ${invoiceData.payment_status || 'PAID'}</div>
+            <div>BILL NO: ${invNo}</div>
+            <div>TABLE: Table ${tableNo} &nbsp;|&nbsp; SERVER: ${waiterName.toUpperCase()}</div>
+            <div>CUSTOMER: ${customerName.toUpperCase()}</div>
+            <div>DATE: ${dateTimeStr} &nbsp;|&nbsp; STATUS: [${(invoiceData.payment_status || 'PAID').toUpperCase()}]</div>
           </div>
 
           <table>
             <thead>
               <tr>
-                <th style="text-align:left;">ITEM</th>
-                <th style="text-align:center;">QTY</th>
-                <th style="text-align:right;">RATE</th>
-                <th style="text-align:right;">AMT</th>
+                <th style="text-align:left; width:50%;">ITEM</th>
+                <th style="text-align:center; width:15%;">QTY</th>
+                <th style="text-align:right; width:17%;">RATE</th>
+                <th style="text-align:right; width:18%;">AMT</th>
               </tr>
             </thead>
             <tbody>
               ${items.length === 0 ? `
-                <tr><td colspan="4" style="text-align:center;">No Items Registered</td></tr>
+                <tr><td colspan="4" style="text-align:center; font-weight:bold;">No Items Registered</td></tr>
               ` : items.map(item => {
-    const name = (item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
+    const name = ((item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '')).toUpperCase();
     const qty = item.qty || item.quantity || 1;
     const rate = item.unitPrice || item.price || item.rate || 0;
     const amt = item.amount || item.total || (qty * rate);
     return `
                   <tr>
-                    <td style="text-align:left;">${name}</td>
+                    <td style="text-align:left; font-weight:bold; word-break:break-all;">
+                      ${name}
+                      ${item.remarks || item.remark ? `<br/><span style="font-size: 9px; font-weight: normal; font-style: italic;">* ${item.remarks || item.remark}</span>` : ''}
+                    </td>
                     <td style="text-align:center; font-weight:bold;">${qty}</td>
-                    <td style="text-align:right;">₹${rate}</td>
-                    <td style="text-align:right; font-weight:bold;">₹${amt}</td>
+                    <td style="text-align:right;">₹${rate.toFixed(2)}</td>
+                    <td style="text-align:right; font-weight:bold;">₹${amt.toFixed(2)}</td>
                   </tr>
                 `;
   }).join('')}
@@ -185,14 +207,24 @@ export const printTaxInvoice = (data) => {
           </table>
 
           <div class="summary-box">
-            <div class="summary-row"><span>Subtotal:</span><span>₹${subtotal.toFixed(2)}</span></div>
-            <div class="summary-row"><span>CGST (2.5%):</span><span>₹${cgst.toFixed(2)}</span></div>
-            <div class="summary-row"><span>SGST (2.5%):</span><span>₹${sgst.toFixed(2)}</span></div>
-            <div class="grand-total-row"><span>GRAND TOTAL:</span><span>₹${grandTotal.toFixed(2)}</span></div>
+            <div class="summary-row"><span>SUBTOTAL:</span><span>₹${subtotal.toFixed(2)}</span></div>
+            ${discount > 0 ? `<div class="summary-row"><span>DISCOUNT:</span><span>- ₹${discount.toFixed(2)}</span></div>` : ''}
+            ${(() => {
+              const breakdown = invoiceData.taxes_breakdown;
+              if (Array.isArray(breakdown) && breakdown.length > 0) {
+                return breakdown.map(t => `<div class="summary-row"><span>${(t.name || 'Tax').toUpperCase()} (${t.rate}%):</span><span>₹${Number(t.amount || 0).toFixed(2)}</span></div>`).join('');
+              }
+              // fallback to cgst/sgst
+              return `
+                <div class="summary-row"><span>CGST (${cgst > 0 ? ((cgst / (subtotal - discount)) * 100).toFixed(1) : 2.5}%):</span><span>₹${cgst.toFixed(2)}</span></div>
+                <div class="summary-row"><span>SGST (${sgst > 0 ? ((sgst / (subtotal - discount)) * 100).toFixed(1) : 2.5}%):</span><span>₹${sgst.toFixed(2)}</span></div>
+              `;
+            })()}
+            <div class="grand-total-row"><span>NET AMOUNT:</span><span>₹${grandTotal.toFixed(2)}</span></div>
           </div>
 
           <div class="footer-note">
-            <div>THANK YOU FOR VISITING!</div>
+            <div>*** THANK YOU FOR DINING WITH US ***</div>
             <div>HAVE A WONDERFUL DAY!</div>
           </div>
         </div>

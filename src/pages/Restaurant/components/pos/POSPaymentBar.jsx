@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FaMoneyBill,
   FaCreditCard,
@@ -11,27 +11,108 @@ import {
   FaGlobe,
   FaBed
 } from 'react-icons/fa';
+import paymentModeService from '../../../../services/paymentModeService';
 
-const PRIMARY_PAYMENT_MODES = [
-  { id: 'Cash', label: 'Cash', icon: FaMoneyBill },
-  { id: 'Card', label: 'Card', icon: FaCreditCard },
-  { id: 'UPI', label: 'UPI', icon: FaQrcode },
-  { id: 'Other', label: 'Other', icon: FaWallet }
-];
+const getPaymentIcon = (name = '', type = '') => {
+  const n = String(name).toLowerCase();
+  const t = String(type).toUpperCase();
 
-const MORE_PAYMENT_MODES = [
-  { id: 'Due', label: 'Due / Credit', icon: FaUserClock },
-  { id: 'Complimentary', label: 'Complimentary', icon: FaGift },
-  { id: 'Cheque', label: 'Cheque', icon: FaMoneyCheckAlt },
-  { id: 'Online', label: 'Online / Gateway', icon: FaGlobe },
-  { id: 'Room Post', label: 'Post to Room', icon: FaBed }
+  if (t === 'CASH' || n.includes('cash')) return FaMoneyBill;
+  if (t === 'CARD' || n.includes('card') || n.includes('visa') || n.includes('master')) return FaCreditCard;
+  if (t === 'UPI' || n.includes('upi') || n.includes('gpay') || n.includes('phonepe') || n.includes('paytm') || n.includes('qr')) return FaQrcode;
+  if (n.includes('room')) return FaBed;
+  if (n.includes('cheque')) return FaMoneyCheckAlt;
+  if (n.includes('complimentary') || n.includes('free')) return FaGift;
+  if (t === 'CREDIT' || n.includes('due') || n.includes('credit')) return FaUserClock;
+  if (t === 'ONLINE' || n.includes('online') || n.includes('gateway') || n.includes('web')) return FaGlobe;
+  if (t === 'WALLET' || n.includes('wallet')) return FaWallet;
+  return FaWallet;
+};
+
+const DEFAULT_MODES = [
+  { id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH', is_quick_pay: true, active: 'Yes' },
+  { id: 'Card', name: 'Card', label: 'Card', type: 'CARD', is_quick_pay: true, active: 'Yes' },
+  { id: 'UPI', name: 'UPI', label: 'UPI', type: 'UPI', is_quick_pay: true, active: 'Yes' },
+  { id: 'Other', name: 'Other', label: 'Other', type: 'OTHER', is_quick_pay: true, active: 'Yes' },
+  { id: 'Due', name: 'Due', label: 'Due / Credit', type: 'CREDIT', is_quick_pay: false, active: 'Yes' },
+  { id: 'Complimentary', name: 'Complimentary', label: 'Complimentary', type: 'OTHER', is_quick_pay: false, active: 'Yes' },
+  { id: 'Cheque', name: 'Cheque', label: 'Cheque', type: 'OTHER', is_quick_pay: false, active: 'Yes' },
+  { id: 'Online', name: 'Online', label: 'Online / Gateway', type: 'ONLINE', is_quick_pay: false, active: 'Yes' },
+  { id: 'Room Post', name: 'Room Post', label: 'Post to Room', type: 'CREDIT', is_quick_pay: false, active: 'Yes' }
 ];
 
 const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [dbPaymentModes, setDbPaymentModes] = useState([]);
 
-  const isMoreActive = MORE_PAYMENT_MODES.some(m => m.id === activeMode) || activeMode === 'More';
-  const selectedMoreItem = MORE_PAYMENT_MODES.find(m => m.id === activeMode);
+  // Fetch payment modes from backend / Payment Master
+  const loadPaymentModes = useCallback(async () => {
+    try {
+      const res = await paymentModeService.getPaymentModes();
+      let list = [];
+      if (Array.isArray(res)) list = res;
+      else if (Array.isArray(res?.data)) list = res.data;
+      else if (Array.isArray(res?.paymentModes)) list = res.paymentModes;
+      else if (Array.isArray(res?.payment_modes)) list = res.payment_modes;
+      else if (Array.isArray(res?.data?.data)) list = res.data.data;
+
+      if (list && list.length > 0) {
+        const activeList = list
+          .filter(p => p.active !== 'No' && p.isActive !== false)
+          .map(p => ({
+            id: p.name || p.payment_mode_name,
+            name: p.name || p.payment_mode_name,
+            label: p.name || p.payment_mode_name,
+            type: p.type || 'CASH',
+            is_quick_pay: p.is_quick_pay !== false,
+            charge_percent: Number(p.charge_percent || 0),
+            active: p.active || 'Yes'
+          }));
+        setDbPaymentModes(activeList);
+      } else {
+        setDbPaymentModes(DEFAULT_MODES);
+      }
+    } catch (e) {
+      console.warn('Failed to load dynamic payment modes from backend, using defaults:', e.message);
+      setDbPaymentModes(DEFAULT_MODES);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPaymentModes();
+
+    const handleRefresh = () => loadPaymentModes();
+    window.addEventListener('paymentMasterRefreshed', handleRefresh);
+    window.addEventListener('paymentModesRefreshed', handleRefresh);
+    return () => {
+      window.removeEventListener('paymentMasterRefreshed', handleRefresh);
+      window.removeEventListener('paymentModesRefreshed', handleRefresh);
+    };
+  }, [loadPaymentModes]);
+
+  const allModes = dbPaymentModes.length > 0 ? dbPaymentModes : DEFAULT_MODES;
+
+  // Partition into Primary (Quick Pay) vs More
+  const { primaryModes, moreModes } = useMemo(() => {
+    const quick = allModes.filter(m => m.is_quick_pay !== false);
+    const extra = allModes.filter(m => m.is_quick_pay === false);
+
+    // If quick modes > 4, keep first 4 in primary and rest in extra
+    let finalPrimary = quick.length > 0 ? quick.slice(0, 4) : allModes.slice(0, 4);
+    let finalMore = [
+      ...quick.slice(4),
+      ...extra
+    ];
+
+    // Ensure unique IDs in more list
+    const primaryIds = new Set(finalPrimary.map(m => m.id));
+    finalMore = finalMore.filter(m => !primaryIds.has(m.id));
+
+    return { primaryModes: finalPrimary, moreModes: finalMore };
+  }, [allModes]);
+
+  const isMoreActive = moreModes.some(m => m.id === activeMode) || activeMode === 'More';
+  const selectedMoreItem = moreModes.find(m => m.id === activeMode);
 
   const handleSelectMore = (id) => {
     onSelectMode(id);
@@ -48,7 +129,7 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
       borderTop: '1px solid #e2e8f0',
       position: 'relative'
     }}>
-      {/* Top Row: Primary Payment Buttons (Cash, Card, UPI, Other, More) + Paid Pill */}
+      {/* Top Row: Primary Payment Buttons + More + Paid Pill */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -57,13 +138,13 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
+          gridTemplateColumns: `repeat(${primaryModes.length + (moreModes.length > 0 ? 1 : 0)}, 1fr)`,
           gap: '6px',
           flex: 1
         }}>
-          {PRIMARY_PAYMENT_MODES.map(mode => {
+          {primaryModes.map(mode => {
             const isSelected = activeMode === mode.id;
-            const Icon = mode.icon;
+            const Icon = getPaymentIcon(mode.name, mode.type);
             return (
               <button
                 key={mode.id}
@@ -88,7 +169,9 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                   border: isSelected ? '1.5px solid #22C55E' : '1px solid #CBD5E1',
                   color: isSelected ? '#15803D' : '#334155',
                   boxShadow: isSelected ? '0 2px 6px rgba(34, 197, 94, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
                 onMouseEnter={e => {
                   if (!isSelected) {
@@ -102,49 +185,56 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                     e.currentTarget.style.borderColor = '#CBD5E1';
                   }
                 }}
+                title={mode.label}
               >
-                <Icon size={14} style={{ color: isSelected ? '#15803D' : '#64748b' }} />
-                <span>{mode.label}</span>
+                <Icon size={14} style={{ color: isSelected ? '#15803D' : '#64748b', flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode.label}</span>
               </button>
             );
           })}
 
           {/* More Options Button */}
-          <button
-            type="button"
-            onClick={() => setShowMoreMenu(prev => !prev)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '6px 8px',
-              height: '38px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              background: isMoreActive ? '#DCFCE7' : (showMoreMenu ? '#e2e8f0' : '#FFFFFF'),
-              border: isMoreActive ? '1.5px solid #22C55E' : '1.5px dashed #94a3b8',
-              color: isMoreActive ? '#15803D' : '#334155',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-              whiteSpace: 'nowrap'
-            }}
-            onMouseEnter={e => {
-              if (!isMoreActive && !showMoreMenu) {
-                e.currentTarget.style.background = '#f1f5f9';
-              }
-            }}
-            onMouseLeave={e => {
-              if (!isMoreActive && !showMoreMenu) {
-                e.currentTarget.style.background = '#FFFFFF';
-              }
-            }}
-          >
-            <FaEllipsisH size={14} />
-            <span>{selectedMoreItem ? selectedMoreItem.id : (showMoreMenu ? '▲' : '▼ More')}</span>
-          </button>
+          {moreModes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowMoreMenu(prev => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '6px 8px',
+                height: '38px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                background: isMoreActive ? '#DCFCE7' : (showMoreMenu ? '#e2e8f0' : '#FFFFFF'),
+                border: isMoreActive ? '1.5px solid #22C55E' : '1.5px dashed #94a3b8',
+                color: isMoreActive ? '#15803D' : '#334155',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+              onMouseEnter={e => {
+                if (!isMoreActive && !showMoreMenu) {
+                  e.currentTarget.style.background = '#f1f5f9';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isMoreActive && !showMoreMenu) {
+                  e.currentTarget.style.background = '#FFFFFF';
+                }
+              }}
+            >
+              <FaEllipsisH size={14} style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selectedMoreItem ? selectedMoreItem.label : (showMoreMenu ? '▲ Close' : '▼ More')}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Roomier "Paid" Toggle Pill */}
@@ -183,7 +273,7 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
       </div>
 
       {/* Expandable More Payment Options Panel */}
-      {showMoreMenu && (
+      {showMoreMenu && moreModes.length > 0 && (
         <div style={{
           background: '#ffffff',
           border: '1.5px solid #cbd5e1',
@@ -200,7 +290,7 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
             borderBottom: '1px dashed #e2e8f0'
           }}>
             <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              More Payment Options
+              More Payment Options (Configured in Payment Master)
             </span>
             <button
               type="button"
@@ -220,12 +310,12 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
             gap: '6px'
           }}>
-            {MORE_PAYMENT_MODES.map(item => {
+            {moreModes.map(item => {
               const isSelected = activeMode === item.id;
-              const Icon = item.icon;
+              const Icon = getPaymentIcon(item.name, item.type);
               return (
                 <button
                   key={item.id}
@@ -252,7 +342,7 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                     if (!isSelected) e.currentTarget.style.background = '#f8fafc';
                   }}
                 >
-                  <Icon size={12} style={{ color: isSelected ? '#15803D' : '#64748b' }} />
+                  <Icon size={12} style={{ color: isSelected ? '#15803D' : '#64748b', flexShrink: 0 }} />
                   <span>{item.label}</span>
                 </button>
               );

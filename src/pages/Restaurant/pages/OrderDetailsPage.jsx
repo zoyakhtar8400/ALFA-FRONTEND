@@ -5,6 +5,8 @@ import CommonTable from '../../../components/common/CommonTable';
 import CommonModal from '../../../components/common/CommonModal';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 import { orderService } from '../../../services/orderService';
+import { printTaxInvoice } from '../utils/printInvoice';
+import { useRestaurant } from '../../../context/RestaurantContext';
 
 const OrderDetailsPage = ({ showToast }) => {
   const navigate = useNavigate();
@@ -12,14 +14,22 @@ const OrderDetailsPage = ({ showToast }) => {
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
+  const [printOrderId, setPrintOrderId] = useState(null);
+  const [printTriggerKey, setPrintTriggerKey] = useState(0);
+
+  const { activeStoreId } = useRestaurant();
 
   useEffect(() => {
     async function loadOrders() {
       try {
-        const res = await orderService.getOrders();
+        const res = await orderService.getOrders({ store_id: activeStoreId });
         const rawOrders = res?.orders || res?.data || [];
         if (Array.isArray(rawOrders)) {
-          const mapped = rawOrders.map((o, idx) => {
+          const completedOrders = rawOrders.filter(o => {
+            const statusStr = String(o.status || o.order_state || o.payment_status || '').toLowerCase();
+            return statusStr === 'completed' || statusStr === 'paid';
+          });
+          const mapped = completedOrders.map((o, idx) => {
             return {
               id: o.id || o.order_id || o.billNo || (idx + 1),
               billNo: o.billNo || `Bill ${o.order_number || o.orderNo || (idx + 1)}`,
@@ -42,12 +52,27 @@ const OrderDetailsPage = ({ showToast }) => {
       }
     }
     loadOrders();
-  }, []);
+  }, [activeStoreId]);
 
-  const handleOpenInvoice = (row) => {
-    navigate(`/restaurant/invoice?orderId=${row.id || row.billNo}&autoprint=true`, {
-      state: { order: row }
-    });
+  const handleOpenInvoice = async (row) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Loading...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#ffffff;color:#333;"><div>Generating print layout, please wait...</div></body></html>');
+      printWindow.document.close();
+    }
+
+    try {
+      const res = await orderService.getOrderById(row.id);
+      const fetchedOrder = res?.order || res?.data;
+      if (fetchedOrder) {
+        printTaxInvoice(fetchedOrder, printWindow);
+      } else {
+        printTaxInvoice(row, printWindow);
+      }
+    } catch (err) {
+      console.warn('Error fetching detailed invoice data:', err);
+      printTaxInvoice(row, printWindow);
+    }
   };
 
   const handleMenuClick = (bill) => {
@@ -69,11 +94,11 @@ const OrderDetailsPage = ({ showToast }) => {
   };
 
   const columns = [
-    { 
-      key: 'billNo', 
-      label: 'Bill No', 
+    {
+      key: 'billNo',
+      label: 'Bill No',
       render: (val, row) => (
-        <button 
+        <button
           onClick={(e) => { e.stopPropagation(); handleOpenInvoice(row); }}
           style={{ background: 'none', border: 'none', color: '#0e7490', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline', padding: 0, outline: 'none' }}
         >
@@ -198,14 +223,14 @@ const OrderDetailsPage = ({ showToast }) => {
                   setIsModalOpen(false);
                   handleOpenInvoice(selectedBill);
                 }}
-                style={{ 
-                  padding: '8px 16px', 
-                  borderRadius: '8px', 
-                  border: 'none', 
-                  background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)', 
-                  color: '#fff', 
-                  fontSize: '0.8rem', 
-                  fontWeight: 800, 
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)',
+                  color: '#fff',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',

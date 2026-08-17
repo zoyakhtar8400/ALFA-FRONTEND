@@ -1,27 +1,38 @@
 import React, { memo, useMemo } from 'react';
 import {
-  LuCalendarCheck, LuLogIn, LuLogOut, LuCalendarX,
-  LuBed, LuUsers, LuTrendingUp, LuClock,
+  LuCalendarCheck,
+  LuTrendingUp, LuClock,
   LuArrowUpRight, LuArrowDownRight,
+  // LuBed, LuUsers, // Room stats — disabled
 } from 'react-icons/lu';
 
 const SummaryCards = memo(({ rooms = [], tables = [], stats, showToast }) => {
-  const clean = useMemo(() => rooms.filter(r => r.status === 'Clean').length, [rooms]);
-  const occupied = useMemo(() => rooms.filter(r => r.status !== 'Clean').length, [rooms]);
+  // Room stats — disabled (uncomment to re-enable)
+  // const clean = useMemo(() => rooms.filter(r => r.status === 'Clean').length, [rooms]);
+  // const occupied = useMemo(() => rooms.filter(r => r.status !== 'Clean').length, [rooms]);
 
   const availableTables = useMemo(() => tables.filter(t => t.status === 'Blank' || !t.status).length, [tables]);
-  const activeTables = useMemo(() => tables.filter(t => t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'Paid' || t.status === 'Reserved').length, [tables]);
-  const totalTableSales = useMemo(() => tables.reduce((acc, t) => acc + Number(t.amount || 0), 0), [tables]);
+  const activeTables = useMemo(() => tables.filter(t => t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'Paid' || t.status === 'Reserved' || t.status === 'KOT_CUT' || t.status === 'UNPAID_BILL').length, [tables]);
+
+  // Use backend-calculated live dining sales (reads extra_details.amount correctly)
+  const liveDiningSalesFromStats = Number(stats?.liveDiningSales || 0);
+  const liveDiningSalesLocal = useMemo(() => tables.reduce((acc, t) => acc + Number(t.amount || 0), 0), [tables]);
+  const totalTableSales = liveDiningSalesFromStats > 0 ? liveDiningSalesFromStats : liveDiningSalesLocal;
+
+  // Use backend active table count if available (more accurate)
+  const activeTablesDisplay = stats?.activeTablesCount !== undefined ? stats.activeTablesCount : activeTables;
+  const totalTablesDisplay = stats?.totalTablesCount !== undefined ? stats.totalTablesCount : (tables.length || 12);
 
   const cards = [
-    { label: "Active Dining Tables", value: `${activeTables}/${tables.length || 12}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#0e7490', sub: 'running tables' },
-    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTables} active orders`, up: true, icon: LuTrendingUp, accent: '#16a34a', sub: 'live orders' },
-    { label: "Menu Catalog Items",  value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#d97706', sub: 'live active items' },
-    { label: "Recorded Orders",     value: `${(stats?.totalOrdersCount || 0) + activeTables}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#418A8B', sub: 'total bills' },
-    { label: "Available Rooms",     value: String(clean),    trend: `${rooms.length} total rooms`, up: true, icon: LuBed,    accent: '#0369a1', sub: 'clean rooms' },
-    { label: "Occupied Rooms",      value: String(occupied), trend: rooms.length ? `${((occupied/rooms.length)*100).toFixed(0)}% occ.` : '0%', up: occupied > 0, icon: LuUsers, accent: '#7c3aed', sub: 'in-house guests' },
-    { label: "Cash Collection",     value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#15803d', sub: 'cash drawer' },
+    { label: "Active Dining Tables", value: `${activeTablesDisplay}/${totalTablesDisplay}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#0e7490', sub: 'running tables' },
+    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTablesDisplay} active orders`, up: true, icon: LuTrendingUp, accent: '#16a34a', sub: 'live orders' },
+    { label: "Menu Catalog Items",   value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#d97706', sub: 'live active items' },
+    { label: "Recorded Orders",      value: `${(stats?.totalOrdersCount || 0) + activeTablesDisplay}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#418A8B', sub: 'total bills' },
+    { label: "Cash Collection",      value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#15803d', sub: 'cash drawer' },
     { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#0d9488', sub: 'UPI payments' },
+    // Room stats — disabled (uncomment to re-enable)
+    // { label: "Available Rooms",  value: String(clean),    trend: `${rooms.length} total rooms`, up: true, icon: LuBed,   accent: '#0369a1', sub: 'clean rooms' },
+    // { label: "Occupied Rooms",   value: String(occupied), trend: rooms.length ? `${((occupied/rooms.length)*100).toFixed(0)}% occ.` : '0%', up: occupied > 0, icon: LuUsers, accent: '#7c3aed', sub: 'in-house guests' },
   ];
 
   return (

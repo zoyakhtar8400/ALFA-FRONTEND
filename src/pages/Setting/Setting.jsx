@@ -16,6 +16,7 @@ import ExpenseForm from './Expense/ExpenseForm';
 import BillingScreenConfiguration from './BillingScreenConfiguration';
 import UserManagementList from './User/UserManagementList';
 import CompanyProfilePage from './CompanyProfile/CompanyProfilePage';
+import { useAuth } from '../../context/AuthContext';
 
 const ALL_SETTINGS_MODULES = [
   { id: 'company-profile', title: 'Company Profile', description: 'Business identity, GSTIN, FSSAI & Branding', icon: FaBuilding, section: 'Restaurant Operations', path: '/setting/company-profile' },
@@ -79,6 +80,8 @@ const Setting = ({ showToast = () => { } }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
+  const { user } = useAuth();
+  const isUserAdmin = user?.role === 'ADMIN' || user?.type === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.type === 'SUPERADMIN';
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -134,15 +137,19 @@ const Setting = ({ showToast = () => { } }) => {
 
   // Filtered items based on search query
   const filteredModules = useMemo(() => {
-    if (!searchQuery.trim()) return ALL_SETTINGS_MODULES;
+    let modules = ALL_SETTINGS_MODULES;
+    if (!isUserAdmin) {
+      modules = modules.filter(m => m.id !== 'user-management');
+    }
+    if (!searchQuery.trim()) return modules;
     const q = searchQuery.toLowerCase().trim();
-    return ALL_SETTINGS_MODULES.filter(
+    return modules.filter(
       (m) =>
         m.title.toLowerCase().includes(q) ||
         m.description.toLowerCase().includes(q) ||
         m.section.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, isUserAdmin]);
 
   // Map of modules by ID for fast lookup
   const moduleMap = useMemo(() => {
@@ -182,6 +189,9 @@ const Setting = ({ showToast = () => { } }) => {
 
   // Sub-route Check: /setting/user-management or /setting/user
   if (path.includes('/setting/user-management') || path.includes('/setting/user')) {
+    if (!isUserAdmin) {
+      return <Navigate to="/setting" replace />;
+    }
     return <UserManagementList showToast={showToast} />;
   }
 

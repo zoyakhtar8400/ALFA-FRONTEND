@@ -38,6 +38,10 @@ const BillingPanel = ({
   setRemarks,
   waiter,
   setWaiter,
+  deliveryBoy,
+  setDeliveryBoy,
+  ncType,
+  setNcType,
   captain,
   isPaid,
   setIsPaid,
@@ -211,7 +215,11 @@ const BillingPanel = ({
         paxCount={paxCount}
         hasRemarks={!!remarks}
         waiter={waiter}
-        onWaiterChange={useCallback((val) => setWaiter(val), [setWaiter])}
+        onWaiterChange={useCallback((val) => setWaiter && setWaiter(val), [setWaiter])}
+        deliveryBoy={deliveryBoy}
+        onDeliveryBoyChange={useCallback((val) => setDeliveryBoy && setDeliveryBoy(val), [setDeliveryBoy])}
+        ncType={ncType}
+        onNcTypeChange={useCallback((val) => setNcType && setNcType(val), [setNcType])}
         isPaid={isPaid}
         onTableClick={useCallback(() => setIsTableModalOpen(true), [setIsTableModalOpen])}
         onCustomerClick={useCallback(() => setIsCustomerDrawerOpen(true), [setIsCustomerDrawerOpen])}
@@ -542,86 +550,6 @@ const BillingPanel = ({
             }))}
           </tbody>
         </table>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-          <button
-            type="button"
-            onClick={handleAddEmptyRow}
-            style={{
-              padding: '6px 12px', borderRadius: '6px', border: '1.5px dashed #0e7490',
-              background: '#f0fdfa', color: '#0e7490', fontSize: '0.75rem', fontWeight: 800,
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#0e7490';
-              e.currentTarget.style.color = '#ffffff';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#f0fdfa';
-              e.currentTarget.style.color = '#0e7490';
-            }}
-          >
-            <FaPlus size={10} /> Add Item Row
-          </button>
-          <button
-            type="button"
-            onClick={useCallback(() => setIsClearModalOpen(true), [setIsClearModalOpen])}
-            style={{
-              padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca',
-              background: '#fef2f2', color: '#ef4444', fontSize: '0.75rem', fontWeight: 800,
-              cursor: 'pointer', transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#ef4444';
-              e.currentTarget.style.color = '#ffffff';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#fef2f2';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-          >
-            Clear Cart
-          </button>
-          <button
-            type="button"
-            onClick={useCallback(() => setIsGstModalOpen(true), [setIsGstModalOpen])}
-            style={{
-              padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1',
-              background: '#ffffff', color: '#0e7490', fontSize: '0.75rem', fontWeight: 800,
-              cursor: 'pointer', transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#ecfeff';
-              e.currentTarget.style.borderColor = '#0e7490';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.borderColor = '#cbd5e1';
-            }}
-          >
-            GSTIN
-          </button>
-          <button
-            type="button"
-            onClick={useCallback(() => setIsSettingsModalOpen(true), [setIsSettingsModalOpen])}
-            style={{
-              padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1',
-              background: '#ffffff', color: '#64748b', fontSize: '0.75rem', fontWeight: 800,
-              cursor: 'pointer', transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#f1f5f9';
-              e.currentTarget.style.color = '#334155';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#ffffff';
-              e.currentTarget.style.color = '#64748b';
-            }}
-          >
-            Account settings
-          </button>
-        </div>
       </div>
     </div>
 
@@ -820,8 +748,9 @@ const BillingPanel = ({
           onSaveAndPrint={handleSaveAndPrint}
           onSaveAndEBill={handleDirectComplete}
           onKOT={handleAddKOT}
-          onKOTAndPrint={handleSaveAndPrint}
+          onKOTAndPrint={handleAddKOT}
           onHold={handleConfirmBooking}
+          isNC={!!(ncType && ncType.trim())}
         />
 
         {/* ── Footer Status ── */}
@@ -1006,15 +935,15 @@ const BillingPanel = ({
         isOpen={showKotPrintModal}
         onClose={() => {
           setShowKotPrintModal(false);
-          if (kotSuccessCallbackRef.current) {
-            kotSuccessCallbackRef.current();
-          }
         }}
         kotGroups={kotGroups}
         payloads={kotPayloads}
         kotNo={generatedKotNo}
         tableNo={routedTable?.no || assignedTableId || '?'}
-        onKOTSuccess={() => kotSuccessCallbackRef.current && kotSuccessCallbackRef.current()}
+        onKOTSuccess={() => {
+          setShowKotPrintModal(false);
+          if (kotSuccessCallbackRef.current) kotSuccessCallbackRef.current();
+        }}
       />
     </div>
   );

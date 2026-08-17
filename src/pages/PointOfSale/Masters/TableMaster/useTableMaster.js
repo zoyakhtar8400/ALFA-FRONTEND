@@ -59,7 +59,8 @@ export const useTableMaster = (showToast) => {
         name: t.table_name || t.name || `T${String(idx + 1).padStart(2, '0')}`,
         pax: Number(t.seats || t.max_person || 4),
         department: t.section || t.department || 'Restaurant',
-        floor: t.floor || 'Ground Floor',
+        area: t.area || t.floor || 'Main Area',
+        floor: t.area || t.floor || 'Main Area',
         status: t.status || 'AVAILABLE',
         isActive: (t.status || '').toUpperCase() !== 'INACTIVE' && t.isactive !== 0,
       }));
@@ -85,7 +86,7 @@ export const useTableMaster = (showToast) => {
       const matchSearch = !q ||
         String(item.name || '').toLowerCase().includes(q) ||
         String(item.department || '').toLowerCase().includes(q) ||
-        String(item.floor || '').toLowerCase().includes(q) ||
+        String(item.area || item.floor || '').toLowerCase().includes(q) ||
         String(item.no || '').toLowerCase().includes(q);
 
       const matchStatus =
@@ -134,7 +135,8 @@ export const useTableMaster = (showToast) => {
       max_person: Number(fields.pax) || 4,
       section: fields.department || 'Main Area',
       department: fields.department || 'Main Area',
-      floor: fields.floor || 'Ground Floor',
+      area: fields.area || fields.floor || 'Main Area',
+      floor: fields.area || fields.floor || 'Main Area',
       status: fields.isActive !== false ? 'AVAILABLE' : 'INACTIVE',
       store_id: fields.store_id || activeStoreId,
     };
@@ -175,7 +177,7 @@ export const useTableMaster = (showToast) => {
     const endNum   = parseInt(bulkConfig.endNum);
     const pax      = parseInt(bulkConfig.pax) || 4;
     const dept     = bulkConfig.department || 'Restaurant';
-    const floor    = bulkConfig.floor || 'Ground Floor';
+    const area     = bulkConfig.area || bulkConfig.floor || 'Main Area';
     const isActive = bulkConfig.isActive !== false;
 
     const activeStoreId = getActiveOutletId();
@@ -195,9 +197,10 @@ export const useTableMaster = (showToast) => {
       payloads.push({
         name: tableName, table_name: tableName, no: numStr,
         seats: pax, max_person: pax,
-        section: dept, department: dept, floor,
+        section: dept, department: dept, 
+        area, floor: area,
         status: isActive ? 'AVAILABLE' : 'INACTIVE',
-        store_id: activeStoreId,
+        store_id: bulkConfig.store_id || activeStoreId,
       });
     }
 

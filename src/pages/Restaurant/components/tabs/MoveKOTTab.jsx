@@ -44,7 +44,7 @@ const MoveKOTTab = ({
       <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px', gap: '3px' }}>
         {[
           { id: 'table', label: 'Move by Table (KOT)' },
-          { id: 'item',  label: 'Move by Item' },
+          { id: 'item', label: 'Move by Item' },
         ].map(m => (
           <button
             key={m.id}
@@ -87,7 +87,7 @@ const MoveKOTTab = ({
                 <input
                   type="checkbox"
                   checked={!!selectedTransferKots[k.id]}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   style={{ marginTop: '2px', accentColor: '#0e7490', cursor: 'pointer' }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -136,7 +136,7 @@ const MoveKOTTab = ({
                 <input
                   type="checkbox"
                   checked={!!selectedItems[it.itemKey]}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   style={{ accentColor: '#0e7490', cursor: 'pointer' }}
                 />
                 <div style={{ flex: 1 }}>

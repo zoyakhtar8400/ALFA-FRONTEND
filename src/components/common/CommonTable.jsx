@@ -37,6 +37,25 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
                 {actions && actions.map((act, actIdx) => {
                   const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
                   const IconComponent = act.icon || (isDelete ? <FaTrash size={14} /> : <FaEdit size={14} />);
+                  const href = act.getHref ? act.getHref(row) : null;
+                  
+                  if (href) {
+                    return (
+                      <a
+                        key={actIdx}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className={`table-action-icon-btn ${isDelete ? 'delete' : 'edit'}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                        title={act.label}
+                      >
+                        {IconComponent}
+                      </a>
+                    );
+                  }
+
                   return (
                     <button
                       key={actIdx}

@@ -11,7 +11,7 @@ const columns = [
   { key: 'name', label: 'Table Name', sortable: true },
   { key: 'department', label: 'Section', sortable: true },
   { key: 'pax', label: 'PAX', sortable: true, render: (v) => (v !== undefined && v !== null && v !== '') ? `${v} Pax` : '' },
-  { key: 'floor', label: 'Floor', sortable: true },
+  { key: 'area', label: 'Area', sortable: true, render: (v, row) => row.area || row.floor || '' },
   { key: 'status', label: 'Status', sortable: true }
 ];
 

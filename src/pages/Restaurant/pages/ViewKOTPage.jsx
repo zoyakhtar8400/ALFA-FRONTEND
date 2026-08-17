@@ -16,6 +16,7 @@ const STATUS_CONFIG = {
   'Ready':           { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
   'Served':          { bg: '#f8fafc', color: '#475569', border: '#e2e8f0' },
   'Closed':          { bg: '#f1f5f9', color: '#94a3b8', border: '#e2e8f0' },
+  'Cancelled':       { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
 };
 
 const KITCHEN_STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
@@ -30,13 +31,16 @@ const formatTableNoDisplay = (tableVal) => {
 
 const ViewKOTPage = () => {
   const navigate = useNavigate();
-  const { setTables } = useRestaurant();
+  const { setTables, activeStoreId } = useRestaurant();
 
   const [selected, setSelected]         = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [activeFilter, setActiveFilter] = useState('active'); // 'active' | 'inactive' | 'all'
   const [loadingKots, setLoadingKots]   = useState(false);
   const [dbKots, setDbKots]             = useState([]);
+  const [kotToCancel, setKotToCancel]   = useState(null);
+  const [kotCancelReason, setKotCancelReason] = useState('');
+  const [kotCancelError, setKotCancelError]   = useState('');
   const [categories, setCategories]     = useState([]);
   const [printers, setPrinters]         = useState([]);
   const [menuItems, setMenuItems]       = useState([]);
@@ -70,10 +74,25 @@ const ViewKOTPage = () => {
   const loadKots = async (filterVal) => {
     try {
       setLoadingKots(true);
-      const activeParam = filterVal === 'active' ? '1' : filterVal === 'inactive' ? '0' : 'all';
-      const res = await kotService.getKOTList({ active: activeParam });
-      const rawKots = res?.kots || res?.data || [];
-      if (Array.isArray(rawKots)) setDbKots(rawKots);
+      const activeParam = (filterVal === 'active') ? '1' : (filterVal === 'inactive') ? '0' : 'all';
+      const res = await kotService.getKOTList({ active: activeParam, store_id: activeStoreId });
+      let rawKots = res?.kots || res?.data || [];
+      if (Array.isArray(rawKots)) {
+        if (filterVal === 'cancelled') {
+          rawKots = rawKots.filter(k => k.status === 'Cancelled');
+        } else if (filterVal === 'nc') {
+          rawKots = rawKots.filter(k => {
+            const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : k.extra_details;
+            return (
+              extra?.isNC || k.isNC || k.ncType ||
+              String(k.remarks || k.comment || '').toUpperCase().includes('NC') ||
+              String(k.customer_name || '').toUpperCase().includes('NC') ||
+              (k.items && k.items.some(item => String(item.itemName || '').toUpperCase().includes('NC') || Number(item.unitPrice || item.price || 0) === 0))
+            );
+          });
+        }
+        setDbKots(rawKots);
+      }
     } catch (err) {
       console.warn('Error loading KOTs:', err);
     } finally {
@@ -81,7 +100,7 @@ const ViewKOTPage = () => {
     }
   };
 
-  useEffect(() => { loadKots(activeFilter); }, [activeFilter]);
+  useEffect(() => { loadKots(activeFilter); }, [activeFilter, activeStoreId]);
 
   // inject spinner keyframes once
   useEffect(() => {
@@ -123,17 +142,29 @@ const ViewKOTPage = () => {
     }
   };
 
-  const handleDelete = async (kot) => {
-    if (!window.confirm(`Delete KOT ${kot.id}?`)) return;
+  const handleDelete = (kot) => {
+    if (!kot) return;
+    setKotToCancel(kot);
+    setKotCancelReason('');
+    setKotCancelError('');
+  };
+
+  const confirmDelete = async () => {
+    if (!kotCancelReason.trim()) {
+      setKotCancelError('Cancellation reason is required');
+      return;
+    }
+
     try {
       setLoadingKots(true);
-      await kotService.deleteKOT(kot.kotId);
-      setDbKots(prev => prev.filter(k => k.kotId !== kot.kotId));
-      setTables(prev => prev.map(t => ({ ...t, kots: (t.kots || []).filter(k => k.kotId !== kot.kotId) })));
-      window.showToast?.(`KOT ${kot.id} deleted`, 'info');
-      if (selected?.kotId === kot.kotId) setSelected(null);
+      await kotService.deleteKOT(kotToCancel.kotId, { reason: kotCancelReason });
+      setDbKots(prev => prev.filter(k => k.kotId !== kotToCancel.kotId));
+      setTables(prev => prev.map(t => ({ ...t, kots: (t.kots || []).filter(k => k.kotId !== kotToCancel.kotId) })));
+      window.showToast?.(`KOT ${kotToCancel.id} cancelled successfully`, 'info');
+      if (selected?.kotId === kotToCancel.kotId) setSelected(null);
+      setKotToCancel(null);
     } catch (err) {
-      window.showToast?.('Failed to delete KOT', 'error');
+      window.showToast?.('Failed to cancel KOT', 'error');
     } finally {
       setLoadingKots(false);
     }
@@ -213,6 +244,8 @@ const ViewKOTPage = () => {
           >
             <option value="active">🟢 Active KOTs</option>
             <option value="inactive">🔴 Closed KOTs</option>
+            <option value="cancelled">❌ Cancelled KOTs</option>
+            <option value="nc">🍽️ NC (Non-Chargeable) KOTs</option>
             <option value="all">📋 All KOTs</option>
           </select>
 
@@ -287,7 +320,31 @@ const ViewKOTPage = () => {
 
                   {/* KOT No */}
                   <td style={{ padding: '12px 14px', fontSize: '14px', fontWeight: '800', color: closed ? '#94a3b8' : '#244E5F' }}>
-                    {kot.id}
+                    <div>{kot.id}</div>
+                    {(() => {
+                      const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : kot.extra_details;
+                      const isNC = extra?.isNC || kot.isNC || kot.ncType;
+                      const typeText = extra?.ncType || kot.ncType || 'Complimentary';
+                      if (isNC) {
+                        return (
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
+                            fontWeight: '800',
+                            backgroundColor: '#fee2e2',
+                            color: '#ef4444',
+                            border: '1px solid #fca5a5',
+                            marginTop: '2px',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            NC: {typeText}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
                   </td>
 
                   {/* Date */}
@@ -312,14 +369,20 @@ const ViewKOTPage = () => {
 
                   {/* Active / Closed state badge */}
                   <td style={{ padding: '12px 14px' }}>
-                    <span style={{
-                      padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
-                      background: closed ? '#fee2e2' : '#dcfce7',
-                      color: closed ? '#dc2626' : '#15803d',
-                      border: `1px solid ${closed ? '#fecaca' : '#bbf7d0'}`,
-                    }}>
-                      {closed ? '● Closed' : '● Active'}
-                    </span>
+                    {kot.status === 'Cancelled' ? (
+                      <span style={{ fontSize: '12.5px', color: '#dc2626', fontWeight: '700', fontStyle: 'italic' }}>
+                        {kot.cancel_reason || 'Cancelled'}
+                      </span>
+                    ) : (
+                      <span style={{
+                        padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
+                        background: closed ? '#fee2e2' : '#dcfce7',
+                        color: closed ? '#dc2626' : '#15803d',
+                        border: `1px solid ${closed ? '#fecaca' : '#bbf7d0'}`,
+                      }}>
+                        {closed ? '● Closed' : '● Active'}
+                      </span>
+                    )}
                   </td>
 
                   {/* Kitchen status dropdown (active only) or static badge (closed) */}
@@ -389,15 +452,17 @@ const ViewKOTPage = () => {
                       </button>
 
                       {/* Delete */}
-                      <button
-                        onClick={() => handleDelete(kot)}
-                        title="Delete KOT"
-                        style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
-                      >
-                        <LuTrash2 size={13} />
-                      </button>
+                      {kot.status !== 'Cancelled' && kot.is_active !== 0 && kot.status !== 'Closed' && (
+                        <button
+                          onClick={() => handleDelete(kot)}
+                          title="Cancel KOT"
+                          style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
+                        >
+                          <LuTrash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -415,9 +480,15 @@ const ViewKOTPage = () => {
           title={`KOT Details — ${selected.id}`}
           maxWidth="480px"
         >
-          <div style={{ fontSize: '13px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
+           <div style={{ fontSize: '13px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
             {formatTableNoDisplay(selected.tableId)} &nbsp;·&nbsp; {selected.date} &nbsp;·&nbsp; {selected.time} &nbsp;·&nbsp; {selected.waiter}
           </div>
+
+          {selected.cancel_reason && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '13px', fontWeight: '700', marginBottom: '16px' }}>
+              <strong>Cancellation Reason:</strong> {selected.cancel_reason}
+            </div>
+          )}
 
           <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
             Order Items ({selected.items.length})
@@ -448,12 +519,14 @@ const ViewKOTPage = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => { handleDelete(selected); }}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <LuTrash2 size={14} /> Delete
-            </button>
+            {selected.status !== 'Cancelled' && selected.is_active !== 0 && selected.status !== 'Closed' && (
+              <button
+                onClick={() => { handleDelete(selected); }}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <LuTrash2 size={14} /> Cancel KOT
+              </button>
+            )}
             <button
               onClick={() => handlePrint(selected)}
               style={{ flex: 1.2, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
@@ -466,6 +539,87 @@ const ViewKOTPage = () => {
             >
               <LuCheck size={14} /> Close
             </button>
+          </div>
+        </CommonModal>
+      )}
+
+      {/* Custom Reason Modal for KOT cancellation */}
+      {kotToCancel && (
+        <CommonModal
+          isOpen={!!kotToCancel}
+          onClose={() => setKotToCancel(null)}
+          title={`Cancel KOT — ${kotToCancel.id}`}
+          maxWidth="440px"
+        >
+          <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
+            <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#1e293b', fontWeight: 800 }}>
+              why do you want to cancel the KOT {kotToCancel.id}?
+            </h4>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <textarea
+                placeholder="Enter cancellation reason..."
+                rows={3}
+                value={kotCancelReason}
+                onChange={e => {
+                  setKotCancelReason(e.target.value);
+                  if (e.target.value.trim()) setKotCancelError('');
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: kotCancelError ? '1.5px solid #ef4444' : '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  outline: 'none',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  resize: 'none',
+                  fontFamily: 'inherit'
+                }}
+                autoFocus
+              />
+              {kotCancelError && (
+                <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 700 }}>
+                  {kotCancelError}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setKotToCancel(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                Confirm Cancel
+              </button>
+            </div>
           </div>
         </CommonModal>
       )}

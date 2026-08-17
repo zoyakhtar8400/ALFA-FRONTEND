@@ -1,6 +1,6 @@
 export const masters = [
   // { name: 'Tax Structure', path: '/front-desk/master/tax-structure' },
-  { name: 'Floor Master', path: '/front-desk/master/floor-master' },
+  // { name: 'Floor Master', path: '/front-desk/master/floor-master' },
   // { name: 'Room Feature', path: '/front-desk/master/room-feature' },
   // { name: 'Room Category', path: '/front-desk/master/room-category' },
   // { name: 'Room Master', path: '/front-desk/master/room-master' },
@@ -41,26 +41,26 @@ export const purchaseOperationsDirect = [
 ];
 
 export const operations = [
-  { name: 'Booking', path: '/front-desk/operation/booking' },
-  { name: 'Walkin Checkin Entry', path: '/front-desk/operation/walkin-checkin-entry' },
-  { name: 'Payment Recieve Entry', path: '/front-desk/operation/payment-recieve-entry' },
-  { name: 'Service Charge Entry', path: '/front-desk/operation/service-charge-entry' },
-  { name: 'Room Change Entry', path: '/front-desk/operation/room-change-entry' },
-  { name: 'Room Checkout Entry', path: '/front-desk/operation/room-checkout-entry' },
-  { name: 'Checkout Entry', path: '/front-desk/operation/checkout-entry' },
-  { name: 'Refund Entry', path: '/front-desk/operation/refund-entry' },
-  { name: 'Add Guest in Room Entry', path: '/front-desk/operation/add-guest-in-room-entry' },
-  { name: 'Night Audit Entry', path: '/front-desk/operation/night-audit-entry' },
-  { name: 'Guest Profile', path: '/front-desk/operation/guest-profile' },
-  { name: 'Multi Room Checkout', path: '/front-desk/operation/multi-room-checkout' },
-  { name: 'Room Enquiry Entry', path: '/front-desk/operation/room-enquiry-entry' },
-  { name: 'Expense Entry', path: '/front-desk/operation/expense-entry' },
-  { name: 'Amend Stay Entry', path: '/front-desk/operation/amend-stay-entry' },
+  // { name: 'Booking', path: '/front-desk/operation/booking' },
+  // { name: 'Walkin Checkin Entry', path: '/front-desk/operation/walkin-checkin-entry' },
+  // { name: 'Payment Recieve Entry', path: '/front-desk/operation/payment-recieve-entry' },
+  // { name: 'Service Charge Entry', path: '/front-desk/operation/service-charge-entry' },
+  // { name: 'Room Change Entry', path: '/front-desk/operation/room-change-entry' },
+  // { name: 'Room Checkout Entry', path: '/front-desk/operation/room-checkout-entry' },
+  // { name: 'Checkout Entry', path: '/front-desk/operation/checkout-entry' },
+  // { name: 'Refund Entry', path: '/front-desk/operation/refund-entry' },
+  // { name: 'Add Guest in Room Entry', path: '/front-desk/operation/add-guest-in-room-entry' },
+  // { name: 'Night Audit Entry', path: '/front-desk/operation/night-audit-entry' },
+  // { name: 'Guest Profile', path: '/front-desk/operation/guest-profile' },
+  // { name: 'Multi Room Checkout', path: '/front-desk/operation/multi-room-checkout' },
+  // { name: 'Room Enquiry Entry', path: '/front-desk/operation/room-enquiry-entry' },
+  // { name: 'Expense Entry', path: '/front-desk/operation/expense-entry' },
+  // { name: 'Amend Stay Entry', path: '/front-desk/operation/amend-stay-entry' },
 ];
 
 export const misItems = [
-  { name: 'Reservation Dashboard', path: '/front-desk/mis/reservation-dashboard' },
-  { name: 'Front Office Dashboard', path: '/front-desk/mis/front-office-dashboard' },
+  // { name: 'Reservation Dashboard', path: '/front-desk/mis/reservation-dashboard' },
+  // { name: 'Front Office Dashboard', path: '/front-desk/mis/front-office-dashboard' },
 ];
 
 export const restaurantItems = [
@@ -71,26 +71,29 @@ export const restaurantItems = [
 ];
 
 export const restaurantMasters = [
-  { name: 'Steward Master', path: '/pos/masters/steward-master' },
-  { name: 'Delivery Master', path: '/pos/master/delivery' },
-  { name: 'Outlet Master', path: '/pos/master/outlet' },
-  { name: 'Table Master', path: '/pos/master/table' },
-  // { name: 'Table Structure Design', path: '/pos/master/structure-design' },
-  { name: 'Item Tax Category', path: '/pos/master/tax-category' },
-  { name: 'Printer Master', path: '/restaurant/master/printer-master' },
-  { name: 'Production Category', path: '/restaurant/master/production-category' },
+  { name: 'Steward Master', label: 'Steward Master', path: '/pos/masters/steward-master' },
+  { name: 'Delivery Master', label: 'Delivery Master', path: '/pos/master/delivery' },
+  { name: 'Outlet Master', label: 'Outlet Master', path: '/pos/master/outlet' },
+  { name: 'Area Master', label: 'Area Master', path: '/pos/master/area' },
+  { name: 'Table Master', label: 'Table Master', path: '/pos/master/table' },
+  { name: 'Payment Master', label: 'Payment Master', path: '/pos/master/payment' },
+  // { name: 'Table Structure Design', label: 'Table Structure Design', path: '/pos/master/structure-design' },
+  { name: 'Item Tax Category', label: 'Item Tax Category', path: '/pos/master/tax-category' },
+  { name: 'Printer Master', label: 'Printer Master', path: '/restaurant/master/printer-master' },
+  { name: 'Production Category', label: 'Production Category', path: '/restaurant/master/production-category' },
   {
     name: 'Item Menu',
+    label: 'Item Menu',
     path: '/pos/master/item-menu',
     subitems: [
-      { name: 'Main Group Entry', path: '/pos/master/item-menu/main-group' },
-      { name: 'Item Group Entry', path: '/pos/master/item-menu/item-group' },
-      { name: 'Menu Item Entry', path: '/pos/master/item-menu/menu-item' },
-      { name: 'Item Entry CSV upload', path: '/pos/master/item-menu/csv-upload' },
-      { name: 'HSN Update', path: '/pos/master/item-menu/hsn-update' }
+      { name: 'Main Group Entry', label: 'Main Group Entry', path: '/pos/master/item-menu/main-group' },
+      { name: 'Item Group Entry', label: 'Item Group Entry', path: '/pos/master/item-menu/item-group' },
+      { name: 'Menu Item Entry', label: 'Menu Item Entry', path: '/pos/master/item-menu/menu-item' },
+      { name: 'Item Entry CSV upload', label: 'Item Entry CSV upload', path: '/pos/master/item-menu/csv-upload' },
+      { name: 'HSN Update', label: 'HSN Update', path: '/pos/master/item-menu/hsn-update' }
     ]
   },
-  { name: 'NC Type Master', path: '/pos/master/nc-type' },
-  { name: 'Item Rate Update', path: '/pos/master/rate-update' },
-  { name: 'Item Rate Category', path: '/pos/master/rate-category' }
+  { name: 'NC Type Master', label: 'NC Type Master', path: '/pos/master/nc-type' },
+  { name: 'Item Rate Update', label: 'Item Rate Update', path: '/pos/master/rate-update' },
+  { name: 'Item Rate Category', label: 'Item Rate Category', path: '/pos/master/rate-category' }
 ];

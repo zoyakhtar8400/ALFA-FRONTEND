@@ -71,25 +71,31 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
   }, []);
 
   const runPrintAll = useCallback(async () => {
-    const results = await Promise.all(
+    await Promise.all(
       kotGroups.map((group, i) => printOne(group, payloads[i] || {}))
     );
     setAllDone(true);
-    const allSuccess = results.every(r => r.success);
-    if (allSuccess && onKOTSuccess) onKOTSuccess();
+    // Always call onKOTSuccess after all print attempts finish (success or fail)
+    // so the table always turns yellow regardless of printer configuration
+    if (onKOTSuccess) onKOTSuccess();
   }, [kotGroups, payloads, printOne, onKOTSuccess]);
 
   if (!isOpen) return null;
 
   // If no groups at all show a fallback
   if (!hasGroups) {
+    const handleFallbackClose = () => {
+      // Always fire success so table turns yellow even with no printer configured
+      if (onKOTSuccess) onKOTSuccess();
+      onClose();
+    };
     const fallback = (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 999999, background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', boxSizing: 'border-box' }}>
         <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center', maxWidth: '380px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🖨️</div>
           <div style={{ fontWeight: 800, color: '#0e7490', fontSize: '1.2rem', marginBottom: '8px' }}>KOT Generated</div>
           <div style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '24px' }}>No printer stations were matched. Items sent to default printer.</div>
-          <button ref={closeRef} onClick={onClose} style={{ padding: '10px 28px', borderRadius: '8px', border: 'none', background: '#0e7490', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Close</button>
+          <button ref={closeRef} onClick={handleFallbackClose} style={{ padding: '10px 28px', borderRadius: '8px', border: 'none', background: '#0e7490', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Close</button>
         </div>
       </div>
     );

@@ -5,36 +5,47 @@ const COLOR_MAP = {
   white: { bg: '#ffffff', text: '#6b7280', border: '1px solid #d1d5db' },
   yellow: { bg: '#f5c842', text: '#1e293b', border: '1px solid #d4a800' }, // Running Table (Yellow)
   orange: { bg: '#f97316', text: '#ffffff', border: '1px solid #ea580c' }, // Reserved Table (Orange)
-  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' }   // Paid / Cleaning (Green)
+  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' },   // Paid / Cleaning (Green)
+  blue: { bg: '#2563eb', text: '#ffffff', border: '1px solid #1d4ed8' },   // Unpaid Bill (Blue)
+  red: { bg: '#ef4444', text: '#ffffff', border: '1px solid #b91c1c' },    // Error / Override (Red)
+  purple: { bg: '#c084fc', text: '#1e293b', border: '1px solid #a855f7' }  // NC / Blocked Table (Purple)
 };
 
-const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) => {
+const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSelected }) => {
   // Determine color theme strictly and instantly from backend/frontend status attributes
   const statusUpper = (table.status || table.order_state || '').toUpperCase();
   const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
-  const isReserved = !isBlank && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
-  const isPaidOrCleaning = !isBlank && !isReserved && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
-  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(table.amount || 0) > 0));
+  const isNCBlocked = !isBlank && (statusUpper === 'NC_BLOCKED' || table.color === 'purple');
+  const isReserved = !isBlank && !isNCBlocked && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
+  const isPaidOrCleaning = !isBlank && !isReserved && !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
+  const isUnpaidBill = !isBlank && !isReserved && !isPaidOrCleaning && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
+  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(table.amount || 0) > 0));
 
-  const colorKey = isPaidOrCleaning
+  const colorKey = isNCBlocked
+    ? 'purple'
+    : isPaidOrCleaning
     ? 'green'
     : isReserved
     ? 'orange'
+    : isUnpaidBill
+    ? 'blue'
     : isRunning
     ? 'yellow'
     : 'white';
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
-  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaidOrCleaning);
+  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked);
   const isPaymentCompleted = isPaidOrCleaning;
 
   // Action icons:
   // Green table (Paid) -> ['print_kot']
-  // Yellow table (Running / KOT Cut) -> ['print_kot', 'view_kot'] (two icons)
+  // Yellow/Red table (Running / KOT Cut / Unpaid) -> ['print_kot', 'view_kot'] (two icons)
   // White/Reserved table -> []
-  const actions = (Array.isArray(table.available_actions) && table.available_actions.length > 0)
+  const actions = isNCBlocked
+    ? []
+    : (Array.isArray(table.available_actions) && table.available_actions.length > 0)
     ? table.available_actions
-    : (isPaymentCompleted ? ['print_kot'] : (colorKey === 'yellow' || isRunning || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
+    : (isPaymentCompleted ? ['print_kot'] : (colorKey === 'yellow' || colorKey === 'red' || isRunning || isUnpaidBill || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
 
   // Format remaining_seconds into 00:SS or MM:SS
   const formatTimer = (totalSec) => {
@@ -79,6 +90,46 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) =>
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.18)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isAvailable ? 'none' : '0 1px 4px rgba(0,0,0,0.12)'; }}
     >
+      {!isAvailable && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.(table);
+          }}
+          title="Reset Table"
+          style={{
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            background: '#fee2e2',
+            border: '1px solid #fecaca',
+            color: '#ef4444',
+            borderRadius: '50%',
+            width: '20px',
+            height: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 10,
+            transition: 'background 0.1s, transform 0.1s',
+            padding: 0
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = '#fca5a5';
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = '#fee2e2';
+            e.currentTarget.style.transform = 'none';
+          }}
+        >
+          <svg stroke="currentColor" fill="none" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="11" width="11" xmlns="http://www.w3.org/2000/svg">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      )}
       {/* ── Timer badge (backend calculated remaining_seconds) ── */}
       {timerText && (
         <div style={{
@@ -106,16 +157,30 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, isSelected }) =>
         T{parseInt(table.no || table.table_no || '1', 10)}
       </div>
 
-      {/* ── Reserved label or Amount ── */}
-      {isReserved ? (
-        <div style={{ fontSize: '0.72rem', fontWeight: 700, marginTop: '4px', lineHeight: 1, color: '#fff', opacity: 0.95, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Reserved
-        </div>
-      ) : (!isAvailable && !isPaymentCompleted && table.amount > 0) ? (
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '5px', lineHeight: 1 }}>
+      {/* ── Status label ── */}
+      <div style={{
+        fontSize: '0.62rem',
+        fontWeight: 700,
+        marginTop: '3px',
+        lineHeight: 1,
+        letterSpacing: '0.6px',
+        textTransform: 'uppercase',
+        opacity: 0.85,
+      }}>
+        {isNCBlocked ? 'NC Blocked'
+          : isPaymentCompleted ? 'Paid'
+          : isUnpaidBill ? 'Unpaid'
+          : isReserved ? 'Reserved'
+          : isRunning ? 'Running'
+          : 'Available'}
+      </div>
+
+      {/* ── Amount (for running / unpaid tables) ── */}
+      {!isAvailable && !isPaymentCompleted && !isReserved && table.amount > 0 && (
+        <div style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '3px', lineHeight: 1 }}>
           ₹{table.amount.toLocaleString('en-IN')}
         </div>
-      ) : null}
+      )}
 
       {/* ── Backend Driven Action Icons ── */}
       {showActions && (

@@ -11,6 +11,7 @@ import { orderService } from '../../../services/orderService';
 import { restaurantApi } from '../../../api/restaurantApi';
 import { tableService } from '../../../services/tableService';
 import { useRestaurant } from '../../../context/RestaurantContext';
+import posApi from '../../../api/posApi';
 
 const QuickPaymentModal = ({
   isOpen,
@@ -21,7 +22,7 @@ const QuickPaymentModal = ({
   showToast
 }) => {
   const navigate = useNavigate();
-  const { setTables } = useRestaurant();
+  const { setTables, activeStoreId } = useRestaurant();
 
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
   const [showDiscountPanel, setShowDiscountPanel] = useState(false);
@@ -30,6 +31,19 @@ const QuickPaymentModal = ({
   ]);
   const [paymentMode, setPaymentMode] = useState('Cash');
   const [isPaid, setIsPaid] = useState(false);
+  const [taxLines, setTaxLines] = useState([]); // [{name, rate, amount}]
+
+  // Load ALL active taxes from backend Tax master on open
+  useEffect(() => {
+    if (!isOpen) return;
+    posApi.getItemTaxCategories().then(res => {
+      const taxes = Array.isArray(res?.data) ? res.data : [];
+      setTaxLines(taxes.map(t => ({
+        name: t.name || 'Tax',
+        rate: Number(t.percentage || 0)
+      })));
+    }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
+  }, [isOpen]);
 
   const toast = (msg, type = 'success') => {
     if (typeof showToast === 'function') {
@@ -67,8 +81,17 @@ const QuickPaymentModal = ({
   }, [discountLines, subTotal]);
 
   const taxableAmount = Math.max(0, subTotal - totalDiscountAmt);
-  const totalTax = taxableAmount * 0.05; // 5% GST
-  const netBill = taxableAmount + totalTax;
+  // Compute each tax line dynamically from master
+  const computedTaxLines = taxLines.map(t => ({
+    name: t.name,
+    rate: t.rate,
+    amount: Math.round((taxableAmount * t.rate / 100) * 100) / 100
+  }));
+  const totalTax = Math.round(computedTaxLines.reduce((s, t) => s + t.amount, 0) * 100) / 100;
+  // legacy compat
+  const cgstAmt = computedTaxLines.find(t => t.name?.toUpperCase().includes('CGST'))?.amount ?? Math.round((totalTax / 2) * 100) / 100;
+  const sgstAmt = computedTaxLines.find(t => t.name?.toUpperCase().includes('SGST'))?.amount ?? Math.round((totalTax / 2) * 100) / 100;
+  const netBill = Math.round((taxableAmount + totalTax) * 100) / 100;
 
   const addDiscountLine = () => {
     setDiscountLines(prev => [
@@ -139,7 +162,12 @@ const QuickPaymentModal = ({
         status: 'completed',
         payment_status: 'Paid',
         paymentMode: paymentMode || 'Cash',
-        items: activeRows
+        items: activeRows,
+        discount: totalDiscountAmt,
+        tax: totalTax,
+        cgst: cgstAmt,
+        sgst: sgstAmt,
+        store_id: activeStoreId
       }).catch(err => {
         console.warn('Order creation warning in quick pay:', err);
         return null;
@@ -209,7 +237,10 @@ const QuickPaymentModal = ({
         status: 'completed',
         payment_status: 'Paid',
         paymentMode: paymentMode || 'Cash',
-        items: activeRows
+        items: activeRows,
+        discount: totalDiscountAmt,
+        tax: totalTax,
+        store_id: activeStoreId
       }).catch(err => {
         console.warn('Order creation warning in quick pay:', err);
         return null;
@@ -288,7 +319,8 @@ const QuickPaymentModal = ({
         tableNo: targetTableNo || '1',
         customerName: table.customer || 'Walk-in',
         waiter: table.waiter || 'Staff',
-        items: activeRows
+        items: activeRows,
+        store_id: activeStoreId
       }).catch(() => {});
 
       toast(`KOT generated for Table T${targetTableNo}!`);

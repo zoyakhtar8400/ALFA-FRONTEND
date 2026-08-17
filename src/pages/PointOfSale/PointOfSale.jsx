@@ -1,6 +1,8 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import StewardMasterPage from './Masters/StewardMaster/StewardMasterPage';
+import AreaMasterPage from './Masters/AreaMaster/AreaMasterPage';
+import PaymentMasterPage from './Masters/PaymentMaster/PaymentMasterPage';
 import DeliveryMasterPage from './Masters/DeliveryMaster/DeliveryMasterPage';
 import OutletMasterPage from './Masters/OutletMaster/OutletMasterPage';
 import TableMasterPage from './Masters/TableMaster/TableMasterPage';
@@ -28,10 +30,16 @@ const PointOfSale = ({ showToast }) => {
     if (path.includes('/masters/steward-master') || path.includes('/master/steward-master')) {
       return <StewardMasterPage showToast={showToast} />;
     }
+    if (path.includes('/master/area') || path.includes('/masters/area')) {
+      return <AreaMasterPage showToast={showToast} />;
+    }
+    if (path.includes('/master/payment') || path.includes('/masters/payment')) {
+      return <PaymentMasterPage showToast={showToast} />;
+    }
     if (path.includes('/master/delivery')) {
       return <DeliveryMasterPage showToast={showToast} />;
     }
-    if (path.includes('/master/outlet')) {
+    if (path.includes('/master/outlet') && !/\/master\/outlet\/\d+/.test(path)) {
       return <OutletMasterPage showToast={showToast} />;
     }
     if (path.includes('/master/table') && !path.includes('/master/table-structure')) {

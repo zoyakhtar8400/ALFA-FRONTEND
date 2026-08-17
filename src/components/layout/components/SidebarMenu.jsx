@@ -39,23 +39,24 @@ const SidebarMenu = ({
   const isActive = (path) => currentPath === path;
 
   // Accordions filter match check
-  const matchesFilter = (label) => {
+  const matchesFilter = (itemOrLabel) => {
     if (!isQuery) return true;
-    return label.toLowerCase().includes(query);
+    const text = typeof itemOrLabel === 'string' ? itemOrLabel : (itemOrLabel?.name || itemOrLabel?.label || '');
+    return text.toLowerCase().includes(query);
   };
 
   const hasMatchesFD = () => {
     if (!isQuery) return true;
-    const mMatch = masters.some(m => matchesFilter(m.label));
-    const oMatch = operations.some(o => matchesFilter(o.label));
-    const miMatch = misItems.some(mi => matchesFilter(mi.label));
+    const mMatch = masters.some(m => matchesFilter(m.name || m.label));
+    const oMatch = operations.some(o => matchesFilter(o.name || o.label));
+    const miMatch = misItems.some(mi => matchesFilter(mi.name || mi.label));
     return mMatch || oMatch || miMatch;
   };
 
   const hasMatchesRest = () => {
     if (!isQuery) return true;
-    const rMatch = restaurantItems.some(ri => matchesFilter(ri.label));
-    const rmMatch = restaurantMasters.some(rm => matchesFilter(rm.label));
+    const rMatch = restaurantItems.some(ri => matchesFilter(ri.name || ri.label));
+    const rmMatch = restaurantMasters.some(rm => matchesFilter(rm.name || rm.label));
     return rMatch || rmMatch;
   };
 
@@ -83,7 +84,7 @@ const SidebarMenu = ({
         </Link>
       )}
 
-      {/* Front Desk Module Section */}
+      {/* Front Desk Module Section (Commented)
       {hasMatchesFD() && (
         <div
           onMouseEnter={handleFrontDeskMouseEnter}
@@ -106,10 +107,8 @@ const SidebarMenu = ({
             {!isCollapsed && (frontDeskOpen ? <FaChevronDown size={10} /> : <FaChevronRight size={10} />)}
           </div>
 
-          {/* Front Desk Nested Drawer Links */}
           {frontDeskOpen && !isCollapsed && (
             <div style={{ paddingLeft: '14px', display: 'flex', flexDirection: 'column', borderLeft: '1px solid #e2e8f0', marginLeft: '20px', gap: '2px', marginTop: '2px' }}>
-              {/* Masters Accordion */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
                   onClick={() => setMasterOpen(p => !p)}
@@ -118,7 +117,7 @@ const SidebarMenu = ({
                   <span>MASTERS</span>
                   {masterOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
                 </div>
-                {masterOpen && masters.filter(m => matchesFilter(m.label)).map(m => (
+                {masterOpen && masters.filter(m => matchesFilter(m.name || m.label)).map(m => (
                   <Link
                     key={m.path}
                     to={m.path}
@@ -129,12 +128,11 @@ const SidebarMenu = ({
                       borderRadius: '4px'
                     }}
                   >
-                    {m.label}
+                    {m.name || m.label}
                   </Link>
                 ))}
               </div>
 
-              {/* Operations Accordion (Commented)
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div 
                   onClick={() => setOperationOpen(p => !p)} 
@@ -143,7 +141,7 @@ const SidebarMenu = ({
                   <span>OPERATIONS</span>
                   {operationOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
                 </div>
-                {operationOpen && operations.filter(o => matchesFilter(o.label)).map(o => (
+                {operationOpen && operations.filter(o => matchesFilter(o.name || o.label)).map(o => (
                   <Link
                     key={o.path}
                     to={o.path}
@@ -154,13 +152,11 @@ const SidebarMenu = ({
                       borderRadius: '4px'
                     }}
                   >
-                    {o.label}
+                    {o.name || o.label}
                   </Link>
                 ))}
               </div>
-              */}
 
-              {/* MIS Report Accordion (Commented)
               <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
                 <div 
                   onClick={() => setMisOpen(p => !p)} 
@@ -169,7 +165,7 @@ const SidebarMenu = ({
                   <span>MIS & CHARTS</span>
                   {misOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
                 </div>
-                {misOpen && misItems.filter(mi => matchesFilter(mi.label)).map(mi => (
+                {misOpen && misItems.filter(mi => matchesFilter(mi.name || mi.label)).map(mi => (
                   <Link
                     key={mi.path}
                     to={mi.path}
@@ -180,15 +176,15 @@ const SidebarMenu = ({
                       borderRadius: '4px'
                     }}
                   >
-                    {mi.label}
+                    {mi.name || mi.label}
                   </Link>
                 ))}
               </div>
-              */}
             </div>
           )}
         </div>
       )}
+      */}
 
       {/* Restaurant POS Section */}
       {hasMatchesRest() && (
@@ -245,7 +241,7 @@ const SidebarMenu = ({
                 <span>POS CONFIGS</span>
                 {posMasterOpen ? <FaChevronDown size={8} /> : <FaChevronRight size={8} />}
               </div>
-              {posMasterOpen && restaurantMasters.filter(rm => matchesFilter(rm.label)).map(rm => (
+              {posMasterOpen && restaurantMasters.filter(rm => matchesFilter(rm.name || rm.label)).map(rm => (
                 <Link
                   key={rm.path}
                   to={rm.path}
@@ -256,7 +252,7 @@ const SidebarMenu = ({
                     borderRadius: '4px'
                   }}
                 >
-                  {rm.label}
+                  {rm.name || rm.label}
                 </Link>
               ))}
             </div>

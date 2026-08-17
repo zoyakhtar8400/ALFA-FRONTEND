@@ -13,21 +13,58 @@ import DeleteConfirmationModal from '../../../components/common/DeleteConfirmati
 import BookTableModal from '../components/BookTableModal';
 import CommonModal from '../../../components/common/CommonModal';
 import QuickPaymentModal from '../components/QuickPaymentModal';
+import NCReleaseModal from '../components/NCReleaseModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
-import { printTaxInvoice } from '../utils/printInvoice';
+import { printTaxInvoice, printKitchenKOT } from '../utils/printInvoice';
+import { orderService } from '../../../services/orderService';
 import { tableService } from '../../../services/tableService';
 import { kotService } from '../../../services/kotService';
 import { menuService } from '../../../services/menuService';
 import { reservationService } from '../../../services/reservationService';
-import { floorService } from '../../../services/floorService';
+import areaService from '../../../services/areaService';
 import { restaurantApi } from '../../../api/restaurantApi';
 import posApi from '../../../api/posApi';
+import { useRestaurant } from '../../../context/RestaurantContext';
 
 const DisplayTablePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { activeStoreId } = useRestaurant();
+
+  // Helper to fetch rich details from backend and print instantly
+  const handlePrintPaidTable = async (table) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write('<html><head><title>Loading...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#ffffff;color:#333;"><div>Generating print layout, please wait...</div></body></html>');
+      printWindow.document.close();
+    }
+
+    try {
+      const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
+      const res = await orderService.getOrderById(targetId);
+      const fetchedOrder = res?.order || res?.data;
+      if (fetchedOrder) {
+        printTaxInvoice(fetchedOrder, printWindow);
+      } else {
+        printTaxInvoice({
+          tableNo: table.no,
+          kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+          items: orderItemsMap[table.id] || [],
+          status: table.status
+        }, printWindow);
+      }
+    } catch (err) {
+      console.warn('Error fetching detailed table invoice:', err);
+      printTaxInvoice({
+        tableNo: table.no,
+        kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+        items: orderItemsMap[table.id] || [],
+        status: table.status
+      }, printWindow);
+    }
+  };
 
   // Use modular table operations hook
   const {
@@ -106,6 +143,10 @@ const DisplayTablePage = () => {
   const [isKeyboardNav, setIsKeyboardNav] = useState(false); // only show selection ring during keyboard nav
   const [previewTable, setPreviewTable] = useState(null);
   const [quickPaymentTable, setQuickPaymentTable] = useState(null);
+  const [kotCancelTable, setKotCancelTable] = useState(null);
+  const [kotCancelReason, setKotCancelReason] = useState('');
+  const [kotCancelError, setKotCancelError] = useState('');
+  const [ncReleaseTable, setNcReleaseTable] = useState(null);
 
   // Load real outlets directly from Outlet Master (/stores) & Department API
   useEffect(() => {
@@ -118,7 +159,7 @@ const DisplayTablePage = () => {
 
         const outletMap = new Map();
         const rawList = [];
-        
+
         // 1. From Outlet Master (/stores)
         if (storesRes.status === 'fulfilled') {
           const stores = Array.isArray(storesRes.value?.data) ? storesRes.value.data : (Array.isArray(storesRes.value) ? storesRes.value : []);
@@ -213,7 +254,7 @@ const DisplayTablePage = () => {
               amount: 0,
               customer: 'Walk-in',
               waiter: null
-            }).catch(() => {});
+            }).catch(() => { });
             return {
               ...t,
               status: 'Blank',
@@ -352,7 +393,7 @@ const DisplayTablePage = () => {
           const calculatedAmt = items.reduce((sum, it) => sum + ((it.qty || 1) * (it.unitPrice || it.price || 0)), 0);
 
           // Optimistic local state update (0ms delay!)
-          setTables(prev => prev.map(tb => (String(tb.id) === String(t.id) || String(tb.no) === String(t.no)) ? { ...tb, kots: [...(tb.kots || []), newKot], kotCount: (tb.kots || []).length + 1, status: 'Running', color: 'orange', amount: calculatedAmt || tb.amount, updatedAt: Date.now() } : tb));
+          setTables(prev => prev.map(tb => (String(tb.id) === String(t.id) || String(tb.no) === String(t.no)) ? { ...tb, kots: [...(tb.kots || []), newKot], kotCount: (tb.kots || []).length + 1, status: 'Running', color: 'yellow', amount: calculatedAmt || tb.amount, updatedAt: Date.now() } : tb));
           toast(`KOT generated: ${newKotId}`);
 
           // Persist to PostgreSQL backend database asynchronously
@@ -362,7 +403,8 @@ const DisplayTablePage = () => {
             tableNo: String(t.no),
             customerName: t.customer || 'Walk-in',
             waiter: t.waiter || 'Staff',
-            items: items
+            items: items,
+            store_id: activeStoreId
           }).then(() => {
             restaurantApi.patchTableStatus(t.id, {
               status: 'Running',
@@ -387,7 +429,7 @@ const DisplayTablePage = () => {
   const [addTableModalOpen, setAddTableModalOpen] = useState(false);
   const [newTableNo, setNewTableNo] = useState('');
   const [newTableSeats, setNewTableSeats] = useState(4);
-  const [newTableFloor, setNewTableFloor] = useState('Ground');
+  const [newTableArea, setNewTableArea] = useState('Main Dining Area');
   const [newTableSection, setNewTableSection] = useState('Main Area');
   const [newTableError, setNewTableError] = useState('');
 
@@ -437,7 +479,7 @@ const DisplayTablePage = () => {
           status: 'Reserved',
           customer: customerName.trim(),
           seats: Number(guestsCount || 4)
-        }).catch(() => {});
+        }).catch(() => { });
 
         await refreshTables();
         toast(`Table T${tableNo || tableId} reserved for today (${customerName})!`);
@@ -468,10 +510,72 @@ const DisplayTablePage = () => {
     }
   };
 
+  const releaseNcTable = async (table) => {
+    try {
+      // 1. Close all active KOTs on this table (mark is_active=0, status=6)
+      await kotService.closeTableKOTs(table.id);
+
+      // 2. Patch table status to Blank / AVAILABLE
+      await tableService.patchTableStatus(table.id, {
+        status: 'AVAILABLE',
+        amount: 0,
+        customer: 'Walk-in',
+        waiter: null
+      });
+
+      // 3. Reset local state
+      setTables(prev => prev.map(t => {
+        if (t.id === table.id) {
+          return { ...t, status: 'Blank', color: 'white', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
+        }
+        return t;
+      }));
+      setOrderItemsMap(prev => ({
+        ...prev,
+        [table.id]: []
+      }));
+
+      toast(`Table T${table.no} released successfully.`);
+      refreshTables();
+    } catch (err) {
+      console.error('Error releasing NC table:', err);
+      toast('Failed to release the NC table.');
+    }
+  };
+
   // Card triggers & routing
   const handleTableCardClick = (table) => {
     const isBlankTable = table.status === 'Blank' || table.status === 'AVAILABLE';
-    const tableRows = isBlankTable ? [] : (orderItemsMap[table.id] || orderItemsMap[table.no] || orderItemsMap[String(table.no)] || orderItemsMap[Number(table.no)] || []);
+    const statusUpper = (table.status || table.order_state || '').toUpperCase();
+    const isNCBlocked = statusUpper === 'NC_BLOCKED' || table.color === 'purple';
+
+    if (isNCBlocked) {
+      const userRaw = localStorage.getItem('alfa_user') || localStorage.getItem('user');
+      let isUserAdmin = false;
+      try {
+        if (userRaw) {
+          const u = JSON.parse(userRaw);
+          isUserAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
+        }
+      } catch (e) {}
+
+      if (!isUserAdmin) {
+        toast("This table has an active Non-Chargeable KOT and cannot be billed.");
+        return;
+      }
+
+      setNcReleaseTable(table);
+      return;
+    }
+
+    const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []) : [];
+    const tableRows = isBlankTable ? [] : (
+      (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
+      (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
+      (orderItemsMap[String(table.no)] && orderItemsMap[String(table.no)].length > 0 ? orderItemsMap[String(table.no)] : null) ||
+      (orderItemsMap[`T${table.no}`] && orderItemsMap[`T${table.no}`].length > 0 ? orderItemsMap[`T${table.no}`] : null) ||
+      (kotItemsFromTable.length > 0 ? kotItemsFromTable : [])
+    );
     try {
       sessionStorage.setItem('alfa_selected_pos_table', JSON.stringify({
         table,
@@ -512,6 +616,8 @@ const DisplayTablePage = () => {
             isNewBooking: true
           }
         });
+      } else if (table.status === 'Paid') {
+        handlePrintPaidTable(table);
       } else {
         // Direct order edit on clicking any running/occupied table!
         navigate('/restaurant/pos-billing', {
@@ -531,42 +637,48 @@ const DisplayTablePage = () => {
   };
 
   const handleDownload = (table) => {
+    if (table.status === 'Paid') {
+      handlePrintPaidTable(table);
+      return;
+    }
     const rows = orderItemsMap[table.id] || [];
     navigate('/restaurant/pos-billing', { state: { table, orderRows: rows, autoSettle: true } });
   };
 
-  const handleDeleteClick = (table) => {
-    setTableToDelete(table);
-    setDeleteModalOpen(true);
-  };
+  const handleDeleteClick = async (table) => {
+    if (!table) return;
+    const statusUpper = (table.status || table.order_state || '').toUpperCase();
+    const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
+    const isOccupied = !isBlank;
 
-  const handleDeleteConfirm = async () => {
-    if (tableToDelete) {
+    if (isOccupied) {
+      setKotCancelTable(table);
+      setKotCancelReason('');
+      setKotCancelError('');
+    } else {
       try {
-        await tableService.patchTableStatus(tableToDelete.id, { status: 'Blank' });
+        await tableService.patchTableStatus(table.id, { status: 'Blank' });
       } catch (err) {
         console.warn('Error resetting table status in PostgreSQL:', err);
       }
       setTables(prev => prev.map(t => {
-        if (t.id === tableToDelete.id) {
+        if (t.id === table.id) {
           return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
         }
         return t;
       }));
       setOrderItemsMap(prev => ({
         ...prev,
-        [tableToDelete.id]: []
+        [table.id]: []
       }));
-      toast(`Table T${tableToDelete.no} reset to Blank in PostgreSQL.`);
+      toast(`Table T${table.no} reset to Blank.`);
     }
-    setDeleteModalOpen(false);
-    setTableToDelete(null);
   };
 
   const handleAddNewTable = () => {
     setNewTableNo('');
     setNewTableSeats(4);
-    setNewTableFloor('Ground');
+    setNewTableArea(dbAreasList[0] || 'Main Dining Area');
     setNewTableSection('Main Area');
     setNewTableError('');
     setAddTableModalOpen(true);
@@ -611,12 +723,14 @@ const DisplayTablePage = () => {
             activeStoreId = u.store_id || selectedOutlet || 'STORE_1';
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const res = await tableService.createTable({
         table_name: `Table ${tableNum}`,
         max_person: String(newTableSeats),
         department: 1,
+        area: newTableArea,
+        floor: newTableArea,
         store_id: activeStoreId
       });
 
@@ -630,7 +744,8 @@ const DisplayTablePage = () => {
         amount: 0,
         waiter: null,
         customer: 'Walk-in',
-        floor: newTableFloor,
+        area: newTableArea,
+        floor: newTableArea,
         section: newTableSection,
         kots: [],
         kotCount: 0
@@ -650,63 +765,77 @@ const DisplayTablePage = () => {
     }
   };
 
-  // Floors from Floor Master database
-  const [dbFloorsList, setDbFloorsList] = useState([]);
+  // Areas from Area Master database
+  const [dbAreasList, setDbAreasList] = useState([]);
 
-  const fetchDbFloors = React.useCallback(async () => {
+  const fetchDbAreas = React.useCallback(async () => {
     try {
-      const res = await floorService.getFloors();
-      const list = res?.data || res?.floors || (Array.isArray(res) ? res : []);
-      if (Array.isArray(list) && list.length > 0) {
-        const names = list.filter(f => f.active !== 'No').map(f => f.name);
-        setDbFloorsList(names);
+      const res = await areaService.getAreas();
+      let list = [];
+      if (Array.isArray(res)) {
+        list = res;
+      } else if (Array.isArray(res?.data)) {
+        list = res.data;
+      } else if (Array.isArray(res?.areas)) {
+        list = res.areas;
+      } else if (Array.isArray(res?.data?.data)) {
+        list = res.data.data;
+      } else if (Array.isArray(res?.data?.areas)) {
+        list = res.data.areas;
+      }
+      if (list.length > 0) {
+        const names = list
+          .filter(a => a && (a.active !== 'No' && a.isActive !== false))
+          .map(a => typeof a === 'string' ? a : (a.name || a.area_name || a.areaName || ''))
+          .filter(Boolean);
+        setDbAreasList(names);
       }
     } catch (err) {
-      console.warn('Error loading floors from Floor Master for DisplayTablePage:', err);
+      console.warn('Error loading areas from Area Master for DisplayTablePage:', err);
     }
   }, []);
 
   useEffect(() => {
-    fetchDbFloors();
+    fetchDbAreas();
 
     const handleSync = () => {
-      fetchDbFloors();
+      fetchDbAreas();
     };
 
-    window.addEventListener('floorsMasterRefreshed', handleSync);
+    window.addEventListener('areaMasterRefreshed', handleSync);
+    window.addEventListener('areasMasterRefreshed', handleSync);
     window.addEventListener('tableMasterSync', handleSync);
     window.addEventListener('tablesMasterRefreshed', handleSync);
     window.addEventListener('focus', handleSync);
 
     return () => {
-      window.removeEventListener('floorsMasterRefreshed', handleSync);
+      window.removeEventListener('areaMasterRefreshed', handleSync);
+      window.removeEventListener('areasMasterRefreshed', handleSync);
       window.removeEventListener('tableMasterSync', handleSync);
       window.removeEventListener('tablesMasterRefreshed', handleSync);
       window.removeEventListener('focus', handleSync);
     };
-  }, [fetchDbFloors]);
+  }, [fetchDbAreas]);
 
-  // Floors and Status Filters
-  const dynamicFloors = React.useMemo(() => {
-    const floorSet = new Set(['All']);
-    // 1. Add all active floors from Floor Master database
-    dbFloorsList.forEach(f => {
-      if (f && f.trim()) floorSet.add(f.trim());
-    });
-    // 2. Add floors from current tables
+  // Areas and Status Filters
+  const dynamicAreas = React.useMemo(() => {
+    // 1. If Area Master has areas, ONLY show those areas (+ 'All')
+    if (dbAreasList && dbAreasList.length > 0) {
+      const unique = Array.from(new Set(dbAreasList.filter(a => a && a.trim())));
+      return ['All', ...unique];
+    }
+    // 2. Otherwise if Area Master is empty, check if tables have assigned areas
+    const areaSet = new Set(['All']);
     tables.forEach(t => {
-      if (t.floor && typeof t.floor === 'string' && t.floor.trim()) {
-        floorSet.add(t.floor.trim());
+      const tableArea = t.area;
+      if (tableArea && typeof tableArea === 'string' && tableArea.trim()) {
+        areaSet.add(tableArea.trim());
       }
     });
-    // If empty fallback defaults
-    if (floorSet.size === 1) {
-      ['Ground Floor', 'First Floor', 'Second Floor', 'Balcony', 'Garden'].forEach(f => floorSet.add(f));
-    }
-    return Array.from(floorSet);
-  }, [tables, dbFloorsList]);
+    return Array.from(areaSet);
+  }, [tables, dbAreasList]);
 
-  const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Reserved', 'Paid', 'Cleaning'];
+  const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Unpaid', 'Reserved', 'Paid', 'Cleaning', 'NC Blocked'];
 
   // When viewing a future/specific date, tables reflect reservations on that date only (all other tables are completely blank)
   const dateAdjustedTables = React.useMemo(() => {
@@ -756,73 +885,49 @@ const DisplayTablePage = () => {
   const filteredData = React.useMemo(() => dateAdjustedTables.filter(t => {
     const tableNoStr = String(t.no || '');
     const matchesSearch = !search || tableNoStr.toLowerCase().includes(search.toLowerCase()) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
-    
-    // 1. Floor filter matching (All Floors / specific floor)
-    let matchesFloor = true;
-    if (filter && filter !== 'All' && filter !== 'All Floors') {
-      const tf = String(t.floor || '').toLowerCase().trim();
-      const selF = filter.toLowerCase().trim();
-      const normTf = tf.replace(/\s*floor\s*$/i, '').trim();
-      const normSel = selF.replace(/\s*floor\s*$/i, '').trim();
-      matchesFloor = tf === selF || normTf === normSel || tf.includes(normSel) || normSel.includes(normTf);
+
+    // 1. Area filter matching (All Areas / specific area)
+    let matchesArea = true;
+    if (filter && filter !== 'All' && filter !== 'All Areas' && filter !== 'All Floors') {
+      const ta = String(t.area || t.floor || '').toLowerCase().trim();
+      const selA = filter.toLowerCase().trim();
+      const normTa = ta.replace(/\s*(area|floor)\s*$/i, '').trim();
+      const normSel = selA.replace(/\s*(area|floor)\s*$/i, '').trim();
+      matchesArea = ta === selA || normTa === normSel || ta.includes(normSel) || normSel.includes(normTa);
     }
 
-    // 2. Outlet filter matching (All Outlets / specific outlet)
-    let matchesOutlet = true;
-    if (activeRestaurant && activeRestaurant !== 'All' && activeRestaurant !== 'All Outlets') {
-      const act = activeRestaurant.toLowerCase().trim();
-      const tStore = String(t.store_id || '').trim();
-      const tDept = String(t.department || '').toLowerCase().trim();
-      const tSec = String(t.section || '').toLowerCase().trim();
-
-      const matchedOutlet = rawOutletsList.find(o =>
-        String(o.name || '').toLowerCase().trim() === act ||
-        String(o.title || '').toLowerCase().trim() === act ||
-        String(o.store_id || '').toLowerCase().trim() === act
-      );
-
-      const targetStoreId = matchedOutlet ? String(matchedOutlet.store_id || '').trim() : '';
-      const isTargetPrimary = targetStoreId === 'STORE_1' || targetStoreId === '1' || (!targetStoreId && (act === 'main restaurant' || act === 'main'));
-
-      if (tStore) {
-        if (targetStoreId) {
-          matchesOutlet = tStore.toUpperCase() === targetStoreId.toUpperCase() ||
-                          tStore.replace(/[^0-9]/g, '') === targetStoreId.replace(/[^0-9]/g, '');
-        } else {
-          matchesOutlet = tDept === act || tSec === act;
-        }
-      } else {
-        // Table has no store_id (legacy unassigned) -> only belongs to Primary / Main Restaurant
-        matchesOutlet = isTargetPrimary;
-      }
-    }
-
-    // 3. Status filter
+    // 2. Status filter
     let matchesStatus = true;
     if (statusFilter && statusFilter !== 'All') {
       const st = String(t.status || '').toLowerCase().trim();
       const hasAmount = Number(t.amount || 0) > 0;
-      const isBlank = !t.status || st === 'blank' || st === 'available' || st === 'white';
-      const isReserved = st === 'reserved';
-      const isPaid = st === 'paid' || st === 'bill generated';
-      const isCleaning = st === 'cleaning';
-      const isRunning = (st === 'running' || st === 'kot generated' || st === 'kot_cut' || st === 'billed' || st === 'occupied' || hasAmount) && !isPaid && !isReserved && !isCleaning;
+      const isNCBlocked = st === 'nc_blocked' || st === 'nc' || t.color === 'purple';
+      const isBlank = !isNCBlocked && (!t.status || st === 'blank' || st === 'available' || st === 'white');
+      const isReserved = !isNCBlocked && st === 'reserved';
+      const isPaid = !isNCBlocked && (st === 'paid' || st === 'bill generated');
+      const isCleaning = !isNCBlocked && st === 'cleaning';
+      const isUnpaid = !isNCBlocked && !isReserved && !isPaid && !isCleaning && (st === 'unpaid' || st === 'unpaid_bill' || t.color === 'blue');
+      const isRunning = !isNCBlocked && !isReserved && !isPaid && !isCleaning && !isUnpaid && (st === 'running' || st === 'kot generated' || st === 'kot_cut' || st === 'billed' || st === 'occupied' || hasAmount);
 
       if (statusFilter === 'Blank') {
         matchesStatus = isBlank && !hasAmount;
       } else if (statusFilter === 'Running') {
         matchesStatus = isRunning;
+      } else if (statusFilter === 'Unpaid') {
+        matchesStatus = isUnpaid;
       } else if (statusFilter === 'Reserved') {
         matchesStatus = isReserved;
       } else if (statusFilter === 'Paid') {
         matchesStatus = isPaid;
       } else if (statusFilter === 'Cleaning') {
         matchesStatus = isCleaning;
+      } else if (statusFilter === 'NC Blocked') {
+        matchesStatus = isNCBlocked;
       }
     }
 
-    return matchesSearch && matchesFloor && matchesOutlet && matchesStatus;
-  }), [dateAdjustedTables, search, filter, activeRestaurant, rawOutletsList, statusFilter]);
+    return matchesSearch && matchesArea && matchesStatus;
+  }), [dateAdjustedTables, search, filter, statusFilter]);
 
   // Keep refs in sync for keyboard handler (avoids stale closures)
   filteredDataRef.current = filteredData;
@@ -860,17 +965,6 @@ const DisplayTablePage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Display Table</h1>
-          <select
-            value={activeRestaurant}
-            onChange={(e) => setActiveRestaurant(e.target.value)}
-            style={{ padding: '8px 14px', borderRadius: '8px', border: '1.5px solid #cbd5e1', background: '#fff', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', outline: 'none', cursor: 'pointer' }}
-          >
-            {outletOptions.map(out => (
-              <option key={out} value={out}>
-                {out}
-              </option>
-            ))}
-          </select>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -988,9 +1082,9 @@ const DisplayTablePage = () => {
             </select>
           </div>
 
-          {/* Floor Filter Dropdown */}
+          {/* Area Filter Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Floor:-</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Area:-</span>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -1008,9 +1102,9 @@ const DisplayTablePage = () => {
                 transition: 'border-color 150ms'
               }}
             >
-              {dynamicFloors.map(fl => (
-                <option key={fl} value={fl}>
-                  {fl === 'All' ? 'All Floors' : fl}
+              {dynamicAreas.map(ar => (
+                <option key={ar} value={ar}>
+                  {ar === 'All' ? 'All Areas' : ar}
                 </option>
               ))}
             </select>
@@ -1086,12 +1180,20 @@ const DisplayTablePage = () => {
           Running Table
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#2563eb', border: '1.5px solid #1d4ed8', display: 'inline-block' }} />
+          Unpaid
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#4ade80', border: '1.5px solid #22c55e', display: 'inline-block' }} />
           Paid
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fb923c', border: '1.5px solid #ea7c1e', display: 'inline-block' }} />
           Reserved
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#c084fc', border: '1.5px solid #a855f7', display: 'inline-block' }} />
+          NC Blocked
         </span>
         <span style={{ marginLeft: 'auto', color: '#94a3b8', fontWeight: 600 }}>
           {selectedDate !== todayStr ? (
@@ -1100,7 +1202,7 @@ const DisplayTablePage = () => {
             </>
           ) : (
             <>
-              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
+              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'red' || t.color === 'blue' || t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.order_state === 'UNPAID_BILL').length} Unpaid &nbsp;·&nbsp; {tables.filter(t => t.color === 'purple' || t.status === 'NC_BLOCKED').length} NC Blocked &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
             </>
           )}
         </span>
@@ -1164,10 +1266,19 @@ const DisplayTablePage = () => {
                   onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
                   onView={(e) => {
                     e?.stopPropagation?.();
+                    const statusUpper = (table.status || table.order_state || '').toUpperCase();
+                    if (statusUpper === 'NC_BLOCKED' || table.color === 'purple') {
+                      toast("This table has an active Non-Chargeable KOT and cannot be billed.");
+                      return;
+                    }
                     setQuickPaymentTable(table);
                   }}
                   onSave={(e) => {
                     e?.stopPropagation?.();
+                    if (table.status === 'Paid') {
+                      handlePrintPaidTable(table);
+                      return;
+                    }
                     const tableRows = (
                       orderItemsMap[table.id] ||
                       orderItemsMap[table.no] ||
@@ -1175,13 +1286,18 @@ const DisplayTablePage = () => {
                       orderItemsMap[Number(table.no)] ||
                       (table.kots ? table.kots.flatMap(k => k.items || []) : [])
                     );
-                    printTaxInvoice({
-                      tableNo: table.no,
-                      kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    const activeKotIds = Array.isArray(table.kots) && table.kots.length > 0
+                      ? table.kots.map(k => k.kotId || k.id || k.kot_no || '').filter(Boolean).join(', ')
+                      : `KOT-${table.no}`;
+
+                    printKitchenKOT({
+                      tableId: table.no || table.id,
+                      id: activeKotIds,
                       items: tableRows,
-                      status: table.status
+                      waiter: table.waiter || 'Staff'
                     });
                   }}
+                  onDelete={handleDeleteClick}
                 />
               </div>
             );
@@ -1255,15 +1371,137 @@ const DisplayTablePage = () => {
         handleModalOkClick={handleModalOkClick}
       />
 
-      <DeleteConfirmationModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setTableToDelete(null);
+      {/* Custom Reason Modal for Table/KOT cancellation */}
+      {kotCancelTable && (
+        <CommonModal
+          isOpen={!!kotCancelTable}
+          onClose={() => setKotCancelTable(null)}
+          title={`Cancel KOTs — Table T${kotCancelTable.no}`}
+          maxWidth="440px"
+        >
+          <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
+            <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#1e293b', fontWeight: 800 }}>
+              why do you want to cancel the kot on Table T{kotCancelTable.no}?
+            </h4>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <textarea
+                placeholder="Enter cancellation reason..."
+                rows={3}
+                value={kotCancelReason}
+                onChange={e => {
+                  setKotCancelReason(e.target.value);
+                  if (e.target.value.trim()) setKotCancelError('');
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: kotCancelError ? '1.5px solid #ef4444' : '1.5px solid #cbd5e1',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  outline: 'none',
+                  background: '#f8fafc',
+                  color: '#0f172a',
+                  resize: 'none',
+                  fontFamily: 'inherit'
+                }}
+                autoFocus
+              />
+              {kotCancelError && (
+                <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 700 }}>
+                  {kotCancelError}
+                </span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setKotCancelTable(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const trimmed = kotCancelReason.trim();
+                  if (!trimmed) {
+                    setKotCancelError("Cancellation reason is required!");
+                    return;
+                  }
+
+                  const table = kotCancelTable;
+                  setKotCancelTable(null);
+
+                  try {
+                    const res = await kotService.getKOTList({ tableId: table.id, active: '1' });
+                    const activeKots = res?.kots || res?.data || [];
+                    if (Array.isArray(activeKots) && activeKots.length > 0) {
+                      for (const kot of activeKots) {
+                        await kotService.deleteKOT(kot.kotId, { reason: trimmed });
+                      }
+                    }
+                  } catch (err) {
+                    console.warn('Error cancelling KOTs before table reset:', err);
+                  }
+
+                  try {
+                    await tableService.patchTableStatus(table.id, { status: 'Blank' });
+                  } catch (err) {
+                    console.warn('Error resetting table status in PostgreSQL:', err);
+                  }
+
+                  setTables(prev => prev.map(t => {
+                    if (t.id === table.id) {
+                      return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
+                    }
+                    return t;
+                  }));
+
+                  setOrderItemsMap(prev => ({
+                    ...prev,
+                    [table.id]: []
+                  }));
+
+                  toast(`Table T${table.no} reset to Blank and all KOTs cancelled.`);
+                }}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  cursor: 'pointer'
+                }}
+              >
+                Confirm Cancel
+              </button>
+            </div>
+          </div>
+        </CommonModal>
+      )}
+
+      <NCReleaseModal
+        isOpen={!!ncReleaseTable}
+        onClose={() => setNcReleaseTable(null)}
+        table={ncReleaseTable}
+        onConfirm={async () => {
+          const table = ncReleaseTable;
+          setNcReleaseTable(null);
+          await releaseNcTable(table);
         }}
-        onConfirm={handleDeleteConfirm}
-        title="Reset Table"
-        message={`Are you sure you want to clear all data and reset Table T${tableToDelete?.no} to Blank?`}
       />
 
       <BookTableModal
@@ -1350,16 +1588,15 @@ const DisplayTablePage = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Floor Location</label>
+            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Area Location</label>
             <select
-              value={newTableFloor}
-              onChange={e => setNewTableFloor(e.target.value)}
+              value={newTableArea}
+              onChange={e => setNewTableArea(e.target.value)}
               style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
             >
-              <option value="Ground">Ground Floor</option>
-              <option value="First">First Floor</option>
-              <option value="Second">Second Floor</option>
-              <option value="Rooftop">Rooftop Area</option>
+              {dynamicAreas.filter(a => a !== 'All').map(ar => (
+                <option key={ar} value={ar}>{ar}</option>
+              ))}
             </select>
           </div>
 
@@ -1559,7 +1796,6 @@ const DisplayTablePage = () => {
           </span>
         ))}
       </div>
-
     </div>
   );
 };

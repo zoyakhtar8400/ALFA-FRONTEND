@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_TABLES, INITIAL_MOCK_ORDER_DETAILS } from '../pages/Restaurant/constants/mockData';
 import { tableService } from '../services/tableService';
 import { menuService } from '../services/menuService';
+import posApi from '../api/posApi';
 
 const RestaurantContext = createContext(null);
 
@@ -13,6 +14,17 @@ export const RestaurantProvider = ({ children }) => {
   const [tables, setTables] = useState([]);
   const [tablesLoaded, setTablesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeOutletId, setActiveOutletId] = useState(null);
+  const [activeStoreId, setActiveStoreId] = useState(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
+      return user.store_id || 'STORE_1';
+    } catch {
+      return 'STORE_1';
+    }
+  });
+  const [outletNotFound, setOutletNotFound] = useState(false);
+  const [allOutlets, setAllOutlets] = useState([]);
 
   const [orderItemsMap, setOrderItemsMap] = useState({});
 
@@ -40,23 +52,35 @@ export const RestaurantProvider = ({ children }) => {
     fetchStaticData();
   }, []);
 
+  // Fetch all outlets on mount so sidebar/navbar can resolve outlet names immediately
+  useEffect(() => {
+    posApi.getOutlets()
+      .then(res => {
+        const outlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (outlets.length > 0) setAllOutlets(outlets);
+      })
+      .catch(err => console.warn('Failed to preload outlets:', err.message));
+  }, []);
+
   // Map raw table API response to normalized table object
   function mapTable(t) {
     const extra = t.extra_details || {};
     const rawStatus = (extra.status === 'Reserved' || String(t.status).toLowerCase() === 'reserved' || String(t.order_state).toUpperCase() === 'RESERVED') ? 'Reserved' : (t.status || t.order_state || 'AVAILABLE');
     const statusUpper = String(rawStatus).toUpperCase();
-    const isReserved = statusUpper === 'RESERVED' || rawStatus === 'Reserved';
-    const isPaid = ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
-    const isRunning = !isReserved && !isPaid && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(t.amount || 0) > 0));
+    const isNCBlocked = statusUpper === 'NC_BLOCKED' || t.color === 'purple' || extra.status === 'NC_BLOCKED' || extra.color === 'purple';
+    const isReserved = !isNCBlocked && (statusUpper === 'RESERVED' || rawStatus === 'Reserved');
+    const isPaid = !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
+    const isUnpaid = !isNCBlocked && !isReserved && !isPaid && (['UNPAID_BILL', 'UNPAID'].includes(statusUpper) || t.color === 'blue' || t.color === 'red' || extra.color === 'blue' || extra.color === 'red' || extra.status === 'UNPAID_BILL');
+    const isRunning = !isNCBlocked && !isReserved && !isPaid && !isUnpaid && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(t.amount || 0) > 0));
 
-    const color = isPaid ? 'green' : isReserved ? 'orange' : isRunning ? 'yellow' : 'white';
-    const normalizedStatus = isReserved ? 'Reserved' : isPaid ? 'Paid' : isRunning ? 'Running' : 'Blank';
+    const color = isNCBlocked ? 'purple' : isPaid ? 'green' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
+    const normalizedStatus = isNCBlocked ? 'NC_BLOCKED' : isReserved ? 'Reserved' : isPaid ? 'Paid' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
     
     const isPaymentCompleted = color === 'green';
     const isAvailable = color === 'white';
     const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0
       ? t.available_actions
-      : (isPaymentCompleted ? ['print_kot'] : (!isAvailable && !isReserved) ? ['print_kot', 'view_kot'] : []);
+      : (isPaymentCompleted ? ['print_kot'] : (color === 'yellow' || color === 'blue' || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
 
     return {
       id: t.id,
@@ -68,7 +92,7 @@ export const RestaurantProvider = ({ children }) => {
       raw_status: rawStatus,
       current_order_id: t.current_order_id || 0,
       payment_status: t.payment_status || (isPaymentCompleted ? 'PAID' : 'UNPAID'),
-      kot_status: t.kot_status || (color === 'orange' ? 'CUT' : 'NONE'),
+      kot_status: t.kot_status || (color === 'yellow' ? 'CUT' : 'NONE'),
       payment_completed_at: t.payment_completed_at || (t.extra_details && t.extra_details.payment_completed_at) || null,
       cleanup_after_seconds: t.cleanup_after_seconds || 60,
       remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 60,
@@ -77,7 +101,8 @@ export const RestaurantProvider = ({ children }) => {
       amount: Number(t.amount || 0),
       waiter: t.waiter || null,
       customer: t.customer || 'Walk-in',
-      floor: t.floor || (t.extra_details && t.extra_details.floor) || t.floor_name || t.floorName || 'Ground Floor',
+      area: t.area || (t.extra_details && (t.extra_details.area || t.extra_details.floor)) || t.floor || (t.extra_details && t.extra_details.floor) || t.area_name || t.floor_name || 'Main Area',
+      floor: t.area || (t.extra_details && (t.extra_details.area || t.extra_details.floor)) || t.floor || (t.extra_details && t.extra_details.floor) || t.area_name || t.floor_name || 'Main Area',
       section: t.section || (t.extra_details && t.extra_details.section) || t.department || 'Restaurant',
       department: t.department || (t.extra_details && (t.extra_details.department || t.extra_details.section)) || 'Restaurant',
       store_id: t.store_id || (t.extra_details && t.extra_details.store_id) || 'STORE_1',
@@ -88,9 +113,10 @@ export const RestaurantProvider = ({ children }) => {
 
   // refreshTables — always re-fetches from PostgreSQL and replaces state.
   // Clears tables if DB is empty so stale cache never shows phantom tables.
-  const refreshTables = React.useCallback(async () => {
+  const refreshTables = React.useCallback(async (explicitStoreId) => {
     try {
-      const tableRes = await tableService.getTables({ store_id: 'all' });
+      const storeToFetch = explicitStoreId || activeStoreId || 'STORE_1';
+      const tableRes = await tableService.getTables({ store_id: storeToFetch });
       const rawTables = tableRes?.tables || tableRes?.data || [];
       // Always update — even if empty, so deleted tables disappear
       const uniqueMap = new Map();
@@ -114,7 +140,13 @@ export const RestaurantProvider = ({ children }) => {
         if (Array.isArray(tbl.kots) && tbl.kots.length > 0) {
           const allItems = tbl.kots.flatMap(k => Array.isArray(k.items) ? k.items : []);
           nextItemsMap[tbl.id] = allItems;
-          if (tbl.no) nextItemsMap[tbl.no] = allItems;
+          nextItemsMap[String(tbl.id)] = allItems;
+          if (tbl.no) {
+            nextItemsMap[tbl.no] = allItems;
+            nextItemsMap[String(tbl.no)] = allItems;
+            nextItemsMap[Number(tbl.no)] = allItems;
+            nextItemsMap[`T${tbl.no}`] = allItems;
+          }
         }
       });
       setOrderItemsMap(nextItemsMap);
@@ -123,12 +155,12 @@ export const RestaurantProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeStoreId]);
 
-  // Fetch tables ONCE on mount
+  // Fetch tables on mount and whenever activeStoreId / refreshTables changes
   useEffect(() => {
     refreshTables().then(() => setTablesLoaded(true));
-  }, []);
+  }, [refreshTables]);
 
   // Live countdown ticker & Auto-reset Cleaning / Paid tables to Blank when timer hits 0 (60s)
   useEffect(() => {
@@ -166,18 +198,6 @@ export const RestaurantProvider = ({ children }) => {
 
         return hasChanges ? nextTables : prev;
       });
-      // Clear orderItemsMap for any table that just reset to Blank
-      setOrderItemsMap(prev => {
-        const next = { ...prev };
-        let changed = false;
-        Object.keys(next).forEach(key => {
-          if (next[key] && next[key].length > 0) {
-            changed = true;
-            delete next[key];
-          }
-        });
-        return changed ? next : prev;
-      });
     }, 1000);
     return () => clearInterval(id);
   }, [refreshTables]);
@@ -187,11 +207,19 @@ export const RestaurantProvider = ({ children }) => {
     try { localStorage.setItem('alfa_restaurant_tables', JSON.stringify(tables)); } catch {}
   }, [tables]);
 
-  // Listen for Table Master CRUD events → immediately re-fetch from PostgreSQL
+  // Listen for Table Master & Area Master CRUD events → immediately re-fetch from PostgreSQL
   useEffect(() => {
     const handleSync = () => refreshTables();
     window.addEventListener('tablesMasterRefreshed', handleSync);
-    return () => window.removeEventListener('tablesMasterRefreshed', handleSync);
+    window.addEventListener('tableMasterSync', handleSync);
+    window.addEventListener('areaMasterRefreshed', handleSync);
+    window.addEventListener('areasMasterRefreshed', handleSync);
+    return () => {
+      window.removeEventListener('tablesMasterRefreshed', handleSync);
+      window.removeEventListener('tableMasterSync', handleSync);
+      window.removeEventListener('areaMasterRefreshed', handleSync);
+      window.removeEventListener('areasMasterRefreshed', handleSync);
+    };
   }, [refreshTables]);
 
   // Refresh tables whenever the user navigates back to this tab / page
@@ -213,12 +241,72 @@ export const RestaurantProvider = ({ children }) => {
 
   // orderItemsMap is session-only — never persist to localStorage to prevent stale item accumulation
 
-  useEffect(() => {
-    try { localStorage.setItem('alfa_restaurant_history', JSON.stringify(tableHistory)); } catch {}
-  }, [tableHistory]);
+  const selectOutlet = React.useCallback(async (outletId) => {
+    try {
+      setOutletNotFound(false);
+      let outlets = allOutlets;
+      let matched = outlets.find(o => Number(o.id) === Number(outletId));
+      
+      if (!matched) {
+        const res = await posApi.getOutlets();
+        const freshOutlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+        if (freshOutlets.length > 0) {
+          setAllOutlets(freshOutlets);
+          outlets = freshOutlets;
+          matched = outlets.find(o => Number(o.id) === Number(outletId));
+        }
+      }
+      
+      if (!matched) {
+        setOutletNotFound(true);
+        return;
+      }
+      
+      const storeIdStr = matched.store_id || `STORE_${matched.id}`;
+      
+      // Clear active tables list, orders map, and sessionStorage immediately to prevent leakage
+      setTables([]);
+      setOrderItemsMap({});
+      try {
+        sessionStorage.removeItem('alfa_selected_pos_table');
+        sessionStorage.removeItem('alfa_selected_order');
+        localStorage.removeItem('alfa_restaurant_tables');
+      } catch (e) {}
+
+      setActiveOutletId(Number(outletId));
+      setActiveStoreId(storeIdStr);
+      
+      // Update local storage so session stays aligned
+      try {
+        const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
+        user.store_id = storeIdStr;
+        localStorage.setItem('alfa_user', JSON.stringify(user));
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch (e) {}
+
+      // Trigger table refresh for this specific store_id
+      await refreshTables(storeIdStr);
+    } catch (err) {
+      console.warn('Error resolving outlet workspace:', err);
+      setOutletNotFound(true);
+    }
+  }, [allOutlets, refreshTables]);
 
   return (
-    <RestaurantContext.Provider value={{ tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, tableHistory, loading }}>
+    <RestaurantContext.Provider value={{ 
+      tables, 
+      setTables, 
+      refreshTables, 
+      orderItemsMap, 
+      setOrderItemsMap, 
+      tableHistory, 
+      loading,
+      activeOutletId,
+      activeStoreId,
+      outletNotFound,
+      selectOutlet,
+      allOutlets
+    }}>
       {children}
     </RestaurantContext.Provider>
   );

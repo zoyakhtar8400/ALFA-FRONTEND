@@ -6,6 +6,16 @@ export const posApi = {
   saveTable: (data) => data.id ? apiClient.put(`/tables/${data.id}`, data) : apiClient.post('/tables', data),
   deleteTable: (id) => apiClient.delete(`/tables/${id}`),
 
+  // Area Master
+  getAreas: (params) => apiClient.get('/areas', { params }),
+  saveArea: (data) => data.id ? apiClient.put(`/areas/${data.id}`, data) : apiClient.post('/areas', data),
+  deleteArea: (id) => apiClient.delete(`/areas/${id}`),
+
+  // Payment Master / Modes
+  getPaymentModes: (params) => apiClient.get('/payment-modes', { params }),
+  savePaymentMode: (data) => data.id ? apiClient.put(`/payment-modes/${data.id}`, data) : apiClient.post('/payment-modes', data),
+  deletePaymentMode: (id) => apiClient.delete(`/payment-modes/${id}`),
+
   // Steward / Waiter Master
   getStewards: () => apiClient.get('/menu/waiters'),
   saveSteward: (data) => apiClient.post('/menu/waiters', data),
@@ -19,6 +29,7 @@ export const posApi = {
   // Outlet / Store Master
   getOutlets: () => apiClient.get('/stores'),
   saveOutlet: (data) => apiClient.post('/stores', data),
+  deleteOutlet: (id) => apiClient.delete(`/stores/${id}`),
 
   // Item Tax Categories & Slabs
   getItemTaxCategories: () => apiClient.get('/taxes'),

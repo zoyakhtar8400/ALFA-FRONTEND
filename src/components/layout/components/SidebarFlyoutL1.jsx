@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FaCogs, FaFolder, FaChartBar, FaFileAlt, FaChevronRight, FaUtensils, FaConciergeBell } from 'react-icons/fa';
+import { FaCogs, FaFolder, FaChartBar, FaFileAlt, FaChevronRight, FaUtensils, FaConciergeBell, FaReceipt } from 'react-icons/fa';
 
 const SidebarFlyoutL1 = ({
   isCollapsed,
@@ -80,7 +80,7 @@ const SidebarFlyoutL1 = ({
         {isRestaurant && (
           <>
             <NavLink
-              to="/restaurant/display-table"
+              to={`/pos/master/outlet/${activeFlyout.outletId || 1}/display-table`}
               className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setActiveFlyout(null);
@@ -94,7 +94,7 @@ const SidebarFlyoutL1 = ({
             </NavLink>
 
             <NavLink
-              to="/restaurant/view-kot"
+              to={`/pos/master/outlet/${activeFlyout.outletId || 1}/view-kot`}
               className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setActiveFlyout(null);
@@ -108,7 +108,7 @@ const SidebarFlyoutL1 = ({
             </NavLink>
 
             <NavLink
-              to="/restaurant/order-details"
+              to={`/pos/master/outlet/${activeFlyout.outletId || 1}/order-details`}
               className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setActiveFlyout(null);
@@ -119,6 +119,20 @@ const SidebarFlyoutL1 = ({
             >
               <FaFolder className="flyout-item-icon" />
               <span>Order Details</span>
+            </NavLink>
+
+            <NavLink
+              to={`/pos/master/outlet/${activeFlyout.outletId || 1}/billing-desk`}
+              className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
+              onClick={() => {
+                setActiveFlyout(null);
+                setActiveSubFlyout(null);
+                handleMobileNav();
+              }}
+              onMouseEnter={() => setActiveSubFlyout(null)}
+            >
+              <FaReceipt className="flyout-item-icon" />
+              <span>Billing Desk</span>
             </NavLink>
           </>
         )}
@@ -149,6 +163,7 @@ const SidebarFlyoutL1 = ({
           </>
         )}
 
+        {/* Front Desk Flyout (Commented)
         {!isRestaurant && !isPOS && !isPurchase && (
           <>
             <div
@@ -199,6 +214,7 @@ const SidebarFlyoutL1 = ({
             </NavLink>
           </>
         )}
+        */}
       </div>
     </div>
   );

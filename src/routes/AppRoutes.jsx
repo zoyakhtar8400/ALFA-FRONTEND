@@ -44,6 +44,7 @@ const AppRoutes = ({ showToast }) => {
         <Route path="/pos/*" element={<PointOfSale showToast={showToast} />} />
         <Route path="/room-services" element={<RoomServices />} />
         <Route path="/restaurant/*" element={<Restaurant showToast={showToast} />} />
+        <Route path="/pos/master/outlet/:outletId/*" element={<Restaurant showToast={showToast} />} />
         <Route path="/banquet" element={<Banquet />} />
         <Route path="/purchase/*" element={<Purchase showToast={showToast} />} />
         <Route path="/setting/*" element={<Setting showToast={showToast} />} />

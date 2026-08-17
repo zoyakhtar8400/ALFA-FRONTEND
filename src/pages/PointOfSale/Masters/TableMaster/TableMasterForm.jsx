@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
-import { floorService } from '../../../../services/floorService';
+import areaService from '../../../../services/areaService';
 import posApi from '../../../../api/posApi';
 
 const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
-  const [dbFloors, setDbFloors] = useState([]);
+  const [dbAreas, setDbAreas] = useState([]);
   const [dbOutlets, setDbOutlets] = useState([]);
   const [activeOutletName, setActiveOutletName] = useState('Main Restaurant');
 
@@ -63,24 +63,34 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
     department: 'Main Restaurant',
     name: '',
     pax: '4',
-    floor: 'Ground Floor',
+    area: 'Main Area',
     description: '',
     isActive: true
   });
 
-  // Fetch Floors and Outlets from backend when modal opens
+  // Fetch Areas and Outlets from backend when modal opens
   useEffect(() => {
     let isMounted = true;
     if (isOpen) {
-      // 1. Floors
-      floorService.getFloors()
+      // 1. Areas from Area Master
+      areaService.getAreas()
         .then(res => {
-          const list = res?.data || res?.floors || (Array.isArray(res) ? res : []);
-          if (isMounted && Array.isArray(list) && list.length > 0) {
-            setDbFloors(list.filter(f => f.active !== 'No').map(f => f.name));
+          let list = [];
+          if (Array.isArray(res)) list = res;
+          else if (Array.isArray(res?.data)) list = res.data;
+          else if (Array.isArray(res?.areas)) list = res.areas;
+          else if (Array.isArray(res?.data?.data)) list = res.data.data;
+          else if (Array.isArray(res?.data?.areas)) list = res.data.areas;
+
+          if (isMounted && list.length > 0) {
+            const names = list
+              .filter(a => a && (a.active !== 'No' && a.isActive !== false))
+              .map(a => typeof a === 'string' ? a : (a.name || a.area_name || a.areaName || ''))
+              .filter(Boolean);
+            setDbAreas(names);
           }
         })
-        .catch(err => console.warn('Error fetching floors for TableMasterForm:', err));
+        .catch(err => console.warn('Error fetching areas for TableMasterForm:', err));
 
       // 2. Outlets
       posApi.getOutlets()
@@ -100,35 +110,42 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
     return () => { isMounted = false; };
   }, [isOpen]);
 
-  const floorOptions = useMemo(() => {
-    const defaults = ['Ground Floor', 'First Floor', 'Second Floor', 'Balcony', 'Garden'];
-    const merged = new Set(dbFloors.length > 0 ? dbFloors : defaults);
-    if (fields.floor) merged.add(fields.floor);
-    return Array.from(merged);
-  }, [dbFloors, fields.floor]);
+  const areaOptions = useMemo(() => {
+    if (dbAreas.length > 0) {
+      const merged = new Set(dbAreas);
+      if (fields.area) merged.add(fields.area);
+      return Array.from(merged);
+    }
+    return fields.area ? [fields.area] : [];
+  }, [dbAreas, fields.area]);
 
   // Set fields on form open or edit
   useEffect(() => {
     if (isOpen) {
       const defaultDept = outletInfo.openName || 'Main Restaurant';
+      const matchedStore = dbOutlets.find(o => (o.store_name || o.name) === defaultDept || o.store_id === defaultDept);
+      const targetStoreId = matchedStore?.store_id || localStorage.getItem('activeOutletId') || 'STORE_1';
+
       setFields(isEdit ? {
         department: defaultDept,
+        store_id: initialData?.store_id || targetStoreId,
         name: '',
         pax: '4',
-        floor: 'Ground Floor',
+        area: initialData?.area || initialData?.floor || dbAreas[0] || 'Main Dining Area',
         description: '',
         isActive: true,
         ...initialData
       } : {
         department: defaultDept,
+        store_id: targetStoreId,
         name: '',
         pax: '4',
-        floor: dbFloors[0] || 'Ground Floor',
+        area: dbAreas[0] || 'Main Dining Area',
         description: '',
         isActive: true
       });
     }
-  }, [isOpen, isEdit, initialData, dbFloors, outletInfo]);
+  }, [isOpen, isEdit, initialData, dbAreas, outletInfo, dbOutlets]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -149,7 +166,15 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               <label className="form-label">Department (Open Outlet) *</label>
               <select
                 value={fields.department || outletInfo.openName || ''}
-                onChange={(e) => setFields(p => ({ ...p, department: e.target.value }))}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const matched = dbOutlets.find(o => (o.store_name || o.name) === val || o.store_id === val);
+                  setFields(p => ({
+                    ...p,
+                    department: val,
+                    store_id: matched?.store_id || p.store_id || 'STORE_1'
+                  }));
+                }}
                 className="form-select"
                 required
               >
@@ -187,17 +212,17 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               />
             </div>
 
-            {/* Floor Name */}
+            {/* Area Name */}
             <div className="form-field">
-              <label className="form-label">Floor Name</label>
+              <label className="form-label">Area Name</label>
               <select
-                value={fields.floor || ''}
-                onChange={(e) => setFields(p => ({ ...p, floor: e.target.value }))}
+                value={fields.area || fields.floor || ''}
+                onChange={(e) => setFields(p => ({ ...p, area: e.target.value, floor: e.target.value }))}
                 className="form-select"
               >
-                <option value="">--Floor Name--</option>
-                {floorOptions.map(fl => (
-                  <option key={fl} value={fl}>{fl}</option>
+                <option value="">--Area Name--</option>
+                {areaOptions.map(ar => (
+                  <option key={ar} value={ar}>{ar}</option>
                 ))}
               </select>
             </div>

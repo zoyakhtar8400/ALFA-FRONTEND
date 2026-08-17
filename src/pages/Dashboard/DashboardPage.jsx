@@ -143,6 +143,71 @@ const RunningTablesWidget = ({ tables, setTables, setOrderItemsMap, logAction, s
   );
 };
 
+/* ─── Outlets Performance Overview Widget ─── */
+const OutletsPerformanceWidget = ({ summary = [], showToast }) => {
+  return (
+    <div style={{ overflowX: 'auto', width: '100%' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #e2e8f0', background: '#f8fafc' }}>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Outlet Name</th>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today's Sales</th>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Live Table Sales</th>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active Tables</th>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Completed Bills</th>
+            <th style={{ padding: '12px 16px', fontSize: '11px', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today's KOTs</th>
+          </tr>
+        </thead>
+        <tbody>
+          {summary.length === 0 ? (
+            <tr>
+              <td colSpan="6" style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                No outlet records available
+              </td>
+            </tr>
+          ) : (
+            summary.map((st, i) => (
+              <tr 
+                key={st.store_id || i}
+                onClick={() => showToast?.(`Selected: ${st.name}`)}
+                style={{ 
+                  borderBottom: '1px solid #f1f5f9', 
+                  cursor: 'pointer',
+                  transition: 'background 150ms'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <td style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#0f172a' }}>
+                  {st.name}
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#16a34a' }}>
+                  ₹{Number(st.todaySales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '800', color: '#d97706' }}>
+                  ₹{Number(st.liveDiningSales || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: '13px', color: '#334155' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: st.activeTablesCount > 0 ? '#22c55e' : '#94a3b8' }} />
+                    <span style={{ fontWeight: '700' }}>{st.activeTablesCount} / {st.totalTablesCount}</span>
+                  </div>
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '700', color: '#0284c7' }}>
+                  {st.totalOrdersCount}
+                </td>
+                <td style={{ padding: '14px 16px', fontSize: '13px', fontWeight: '700', color: '#7c3aed' }}>
+                  {st.totalKotsCount}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 /* ─── Reusable Card wrapper ─── */
 const Card = memo(({ title, accent = '#418A8B', defaultOpen = true, noPad = false, children }) => {
   const [open, setOpen] = useState(defaultOpen);
@@ -280,19 +345,28 @@ const DisplayTableGrid = memo(({ tables = [], showToast }) => {
 });
 
 /* ─── Revenue Donut ─── */
-const RevenuePie = memo(() => {
+const RevenuePie = memo(({ mix }) => {
   const data = [
-    { label: 'Rooms', value: 24500, color: '#418A8B' },
-    { label: 'Restaurant', value: 15350, color: '#4A9993' },
-    { label: 'Banquet', value: 9800, color: '#244E5F' },
-    { label: 'Laundry', value: 2400, color: '#f59e0b' },
-    { label: 'POS', value: 4800, color: '#10b981' },
+    { label: 'Rooms', value: Number(mix?.rooms || 0), color: '#418A8B' },
+    { label: 'Restaurant', value: Number(mix?.restaurant || 0), color: '#4A9993' },
+    { label: 'Banquet', value: Number(mix?.banquet || 0), color: '#244E5F' },
+    { label: 'Laundry', value: Number(mix?.laundry || 0), color: '#f59e0b' },
+    { label: 'POS', value: Number(mix?.pos || 0), color: '#10b981' },
   ];
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const isAllZero = data.every(d => d.value === 0);
+  const displayData = isAllZero ? [
+    { label: 'Rooms', value: 0, color: '#418A8B' },
+    { label: 'Restaurant', value: 100, color: '#4A9993' },
+    { label: 'Banquet', value: 0, color: '#244E5F' },
+    { label: 'Laundry', value: 0, color: '#f59e0b' },
+    { label: 'POS', value: 0, color: '#10b981' },
+  ] : data;
+  const total = isAllZero ? 100 : data.reduce((s, d) => s + d.value, 0) || 1;
+  
   const cx = 65, cy = 65, r = 52, inner = 30;
   let angle = -Math.PI / 2;
 
-  const slices = data.map(d => {
+  const slices = displayData.map(d => {
     const sweep = (d.value / total) * 2 * Math.PI;
     const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
     angle += sweep;
@@ -316,15 +390,21 @@ const RevenuePie = memo(() => {
             />
           ))}
           <text x="65" y="61" textAnchor="middle" style={{ fontSize: '10px', fontWeight: '700', fill: '#475569' }}>Total</text>
-          <text x="65" y="75" textAnchor="middle" style={{ fontSize: '15px', fontWeight: '800', fill: '#0f172a' }}>₹{(total / 1000).toFixed(0)}k</text>
+          <text x="65" y="75" textAnchor="middle" style={{ fontSize: '15px', fontWeight: '800', fill: '#0f172a' }}>
+            ₹{isAllZero ? '0' : (total >= 1000 ? `${(total / 1000).toFixed(0)}k` : total)}
+          </text>
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', flex: 1 }}>
-          {data.map((d, i) => (
+          {displayData.map((d, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '13px' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: d.color, flexShrink: 0 }} />
               <span style={{ flex: 1, color: '#334155', fontWeight: '700' }}>{d.label}</span>
-              <span style={{ fontWeight: '800', color: '#0f172a' }}>₹{(d.value / 1000).toFixed(1)}k</span>
-              <span style={{ color: '#475569', width: '32px', textAlign: 'right' }}>{((d.value / total) * 100).toFixed(0)}%</span>
+              <span style={{ fontWeight: '800', color: '#0f172a' }}>
+                ₹{isAllZero && d.label === 'Restaurant' ? '0' : (d.value >= 1000 ? `${(d.value / 1000).toFixed(1)}k` : d.value)}
+              </span>
+              <span style={{ color: '#475569', width: '32px', textAlign: 'right' }}>
+                {isAllZero ? (d.label === 'Restaurant' ? '100%' : '0%') : `${((d.value / total) * 100).toFixed(0)}%`}
+              </span>
             </div>
           ))}
         </div>
@@ -337,17 +417,23 @@ const RevenuePie = memo(() => {
 const DashboardPage = ({ showToast }) => {
   const { activeTab, setActiveTab, timeframe, setTimeframe, rooms, cycleRoomStatus, isLoading } = useDashboard(showToast);
   const { arrivals, departures, checkInGuest, checkOutGuest, logAction } = useFrontDesk();
-  const { tables, setTables, setOrderItemsMap } = useRestaurant();
+  const { tables, setTables, setOrderItemsMap, activeStoreId } = useRestaurant();
   const [stats, setStats] = useState(null);
 
   const loadStats = useCallback(async () => {
     try {
-      const data = await dashboardService.getStats();
+      const storeId = activeStoreId && activeStoreId !== 'undefined' && activeStoreId !== 'null'
+        ? activeStoreId
+        : 'STORE_1';
+      const data = await dashboardService.getStats({
+        store_id: storeId,
+        timeframe: timeframe
+      });
       if (data) setStats(data);
     } catch (e) {
       console.warn('Dashboard stats load error:', e);
     }
-  }, []);
+  }, [activeStoreId, timeframe]);
 
   useEffect(() => {
     loadStats();
@@ -365,6 +451,16 @@ const DashboardPage = ({ showToast }) => {
   );
 
   const graphData = TIMEFRAME_DATA[timeframe] || TIMEFRAME_DATA.weekly;
+
+  const occupancyChartData = stats?.occupancyTrend ? {
+    occupancy: stats.occupancyTrend.values,
+    occupancyLabels: stats.occupancyTrend.labels
+  } : graphData;
+
+  const revenueChartData = stats?.revenueTrend ? {
+    revenue: stats.revenueTrend.values,
+    revenueLabels: stats.revenueTrend.labels
+  } : graphData;
 
   return (
     <div className="dash-page">
@@ -386,30 +482,34 @@ const DashboardPage = ({ showToast }) => {
           {/* 3. Grid: Occupancy Trend + Dept Revenue + Rev Mix */}
           <div className="dash-grid-3">
             <Card title="Occupancy Trend" accent="#418A8B">
-              <OccupancyChart data={graphData.occupancy} />
+              <OccupancyChart data={occupancyChartData} />
             </Card>
             <Card title="Department Revenue" accent="#2563eb">
-              <RevenueChart data={graphData.revenue} />
+              <RevenueChart data={revenueChartData} />
             </Card>
             <Card title="Revenue Mix" accent="#10b981">
-              <RevenuePie />
+              <RevenuePie mix={stats?.revenueMix} />
             </Card>
           </div>
 
-          {/* 5. Room Status + Display Dining Tables + Room Grid */}
+          {/* 5. Display Dining Tables (Room Status & Room Grid disabled) */}
+          <div className="dash-grid-rooms" style={{ gridTemplateColumns: '1fr' }}>
+            <Card title="Display Table" accent="#f59e0b">
+              <DisplayTableGrid tables={tables} showToast={showToast} />
+            </Card>
+          </div>
+          {/* Room Status — disabled (uncomment to re-enable)
           <div className="dash-grid-rooms">
             <Card title="Room Status" accent="#22c55e">
               <HousekeepingChart rooms={rooms} showToast={showToast} />
-            </Card>
-            <Card title="Display Table" accent="#f59e0b">
-              <DisplayTableGrid tables={tables} showToast={showToast} />
             </Card>
             <Card title="Room Grid" accent="#0284c7">
               <RoomGrid rooms={rooms} cycleRoomStatus={cycleRoomStatus} />
             </Card>
           </div>
+          */}
 
-          {/* 6. Today's Arrivals, Departures, and Dirty Rooms Queue — 3 columns */}
+          {/* 6. Today's Arrivals, Departures, Dirty Rooms — disabled (uncomment to re-enable)
           <div className="dash-grid-3-equal">
             <Card title="Today's Arrivals" accent="#418A8B">
               <TodayArrivalsWidget checkInGuest={checkInGuest} arrivals={arrivals} rooms={rooms} showToast={showToast} />
@@ -421,6 +521,7 @@ const DashboardPage = ({ showToast }) => {
               <DirtyRoomsWidget rooms={rooms} cycleRoomStatus={cycleRoomStatus} showToast={showToast} />
             </Card>
           </div>
+          */}
 
           {/* 7. POS Table settlements + Recent Orders */}
           <div className="dash-grid-2">
@@ -457,13 +558,18 @@ const DashboardPage = ({ showToast }) => {
       )}
 
       {activeTab === 'outlets' && (
-        <div className="dash-grid-2">
-          <Card title="Recent Restaurant Orders" accent="#d97706">
-            <RecentOrders stats={stats} tables={tables} showToast={showToast} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Card title="Outlets Performance Overview" accent="#418A8B" defaultOpen={true}>
+            <OutletsPerformanceWidget summary={stats?.outletSummary} showToast={showToast} />
           </Card>
-          <Card title="Revenue Mix" accent="#10b981">
-            <RevenuePie />
-          </Card>
+          <div className="dash-grid-2">
+            <Card title="Recent Restaurant Orders" accent="#d97706">
+              <RecentOrders stats={stats} tables={tables} showToast={showToast} />
+            </Card>
+            <Card title="Revenue Mix" accent="#10b981">
+              <RevenuePie mix={stats?.revenueMix} />
+            </Card>
+          </div>
         </div>
       )}
 

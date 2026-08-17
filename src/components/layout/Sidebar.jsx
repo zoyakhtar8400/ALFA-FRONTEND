@@ -31,10 +31,46 @@ import SidebarFlyoutL1 from './components/SidebarFlyoutL1';
 import SidebarFlyoutL2 from './components/SidebarFlyoutL2';
 import SidebarFlyoutL3 from './components/SidebarFlyoutL3';
 import companyProfileService from '../../services/companyProfileService';
+import { useRestaurant } from '../../context/RestaurantContext';
+import ConfirmationDialog from '../common/ConfirmationDialog';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout }) => {
   const navigate = useNavigate();
+  const { activeOutletId, allOutlets } = useRestaurant();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const activeOutlet = allOutlets.find(o => Number(o.id) === Number(activeOutletId));
+  const activeOutletName = activeOutlet ? activeOutlet.name || activeOutlet.store_name : '';
   const [companyProfile, setCompanyProfile] = useState(null);
+
+  const getMappedPath = (path) => {
+    const targetOutletId = activeOutletId || 1;
+    if (path.startsWith('/restaurant/')) {
+      const subpath = path.replace('/restaurant/', '');
+      return `/pos/master/outlet/${targetOutletId}/${subpath}`;
+    }
+    return path;
+  };
+
+  const getOutletMappedPath = (path, outletId) => {
+    const targetOutletId = outletId || activeOutletId || 1;
+    if (path.startsWith('/restaurant/')) {
+      const subpath = path.replace('/restaurant/', '');
+      return `/pos/master/outlet/${targetOutletId}/${subpath}`;
+    }
+    return path;
+  };
+
+  const isOutletActive = (outletId) => {
+    const parts = location.pathname.split('/').filter(Boolean);
+    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
+    if (inOutletWorkspace) {
+      return Number(parts[3]) === Number(outletId);
+    }
+    if (location.pathname.startsWith('/restaurant')) {
+      return Number(activeOutletId || 1) === Number(outletId);
+    }
+    return false;
+  };
 
   // Load real Company Profile from PostgreSQL and listen for live updates
   React.useEffect(() => {
@@ -46,7 +82,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
         if (isMounted && p) {
           setCompanyProfile(p);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     loadComp();
 
@@ -157,12 +193,26 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   const [purchaseProcessOpen, setPurchaseProcessOpen] = useState(true);
   const [purchaseDirectOpen, setPurchaseDirectOpen] = useState(true);
 
-  const [restaurantOpen, setRestaurantOpen] = useState(() =>
-    (location.pathname.startsWith('/restaurant') || location.pathname.startsWith('/pos')) &&
-    !location.pathname.includes('/master') &&
-    !location.pathname.includes('/masters') &&
-    !location.pathname.includes('order-details')
-  );
+  const isOutletWorkspace = (() => {
+    const parts = location.pathname.split('/').filter(Boolean);
+    // /pos/master/outlet/:id/something — need at least 5 parts
+    return parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
+  })();
+  const [openOutlets, setOpenOutlets] = useState(() => {
+    const parts = location.pathname.split('/').filter(Boolean);
+    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
+    const currentOutletId = inOutletWorkspace ? Number(parts[3]) : null;
+    const initialOpen = {};
+    if (currentOutletId) {
+      initialOpen[currentOutletId] = true;
+    } else if (location.pathname.startsWith('/restaurant') &&
+      !location.pathname.includes('/master') &&
+      !location.pathname.includes('/masters') &&
+      !location.pathname.includes('order-details')) {
+      initialOpen[activeOutletId || 1] = true;
+    }
+    return initialOpen;
+  });
   const [posOpen, setPosOpen] = useState(() =>
     location.pathname.startsWith('/pos') ||
     location.pathname.includes('/restaurant/masters') ||
@@ -226,12 +276,13 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
     startCloseTimer();
   };
 
-  const handleRestaurantMouseEnter = (e) => {
+  const handleRestaurantMouseEnter = (e, outletId) => {
     if (!isCollapsed) return;
     clearCloseTimer();
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveFlyout({
       menu: 'restaurant',
+      outletId,
       top: rect.top
     });
     setActiveSubFlyout(null);
@@ -341,20 +392,28 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       setMisOpen(true);
     }
 
+    const parts = location.pathname.split('/').filter(Boolean);
+    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
+
     if (location.pathname.includes('/restaurant/master/item-menu') || location.pathname.includes('/pos/master/item-menu')) {
       setPosOpen(true);
       setPosMasterOpen(true);
       setItemMenuOpen(true);
     } else if (location.pathname.includes('/restaurant/master') || location.pathname.includes('/restaurant/masters') || location.pathname.includes('/pos/master') || location.pathname.includes('/pos/masters')) {
-      setPosOpen(true);
-      setPosMasterOpen(true);
+      if (!inOutletWorkspace) {
+        setPosOpen(true);
+        setPosMasterOpen(true);
+      }
     } else if (location.pathname.includes('order-details')) {
       setPosOpen(true);
       setPosReportOpen(true);
-    } else if (location.pathname.startsWith('/restaurant') || location.pathname.startsWith('/pos')) {
-      setRestaurantOpen(true);
+    } else if (inOutletWorkspace) {
+      const targetId = Number(parts[3]);
+      setOpenOutlets(prev => ({ ...prev, [targetId]: true }));
+    } else if (location.pathname.startsWith('/restaurant')) {
+      setOpenOutlets(prev => ({ ...prev, [activeOutletId || 1]: true }));
     }
-  }, [location.pathname]);
+  }, [location.pathname, activeOutletId]);
 
   const handleMasterToggle = () => {
     setMasterOpen(!masterOpen);
@@ -381,10 +440,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
   };
 
   const handleLogoutClick = () => {
-    const confirmLogout = window.confirm("Are you sure you want to log out from ALFA HMS?");
-    if (confirmLogout) {
-      onLogout();
-    }
+    setShowLogoutModal(true);
   };
 
   const handleMobileNav = () => {
@@ -410,17 +466,24 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       />
 
       <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-brand">
-          <img src="/logo/alfa-logo.png" alt="Logo" className="sidebar-logo" />
-          <button
-            className="sidebar-toggle-btn"
-            onClick={handleHamburgerClick}
-            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          >
-            <span className="desktop-only-toggle"><FaBars /></span>
-            <span className="mobile-only-toggle"><FaTimes /></span>
-          </button>
+        <div className="sidebar-brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '16px 20px', gap: '8px', borderBottom: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+            <img src="/logo/alfa-logo.png" alt="Logo" className="sidebar-logo" />
+            <button
+              className="sidebar-toggle-btn"
+              onClick={handleHamburgerClick}
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <span className="desktop-only-toggle"><FaBars /></span>
+              <span className="mobile-only-toggle"><FaTimes /></span>
+            </button>
+          </div>
+          {!isCollapsed && activeOutletName && (
+            <div style={{ fontSize: '11px', fontWeight: '800', background: '#0e7490', color: '#ffffff', padding: '4px 8px', borderRadius: '4px', width: '100%', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>
+              Outlet: {activeOutletName}
+            </div>
+          )}
         </div>
 
         <nav className="sidebar-menu" onKeyDown={handleSidebarKeyDown}>
@@ -430,7 +493,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             <span>Dashboard</span>
           </NavLink>
 
-          {/* Front Desk Accordion Container */}
+          {/* Front Desk Accordion Container (Commented)
           <div>
             <div
               tabIndex={0} className={`sidebar-item ${location.pathname.startsWith('/front-desk') ? 'active' : ''}`}
@@ -452,10 +515,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
               <FaChevronRight className={`chevron-icon ${frontDeskOpen ? 'open' : ''}`} />
             </div>
 
-            {/* Front Desk Submenu (only when NOT collapsed) */}
             {frontDeskOpen && !isCollapsed && (
               <div className="sidebar-submenu">
-                {/* Master Sub-Accordion */}
                 <div>
                   <div tabIndex={0}
                     className="sidebar-subitem"
@@ -467,7 +528,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     <FaChevronRight className={`chevron-icon ${masterOpen ? 'open' : ''}`} />
                   </div>
 
-                  {/* Master Subitems list */}
                   {masterOpen && (
                     <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
                       {masters.map((m) => (
@@ -484,7 +544,6 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                   )}
                 </div>
 
-                {/* Operations Sub-Accordion (Commented)
                 <div>
                   <div tabIndex={0}
                     className="sidebar-subitem"
@@ -511,9 +570,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     </div>
                   )}
                 </div>
-                */}
 
-                {/* MIS Sub-Accordion (Commented)
                 <div>
                   <div tabIndex={0}
                     className="sidebar-subitem"
@@ -540,17 +597,15 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                     </div>
                   )}
                 </div>
-                */}
 
-                {/* Report (Commented)
                 <NavLink to="/front-desk/report" tabIndex={0} className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`} onClick={handleMobileNav}>
                   <FaFileAlt style={{ fontSize: '0.95rem' }} />
                   <span>Report</span>
                 </NavLink>
-                */}
               </div>
             )}
           </div>
+          */}
 
           {/* House Keeping (Commented)
           <NavLink to="/housekeeping" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "House Keeping" : ""}>
@@ -675,53 +730,73 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
           */}
 
           {/* Restaurant Accordion Container */}
-          <div>
-            <div
-              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant') && !location.pathname.startsWith('/restaurant/master') && !location.pathname.startsWith('/restaurant/masters')) ? 'active' : ''}`}
-              onClick={() => {
-                if (isCollapsed) {
-                  setActiveFlyout(prev => prev ? null : { menu: 'restaurant', top: 320 });
-                  setActiveSubFlyout(null);
-                } else {
-                  setRestaurantOpen(!restaurantOpen);
-                }
-              }}
-              onMouseEnter={handleRestaurantMouseEnter}
-              onMouseLeave={handleRestaurantMouseLeave}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              title={isCollapsed ? "Restaurant" : ""}
-            >
-              <FaUtensils className="sidebar-icon" />
-              <span>Restaurant</span>
-              <FaChevronRight className={`chevron-icon ${restaurantOpen ? 'open' : ''}`} />
-            </div>
+          {(() => {
+            const outletsToRender = allOutlets.length > 0
+              ? [...allOutlets].sort((a, b) => Number(a.id) - Number(b.id))
+              : [{ id: activeOutletId || 1, store_name: activeOutletName || 'Restaurant' }];
 
-            {/* Restaurant Submenu (only when NOT collapsed) */}
-            {restaurantOpen && !isCollapsed && (
-              <div className="sidebar-submenu">
-                {restaurantItems.map((item) => {
-                  let SubIcon = FaFileAlt;
-                  if (item.name === 'POS') SubIcon = FaCashRegister;
-                  else if (item.name === 'Billing Desk') SubIcon = FaReceipt;
-                  else if (item.name === 'Display Table') SubIcon = FaUtensils;
-                  else if (item.name === 'View KOT') SubIcon = FaConciergeBell;
-                  else if (item.name === 'Order Details') SubIcon = FaFolder;
+            return outletsToRender.map((outlet) => {
+              const outletId = Number(outlet.id);
+              const outletName = outlet.store_name || outlet.name || 'Restaurant';
+              const isOpen = !!openOutlets[outletId];
+              const isActive = isOutletActive(outletId);
 
-                  return (
-                    <NavLink tabIndex={0}
-                      key={item.name}
-                      to={item.path}
-                      className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                      onClick={handleMobileNav}
-                    >
-                      <SubIcon style={{ fontSize: '0.85rem' }} />
-                      <span>{item.name}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              return (
+                <div key={outletId}>
+                  <div
+                    tabIndex={0}
+                    className={`sidebar-item ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      if (isCollapsed) {
+                        setActiveFlyout(prev => prev && prev.menu === 'restaurant' && prev.outletId === outletId
+                          ? null
+                          : { menu: 'restaurant', outletId, top: 320 }
+                        );
+                        setActiveSubFlyout(null);
+                      } else {
+                        setOpenOutlets(prev => ({ ...prev, [outletId]: !prev[outletId] }));
+                      }
+                    }}
+                    onMouseEnter={(e) => handleRestaurantMouseEnter(e, outletId)}
+                    onMouseLeave={handleRestaurantMouseLeave}
+                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                    title={isCollapsed ? outletName : ''}
+                  >
+                    <FaUtensils className="sidebar-icon" />
+                    <span>{outletName}</span>
+                    <FaChevronRight className={`chevron-icon ${isOpen ? 'open' : ''}`} />
+                  </div>
+
+                  {/* Restaurant Submenu (only when NOT collapsed) */}
+                  {isOpen && !isCollapsed && (
+                    <div className="sidebar-submenu">
+                      {restaurantItems.map((item) => {
+                        let SubIcon = FaFileAlt;
+                        if (item.name === 'POS') SubIcon = FaCashRegister;
+                        else if (item.name === 'Billing Desk') SubIcon = FaReceipt;
+                        else if (item.name === 'Display Table') SubIcon = FaUtensils;
+                        else if (item.name === 'View KOT') SubIcon = FaConciergeBell;
+                        else if (item.name === 'Order Details') SubIcon = FaFolder;
+
+                        return (
+                          <NavLink
+                            tabIndex={0}
+                            key={`${outletId}-${item.name}`}
+                            to={getOutletMappedPath(item.path, outletId)}
+                            className={({ isActive: isLinkActive }) => `sidebar-subitem ${isLinkActive ? 'active' : ''}`}
+                            onClick={handleMobileNav}
+                          >
+                            <SubIcon style={{ fontSize: '0.85rem' }} />
+                            <span>{item.name}</span>
+                          </NavLink>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
 
           {/* Banquet (Commented)
           <NavLink to="/banquet" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Banquet" : ""}>
@@ -917,8 +992,8 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
               <span className="profile-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
                 {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
               </span>
-              <span className="profile-role" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                {companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Details'}
+              <span className="profile-role" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', color: activeOutletName ? '#0e7490' : '#64748b', fontWeight: activeOutletName ? '800' : 'normal' }}>
+                {activeOutletName ? `Outlet: ${activeOutletName}` : (companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Details')}
               </span>
             </div>
             <button className="logout-btn" onClick={handleLogoutClick} title="Log Out">
@@ -980,6 +1055,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
         setActiveSubFlyout={setActiveSubFlyout}
         setActiveSubSubFlyout={setActiveSubSubFlyout}
         handleMobileNav={handleMobileNav}
+      />
+      <ConfirmationDialog
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={onLogout}
+        title="Confirm Log Out"
+        message="Are you sure you want to log out from ALFA HMS?"
+        confirmText="Log Out"
+        cancelText="Cancel"
+        type="danger"
+        isLoadingText="Logging out..."
       />
     </>
   );

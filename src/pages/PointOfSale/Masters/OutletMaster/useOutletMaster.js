@@ -142,8 +142,23 @@ export const useOutletMaster = (showToast) => {
 
   const handleDelete = () => {
     if (!deleteModal.row) return;
-    showToast('Outlet deletion not permitted for primary store.');
-    setDeleteModal({ open: false, row: null });
+    const targetId = deleteModal.row.id;
+    if (Number(targetId) === 1) {
+      showToast('Outlet deletion not permitted for primary store.');
+      setDeleteModal({ open: false, row: null });
+      return;
+    }
+
+    posApi.deleteOutlet(targetId)
+      .then(() => {
+        showToast('Outlet deleted successfully.');
+        fetchOutlets();
+        setDeleteModal({ open: false, row: null });
+      })
+      .catch(err => {
+        showToast(err?.response?.data?.message || 'Failed to delete outlet.');
+        setDeleteModal({ open: false, row: null });
+      });
   };
 
   return {

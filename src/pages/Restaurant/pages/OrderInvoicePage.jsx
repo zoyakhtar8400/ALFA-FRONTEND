@@ -109,10 +109,12 @@ const OrderInvoicePage = () => {
     return val === 0 ? '00' : val.toFixed(2);
   };
 
-  const subtotal = hasItems ? Number(order.subtotal || order.amount || 0) : 0;
-  const taxAmount = hasItems ? Number(order.tax_amount || (subtotal * 0.05)) : 0;
-  const discountAmount = hasItems ? Number(order.discount_amount || 0) : 0;
-  const grandTotal = hasItems ? Number(order.total_amount || order.amount || (subtotal + taxAmount - discountAmount)) : 0;
+  // Use backend-calculated values directly — NO frontend recalculation
+  const subtotal = Number(order.subtotal || 0);
+  const discountAmount = Number(order.discount || order.discount_amount || 0);
+  const cgst = Number(order.taxes?.cgst || 0);
+  const sgst = Number(order.taxes?.sgst || 0);
+  const grandTotal = Number(order.grand_total || order.total_amount || order.amount || 0);
 
   const cleanBillNo = () => {
     const b = String(order.billNo || order.custom_bill_number || order.order_number || order.id || '');
@@ -123,33 +125,37 @@ const OrderInvoicePage = () => {
   };
 
   return (
-    <div style={{ background: '#ffffff', minHeight: '100vh', padding: '16px 20px', fontFamily: '\'Courier New\', Courier, monospace', color: '#000000', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ background: '#0f172a', minHeight: '100vh', padding: '24px 20px', fontFamily: '\'Segoe UI\', Tahoma, Geneva, Verdana, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', boxSizing: 'border-box' }}>
       {/* Top Controls Bar (hidden during print) */}
-      <div className="no-print" style={{ width: '100%', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="no-print" style={{ width: '100%', maxWidth: '480px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button
           onClick={handleBack}
           style={{
-            background: 'none', border: '1px solid #000000', color: '#000000',
-            padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 'bold', fontFamily: 'monospace'
+            background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#ffffff',
+            padding: '10px 18px', borderRadius: '8px', cursor: 'pointer',
+            fontSize: '13px', fontWeight: '700', transition: 'all 0.2s', outline: 'none'
           }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; }}
         >
-          &larr; BACK TO ORDER DETAILS
+          &larr; Back
         </button>
 
         <button
           onClick={handlePrint}
           style={{
-            background: '#000000', color: '#ffffff', border: '1px solid #000000',
-            padding: '8px 24px', borderRadius: '4px', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 'bold', fontFamily: 'monospace'
+            background: 'linear-gradient(135deg, #0e7490 0%, #155e75 100%)', color: '#ffffff', border: 'none',
+            padding: '10px 24px', borderRadius: '8px', cursor: 'pointer',
+            fontSize: '13px', fontWeight: '800', boxShadow: '0 4px 12px rgba(14, 116, 144, 0.3)', transition: 'all 0.2s', outline: 'none'
           }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(14, 116, 144, 0.4)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 12px rgba(14, 116, 144, 0.3)'; }}
         >
-          PRINT INVOICE
+          Print Invoice
         </button>
       </div>
 
-      {/* Embedded Print & Full-Cover CSS (Zero Margins Left/Right on Print & Screen) */}
+      {/* Embedded Print & Full-Cover CSS */}
       <style>{`
         @page {
           size: auto;
@@ -162,80 +168,85 @@ const OrderInvoicePage = () => {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 10mm 15mm !important;
+            padding: 2mm 4mm !important;
             border: none !important;
             box-shadow: none !important;
             box-sizing: border-box !important;
+            border-radius: 0 !important;
           }
         }
       `}</style>
 
-      {/* Full-Width Full-Cover Invoice Container (No Left/Right Outer Spacing) */}
+      {/* Modern Premium Invoice Receipt Container */}
       <div
         className="invoice-container"
         style={{
-          width: '100%', background: '#ffffff',
-          border: '2px solid #000000', padding: '24px 28px',
-          boxSizing: 'border-box'
+          width: '100%', maxWidth: '480px', background: '#ffffff',
+          padding: '32px 28px', borderRadius: '12px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3)',
+          border: '1px solid #e2e8f0', boxSizing: 'border-box', color: '#000000'
         }}
       >
         {/* Restaurant Header */}
-        <div style={{ textAlign: 'center', borderBottom: '2px solid #000000', paddingBottom: '12px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            ALFA HOTEL & RESTAURANT
+        <div style={{ textAlign: 'center', borderBottom: '1.5px dashed #000000', paddingBottom: '16px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '23px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif', color: '#000000' }}>
+            {order.restaurant_name || order.restaurantName || 'ALFA HMS RESTAURANT'}
           </div>
-          <div style={{ fontSize: '12px', marginTop: '4px', color: '#222222' }}>
-            123 LUXURY ROAD, CITY CENTRE · GSTIN: 27AAAAA0000A1Z5
+          <div style={{ fontSize: '11px', marginTop: '6px', color: '#333333', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {order.address || 'Main Dining Area'}
           </div>
-          <div style={{ fontSize: '12px', color: '#222222' }}>
-            PHONE: +91 98765 43210
+          <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
+            GSTIN: {order.gstin || '27AAAAA0000A1Z5'} | FSSAI: {order.fssai || '10020021000123'}
+          </div>
+          <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
+            PHONE: {order.phone || '+91 98765 43210'}
           </div>
           <div style={{
-            fontSize: '15px', fontWeight: 'bold', marginTop: '10px',
-            borderTop: '2px dashed #000000', borderBottom: '2px dashed #000000',
-            padding: '6px 0', letterSpacing: '1.5px'
+            fontSize: '14px', fontWeight: '800', marginTop: '14px',
+            borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000',
+            padding: '6px 0', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif'
           }}>
-            TAX INVOICE / CASH BILL
+            TAX INVOICE
           </div>
         </div>
 
         {/* Metadata Details */}
-        <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', marginBottom: '16px', color: '#000000' }}>
+        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginBottom: '16px', color: '#000000', fontFamily: 'monospace', fontWeight: 'bold' }}>
           <tbody>
             <tr>
-              <td style={{ padding: '3px 0', width: '50%' }}><strong>BILL NO:</strong> {cleanBillNo()}</td>
-              <td style={{ padding: '3px 0', width: '50%', textAlign: 'right' }}><strong>DATE:</strong> {order.billDate || new Date().toLocaleDateString()}</td>
+              <td style={{ padding: '4px 0', width: '50%' }}>BILL NO: {cleanBillNo()}</td>
+              <td style={{ padding: '4px 0', width: '50%', textAlign: 'right' }}>DATE: {order.billDate || new Date().toLocaleDateString()}</td>
             </tr>
             <tr>
-              <td style={{ padding: '3px 0' }}><strong>TABLE:</strong> {order.tableNo || order.table_name || 'T01'}</td>
-              <td style={{ padding: '3px 0', textAlign: 'right' }}><strong>TYPE:</strong> {order.billType || order.order_type || 'DINE_IN'}</td>
+              <td style={{ padding: '4px 0' }}>TABLE: {order.tableNo || order.table_name || 'T01'}</td>
+              <td style={{ padding: '4px 0', textAlign: 'right' }}>TYPE: {order.billType || order.order_type || 'DINE_IN'}</td>
             </tr>
             <tr>
-              <td style={{ padding: '3px 0' }}><strong>CUSTOMER:</strong> {order.customerName || order.customer_name || 'Walk-in'}</td>
-              <td style={{ padding: '3px 0', textAlign: 'right' }}><strong>MOBILE:</strong> {order.mobileNo || order.customer_phone || '—'}</td>
+              <td style={{ padding: '4px 0' }}>CUST: {order.customerName || order.customer_name || 'Walk-in'}</td>
+              <td style={{ padding: '4px 0', textAlign: 'right' }}>MOB: {order.mobileNo || order.customer_phone || '—'}</td>
             </tr>
             <tr>
-              <td style={{ padding: '3px 0' }}><strong>WAITER:</strong> {order.waiter || order.waiter_name || 'Staff'}</td>
-              <td style={{ padding: '3px 0', textAlign: 'right' }}><strong>STATUS:</strong> [{order.payment_status || 'PAID'}]</td>
+              <td style={{ padding: '4px 0' }}>WAITER: {order.waiter || order.waiter_name || 'Staff'}</td>
+              <td style={{ padding: '4px 0', textAlign: 'right' }}>STATUS: [{order.payment_status || 'PAID'}]</td>
             </tr>
           </tbody>
         </table>
 
         {/* Items Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginBottom: '16px', color: '#000000' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '16px', color: '#000000', fontFamily: 'monospace' }}>
           <thead>
-            <tr style={{ borderTop: '2px solid #000000', borderBottom: '2px solid #000000' }}>
-              <th style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 'bold', width: '50%' }}>ITEM DESCRIPTION</th>
-              <th style={{ textAlign: 'center', padding: '6px 4px', fontWeight: 'bold', width: '15%' }}>QTY</th>
-              <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 'bold', width: '17%' }}>RATE (₹)</th>
-              <th style={{ textAlign: 'right', padding: '6px 4px', fontWeight: 'bold', width: '18%' }}>AMOUNT (₹)</th>
+            <tr style={{ borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000' }}>
+              <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 'bold', width: '50%' }}>ITEM DESCRIPTION</th>
+              <th style={{ textAlign: 'center', padding: '6px 0', fontWeight: 'bold', width: '15%' }}>QTY</th>
+              <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 'bold', width: '17%' }}>RATE</th>
+              <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 'bold', width: '18%' }}>AMOUNT</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: '#000000', fontWeight: 'bold' }}>
-                  NO MENU ITEMS SHOWING — AMOUNT: ₹00
+                <td colSpan={4} style={{ padding: '16px', textAlign: 'center', fontWeight: 'bold' }}>
+                  NO MENU ITEMS SHOWING
                 </td>
               </tr>
             ) : items.map((item, idx) => {
@@ -243,14 +254,14 @@ const OrderInvoicePage = () => {
               const rate = Number(item.unitPrice || item.price || item.rate || 0);
               const total = Number(item.total || (item.qty * rate));
               return (
-                <tr key={idx} style={{ borderBottom: '1px dashed #bbbbbb' }}>
-                  <td style={{ padding: '6px 4px', fontWeight: 'bold' }}>
-                    {displayName}
-                    {item.remark && <div style={{ fontSize: '11px', fontWeight: 'normal', color: '#444444' }}>NOTE: {item.remark}</div>}
+                <tr key={idx} style={{ borderBottom: '1px dotted #888888' }}>
+                  <td style={{ padding: '6px 0', fontWeight: 'bold', wordBreak: 'break-word' }}>
+                    {displayName.toUpperCase()}
+                    {item.remark && <div style={{ fontSize: '10px', fontWeight: 'normal', fontStyle: 'italic' }}>* {item.remark}</div>}
                   </td>
-                  <td style={{ padding: '6px 4px', textAlign: 'center', fontWeight: 'bold' }}>{item.qty || 1}</td>
-                  <td style={{ padding: '6px 4px', textAlign: 'right' }}>₹{formatAmount(rate)}</td>
-                  <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>₹{formatAmount(total)}</td>
+                  <td style={{ padding: '6px 0', textAlign: 'center', fontWeight: 'bold' }}>{item.qty || 1}</td>
+                  <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{formatAmount(rate)}</td>
+                  <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold' }}>₹{formatAmount(total)}</td>
                 </tr>
               );
             })}
@@ -258,35 +269,39 @@ const OrderInvoicePage = () => {
         </table>
 
         {/* Totals Summary */}
-        <div style={{ borderTop: '2px solid #000000', paddingTop: '10px', fontSize: '13px', color: '#000000' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <div style={{ borderTop: '1.5px dashed #000000', paddingTop: '10px', fontSize: '12px', color: '#000000', fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
             <span>SUBTOTAL:</span>
             <span>₹{formatAmount(subtotal)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <span>GST / TAX (5%):</span>
-            <span>₹{formatAmount(taxAmount)}</span>
-          </div>
           {discountAmount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
               <span>DISCOUNT:</span>
               <span>- ₹{formatAmount(discountAmount)}</span>
             </div>
           )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
+            <span>CGST (2.5%):</span>
+            <span>₹{formatAmount(cgst)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
+            <span>SGST (2.5%):</span>
+            <span>₹{formatAmount(sgst)}</span>
+          </div>
           <div style={{
             display: 'flex', justifyContent: 'space-between',
-            borderTop: '1px solid #000000', borderBottom: '2px solid #000000',
-            padding: '8px 0', marginTop: '6px', fontSize: '16px', fontWeight: 'bold'
+            borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000',
+            padding: '8px 0', marginTop: '6px', fontSize: '15px', fontWeight: '900'
           }}>
-            <span>GRAND TOTAL:</span>
+            <span>NET AMOUNT:</span>
             <span>₹{formatAmount(grandTotal)}</span>
           </div>
         </div>
 
         {/* Receipt Footer */}
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '12px', borderTop: '1px dashed #000000', paddingTop: '12px', color: '#222222' }}>
-          *** THANK YOU FOR DINING WITH ALFA ***<br />
-          COMPUTER GENERATED CASH RECEIPT · HAVE A WONDERFUL DAY!
+        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11px', borderTop: '1.5px dashed #000000', paddingTop: '12px', color: '#333333', fontWeight: 'bold' }}>
+          *** THANK YOU FOR DINING WITH US ***<br />
+          HAVE A WONDERFUL DAY!
         </div>
       </div>
     </div>
