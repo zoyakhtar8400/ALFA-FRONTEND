@@ -5,6 +5,7 @@ import { FaTimes, FaUtensils, FaArrowRight } from 'react-icons/fa';
 import POSPaymentBar from './pos/POSPaymentBar';
 import POSSummaryBar from './pos/POSSummaryBar';
 import POSActionButtons from './pos/POSActionButtons';
+import paymentModeService from '../../../services/paymentModeService';
 import { printTaxInvoice } from '../utils/printInvoice';
 import { kotService } from '../../../services/kotService';
 import { orderService } from '../../../services/orderService';
@@ -25,12 +26,10 @@ const QuickPaymentModal = ({
   const { setTables, activeStoreId } = useRestaurant();
 
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
-  const [showDiscountPanel, setShowDiscountPanel] = useState(false);
-  const [discountLines, setDiscountLines] = useState([
-    { id: 1, type: 'Percentage', value: '', reason: '' }
-  ]);
-  const [paymentMode, setPaymentMode] = useState('Cash');
-  const [isPaid, setIsPaid] = useState(false);
+
+  const [dbPaymentModes, setDbPaymentModes] = useState([]);
+  const [paymentAmounts, setPaymentAmounts] = useState({});
+  const [tipAmount, setTipAmount] = useState('');
   const [taxLines, setTaxLines] = useState([]); // [{name, rate, amount}]
 
   // Load ALL active taxes from backend Tax master on open
@@ -43,6 +42,21 @@ const QuickPaymentModal = ({
         rate: Number(t.percentage || 0)
       })));
     }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
+
+    paymentModeService.getPaymentModes().then(res => {
+      let list = Array.isArray(res) ? res : (res?.data || res?.paymentModes || res?.payment_modes || []);
+      const activeList = list
+        .filter(p => p.active !== 'No' && p.isActive !== false)
+        .map(p => ({
+            id: p.name || p.payment_mode_name,
+            name: p.name || p.payment_mode_name,
+            label: p.name || p.payment_mode_name,
+            type: p.type || 'CASH'
+        }));
+      setDbPaymentModes(activeList.length > 0 ? activeList : [{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }]);
+    }).catch(() => {
+      setDbPaymentModes([{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }]);
+    });
   }, [isOpen]);
 
   const toast = (msg, type = 'success') => {
@@ -69,51 +83,24 @@ const QuickPaymentModal = ({
   const subTotal = rawSubTotal > 0 ? rawSubTotal : Number(table?.amount || 0);
   const rawTotal = subTotal;
 
-  const totalDiscountAmt = useMemo(() => {
-    return discountLines.reduce((acc, curr) => {
-      const val = parseFloat(curr.value) || 0;
-      if (val <= 0) return acc;
-      if (curr.type === 'Percentage') {
-        return acc + (subTotal * val / 100);
-      }
-      return acc + val;
-    }, 0);
-  }, [discountLines, subTotal]);
+  const totalDiscountAmt = Number(table?.discount_amount || table?.discountAmount || 0);
 
+  const totalTax = Number(table?.tax_amount || table?.taxAmount || table?.tax || 0);
+  const cgstAmt = Math.round(totalTax / 2);
+  const sgstAmt = Math.round(totalTax / 2);
+  
   const taxableAmount = Math.max(0, subTotal - totalDiscountAmt);
-  // Compute each tax line dynamically from master
-  const computedTaxLines = taxLines.map(t => ({
-    name: t.name,
-    rate: t.rate,
-    amount: Math.round((taxableAmount * t.rate / 100) * 100) / 100
-  }));
-  const totalTax = Math.round(computedTaxLines.reduce((s, t) => s + t.amount, 0) * 100) / 100;
-  // legacy compat
-  const cgstAmt = computedTaxLines.find(t => t.name?.toUpperCase().includes('CGST'))?.amount ?? Math.round((totalTax / 2) * 100) / 100;
-  const sgstAmt = computedTaxLines.find(t => t.name?.toUpperCase().includes('SGST'))?.amount ?? Math.round((totalTax / 2) * 100) / 100;
-  const netBill = Math.round((taxableAmount + totalTax) * 100) / 100;
+  const netBill = Number(table?.total_amount || table?.totalAmount || table?.net_amount || Math.round(taxableAmount + totalTax));
 
-  const addDiscountLine = () => {
-    setDiscountLines(prev => [
-      ...prev,
-      { id: Date.now(), type: 'Percentage', value: '', reason: '' }
-    ]);
-  };
+  const totalPaid = useMemo(() => {
+    return Object.values(paymentAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0);
+  }, [paymentAmounts]);
 
-  const updateDiscountLine = (id, field, val) => {
-    setDiscountLines(prev =>
-      prev.map(line => line.id === id ? { ...line, [field]: val } : line)
-    );
-  };
+  const balanceDue = Math.max(0, netBill - totalPaid).toFixed(2);
+  const dueCredit = Math.max(0, totalPaid - netBill).toFixed(2);
+  const cashReturn = totalPaid > netBill ? dueCredit : '0.00';
 
-  const removeDiscountLine = (id) => {
-    if (discountLines.length === 1) {
-      setDiscountLines([{ id: 1, type: 'Percentage', value: '', reason: '' }]);
-      setShowDiscountPanel(false);
-    } else {
-      setDiscountLines(prev => prev.filter(line => line.id !== id));
-    }
-  };
+
 
   // Keyboard shortcut listener (F5 - F10)
   useEffect(() => {
@@ -123,15 +110,12 @@ const QuickPaymentModal = ({
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
-      } else if (e.key === 'F8') {
+      } else if (e.key === 'F8' || e.key === 'F7' || e.key === 'F9') {
         e.preventDefault();
         handleSave();
       } else if (e.key === 'F4') {
         e.preventDefault();
         handleKOT();
-      } else if (e.key === 'F9') {
-        e.preventDefault();
-        handleSaveAndPrint();
       } else if (e.key === 'F10') {
         e.preventDefault();
         handleHold();
@@ -140,7 +124,7 @@ const QuickPaymentModal = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, table, netBill, activeRows, paymentMode]);
+  }, [isOpen, table, netBill, activeRows, paymentAmounts]);
 
   if (!isOpen || !table) return null;
 
@@ -151,7 +135,13 @@ const QuickPaymentModal = ({
   const handleSave = async () => {
     try {
       const cleanMobile = (table.mobile && table.mobile !== '—') ? table.mobile : '';
-      
+
+      const paymentsArray = Object.entries(paymentAmounts)
+        .filter(([mode, amt]) => Number(amt) > 0)
+        .map(([mode, amt]) => ({ method: mode, amount: Number(amt) }));
+
+      const mainMode = paymentsArray.length > 0 ? paymentsArray.sort((a,b) => b.amount - a.amount)[0].method : 'Cash';
+
       // 1. Create completed Order record in PostgreSQL
       const orderRes = await orderService.createOrder({
         tableId: Number(targetTableId) || 1,
@@ -160,8 +150,9 @@ const QuickPaymentModal = ({
         mobileNo: cleanMobile,
         waiter: table.waiter || 'Staff',
         status: 'completed',
-        payment_status: 'Paid',
-        paymentMode: paymentMode || 'Cash',
+        payment_status: Number(balanceDue) > 0 ? 'Partial' : 'Paid',
+        paymentMode: mainMode,
+        payments: paymentsArray,
         items: activeRows,
         discount: totalDiscountAmt,
         tax: totalTax,
@@ -178,44 +169,60 @@ const QuickPaymentModal = ({
       if (createdOrderId) {
         await orderService.processPayment({
           orderId: createdOrderId,
-          paymentMethod: paymentMode || 'Cash',
+          payments: paymentsArray,
+          paymentMethod: mainMode,
           amount: netBill
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
-      // 3. Patch table status to PAYMENT_COMPLETED in PostgreSQL
-      if (targetTableId) {
-        await restaurantApi.patchTableStatus(targetTableId, {
-          status: 'PAYMENT_COMPLETED',
-          amount: 0,
-          payment_status: 'PAID',
-          customer: table.customer || 'Walk-in',
-          waiter: table.waiter || null,
-          remaining_seconds: 60
-        }).catch(() => {});
+      // 3. Patch table status to Blank in PostgreSQL if fully paid
+      if (Number(balanceDue) <= 0) {
+        if (targetTableId) {
+          await restaurantApi.patchTableStatus(targetTableId, {
+            status: 'Blank',
+            amount: 0,
+            payment_status: 'PAID',
+            customer: '',
+            waiter: null,
+            remaining_seconds: 0
+          }).catch(() => { });
+        }
+
+        if (setTables) {
+          setTables(prev => prev.map(t => {
+            if (String(t.id) === String(targetTableId) || String(t.no) === String(targetTableNo)) {
+              return {
+                ...t,
+                status: 'Blank',
+                color: 'white',
+                amount: 0,
+                paidAt: null,
+                payment_completed_at: null,
+                remaining_seconds: 0,
+                cleanup_after_seconds: 0,
+                available_actions: [],
+                updatedAt: Date.now()
+              };
+            }
+            return t;
+          }));
+        }
+      } else {
+         if (setTables) {
+          setTables(prev => prev.map(t => {
+            if (String(t.id) === String(targetTableId) || String(t.no) === String(targetTableNo)) {
+              return {
+                ...t,
+                payment_status: 'PARTIAL',
+                updatedAt: Date.now()
+              };
+            }
+            return t;
+          }));
+        }
       }
 
-      if (setTables) {
-        setTables(prev => prev.map(t => {
-          if (String(t.id) === String(targetTableId) || String(t.no) === String(targetTableNo)) {
-            return {
-              ...t,
-              status: 'PAYMENT_COMPLETED',
-              color: 'green',
-              amount: 0,
-              paidAt: Date.now(),
-              payment_completed_at: Date.now(),
-              remaining_seconds: 60,
-              cleanup_after_seconds: 60,
-              available_actions: ['print_kot'],
-              updatedAt: Date.now()
-            };
-          }
-          return t;
-        }));
-      }
-
-      toast(`Payment of ₹${netBill.toFixed(2)} (${paymentMode}) completed! Table T${targetTableNo} is now Paid.`);
+      toast(`Payment of ₹${totalPaid.toFixed(2)} completed! Table T${targetTableNo} is now ${Number(balanceDue) > 0 ? 'Partial' : 'Paid'}.`);
       if (typeof onTableUpdated === 'function') onTableUpdated();
       onClose();
     } catch (err) {
@@ -253,19 +260,19 @@ const QuickPaymentModal = ({
           orderId: createdOrderId,
           paymentMethod: paymentMode || 'Cash',
           amount: netBill
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
-      // 3. Patch table status to PAYMENT_COMPLETED in PostgreSQL
+      // 3. Patch table status to Blank in PostgreSQL
       if (targetTableId) {
         await restaurantApi.patchTableStatus(targetTableId, {
-          status: 'PAYMENT_COMPLETED',
+          status: 'Blank',
           amount: 0,
           payment_status: 'PAID',
-          customer: table.customer || 'Walk-in',
-          waiter: table.waiter || null,
-          remaining_seconds: 60
-        }).catch(() => {});
+          customer: '',
+          waiter: null,
+          remaining_seconds: 0
+        }).catch(() => { });
       }
 
       if (setTables) {
@@ -273,14 +280,14 @@ const QuickPaymentModal = ({
           if (String(t.id) === String(targetTableId) || String(t.no) === String(targetTableNo)) {
             return {
               ...t,
-              status: 'PAYMENT_COMPLETED',
-              color: 'green',
+              status: 'Blank',
+              color: 'white',
               amount: 0,
-              paidAt: Date.now(),
-              payment_completed_at: Date.now(),
-              remaining_seconds: 60,
-              cleanup_after_seconds: 60,
-              available_actions: ['print_kot'],
+              paidAt: null,
+              payment_completed_at: null,
+              remaining_seconds: 0,
+              cleanup_after_seconds: 0,
+              available_actions: [],
               updatedAt: Date.now()
             };
           }
@@ -321,7 +328,7 @@ const QuickPaymentModal = ({
         waiter: table.waiter || 'Staff',
         items: activeRows,
         store_id: activeStoreId
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast(`KOT generated for Table T${targetTableNo}!`);
       if (typeof onTableUpdated === 'function') onTableUpdated();
@@ -394,25 +401,27 @@ const QuickPaymentModal = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '14px 20px',
-          background: '#0f172a',
-          color: '#ffffff'
+          padding: '16px 24px',
+          background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+          color: '#ffffff',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              background: '#f5c842',
-              color: '#1e293b',
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
               fontWeight: 900,
-              fontSize: '0.85rem',
-              padding: '3px 10px',
-              borderRadius: '6px'
+              fontSize: '0.9rem',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 10px rgba(245, 158, 11, 0.3)'
             }}>
               Table T{targetTableNo}
             </div>
             <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>Payment & Discount Options</div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                Guest: {table.customer || 'Walk-in'} &nbsp;·&nbsp; Waiter: {table.waiter || 'Staff'}
+              <div style={{ fontSize: '0.95rem', fontWeight: 800, letterSpacing: '0.3px' }}>Payment & Discount Options</div>
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                Guest: <span style={{ color: '#cbd5e1' }}>{table.customer || 'Walk-in'}</span> &nbsp;·&nbsp; Waiter: <span style={{ color: '#cbd5e1' }}>{table.waiter || 'Staff'}</span>
               </div>
             </div>
           </div>
@@ -472,7 +481,7 @@ const QuickPaymentModal = ({
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {isFooterCollapsed ? '💳 + Add Discount & Payment Method (Cash, Card, Due)' : '💳 Payment & Discount Options'}
+              {isFooterCollapsed ? '💳 Payment Method (Cash, Card, Due)' : '💳 Payment Options'}
             </span>
             <span style={{
               fontSize: '0.68rem',
@@ -487,185 +496,80 @@ const QuickPaymentModal = ({
           </div>
 
           {!isFooterCollapsed && (
-            <>
-              {/* Discount Panel */}
-              <div style={{ padding: '8px 16px' }}>
-                {!showDiscountPanel ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowDiscountPanel(true)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: '6px',
-                      border: '1.5px dashed #f97316',
-                      background: 'transparent',
-                      color: '#f97316',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    🏷️ Add Discount
-                  </button>
-                ) : (
-                  <div style={{
-                    background: '#fffbf5',
-                    border: '1.5px solid #fed7aa',
-                    borderRadius: '10px',
-                    padding: '10px 12px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c2410c', textTransform: 'uppercase' }}>
-                        🏷️ Discount Options
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowDiscountPanel(false)}
-                        style={{
-                          background: '#ffedd5',
-                          border: '1px solid #fdba74',
-                          borderRadius: '4px',
-                          padding: '3px 8px',
-                          color: '#c2410c',
-                          fontSize: '0.72rem',
-                          fontWeight: 800,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ▲ Collapse Discount
-                      </button>
-                    </div>
-
-                    {discountLines.map(line => (
-                      <div key={line.id} style={{
-                        display: 'grid',
-                        gridTemplateColumns: '100px 80px 1fr auto',
-                        gap: '6px',
-                        alignItems: 'center',
-                        marginBottom: '8px'
-                      }}>
-                        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid #fdba74' }}>
-                          {['Percentage', 'Fixed'].map(t => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => updateDiscountLine(line.id, 'type', t)}
-                              style={{
-                                flex: 1,
-                                padding: '5px 0',
-                                fontSize: '0.68rem',
-                                fontWeight: 800,
-                                border: 'none',
-                                background: line.type === t ? '#f97316' : '#fff',
-                                color: line.type === t ? '#fff' : '#9a3412',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              {t === 'Percentage' ? '%' : '₹'}
-                            </button>
-                          ))}
-                        </div>
-
-                        <input
-                          type="number"
-                          min="0"
-                          max={line.type === 'Percentage' ? 100 : undefined}
-                          step="0.01"
-                          placeholder={line.type === 'Percentage' ? '0%' : '0.00'}
-                          value={line.value}
-                          onChange={e => updateDiscountLine(line.id, 'value', e.target.value)}
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid #fdba74',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            textAlign: 'right',
-                            outline: 'none',
-                            background: '#fff'
-                          }}
-                        />
-
-                        <input
-                          type="text"
-                          placeholder="Reason / Note"
-                          value={line.reason}
-                          onChange={e => updateDiscountLine(line.id, 'reason', e.target.value)}
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid #fdba74',
-                            fontSize: '0.75rem',
-                            outline: 'none',
-                            background: '#fff'
-                          }}
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => removeDiscountLine(line.id)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.9rem' }}
-                        >✕</button>
-                      </div>
-                    ))}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed #fed7aa' }}>
-                      <button
-                        type="button"
-                        onClick={addDiscountLine}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '5px',
-                          border: '1px dashed #f97316',
-                          background: 'transparent',
-                          color: '#f97316',
-                          fontSize: '0.72rem',
-                          fontWeight: 800,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        + Add More Discount
-                      </button>
-                      {totalDiscountAmt > 0 && (
-                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#16a34a' }}>
-                          Saving ₹{totalDiscountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      )}
-                    </div>
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #cbd5e1' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{netBill.toFixed(2)}</span>
                   </div>
-                )}
-              </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Paid</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{totalPaid.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
+                  {dbPaymentModes.map(mode => (
+                    <div key={mode.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode.label}</label>
+                      <input 
+                        type="number"
+                        placeholder="0"
+                        min="0"
+                        value={paymentAmounts[mode.id] || ''}
+                        onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [mode.id]: e.target.value }))}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
+                      />
+                    </div>
+                  ))}
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b' }}>Tip Amount</label>
+                      <input 
+                        type="number"
+                        placeholder="0"
+                        min="0"
+                        value={tipAmount}
+                        onChange={(e) => setTipAmount(e.target.value)}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #fcd34d', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
+                      />
+                  </div>
+                </div>
 
-              {/* Payment Modes (Cash, Card, Due, Other, More) */}
-              <POSPaymentBar
-                activeMode={paymentMode}
-                onSelectMode={setPaymentMode}
-                isPaid={isPaid}
-                onChangeIsPaid={setIsPaid}
-              />
-            </>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                    <div style={{ flex: 1, background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(239, 68, 68, 0.05)' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balance Due</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#991b1b', marginTop: '2px' }}>₹{balanceDue}</div>
+                    </div>
+                    <div style={{ flex: 1, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1.5px solid #86efac', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(34, 197, 94, 0.05)' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cash Return</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#14532d', marginTop: '2px' }}>₹{cashReturn}</div>
+                    </div>
+                </div>
+                  </div>
           )}
 
-          {/* Total Amount & Split Bill Summary Bar */}
-          <POSSummaryBar
-            totalBill={netBill}
-            discountAmt={totalDiscountAmt}
-            originalBill={rawTotal}
-            onSplitClick={() => toast('Split bill activated')}
-          />
-
-          {/* Action Buttons: Save (F5) to Hold Draft (F10) */}
-          <POSActionButtons
-            onSave={handleSave}
-            onSaveAndPrint={handleSaveAndPrint}
-            onSaveAndEBill={handleSaveAndEBill}
-            onKOT={handleKOT}
-            onKOTAndPrint={handleSaveAndPrint}
-            onHold={handleHold}
-          />
+          {/* Action Buttons: Single Save Button labeled as Save & Print */}
+          <div style={{ padding: '16px 20px', background: '#fff', borderTop: '1px solid #e2e8f0', borderBottomLeftRadius: '14px', borderBottomRightRadius: '14px' }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              style={{
+                display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
+                padding: '12px 24px', borderRadius: '10px',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#ffffff',
+                fontWeight: 900, fontSize: '0.95rem', border: 'none',
+                cursor: 'pointer', transition: 'all 0.2s',
+                width: '100%',
+                boxShadow: '0 8px 16px rgba(16, 185, 129, 0.25)'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 20px rgba(16, 185, 129, 0.35)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(16, 185, 129, 0.25)'; }}
+            >
+              <span>Save</span>
+              <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', color: '#ffffff' }}>F7</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

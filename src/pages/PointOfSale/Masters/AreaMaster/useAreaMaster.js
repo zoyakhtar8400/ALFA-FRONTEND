@@ -41,6 +41,7 @@ export const useAreaMaster = (showToast) => {
       const mapped = list.map((a, idx) => ({
         id: a.id || idx + 1,
         name: a.name || '',
+        store_id: a.store_id ? String(a.store_id).replace('STORE_', '') : '',
         description: a.description || '',
         active: a.active === 'No' ? 'No' : 'Yes',
         isActive: a.active !== 'No',
@@ -105,9 +106,10 @@ export const useAreaMaster = (showToast) => {
 
     const isEdit = !!fields.id;
     const payload = {
-      name: trimmedName,
-      description: fields.description || '',
-      active: fields.active || (fields.isActive !== false ? 'Yes' : 'No')
+      name: fields.name,
+      description: fields.description,
+      active: fields.active,
+      store_id: fields.store_id ? `STORE_${fields.store_id}` : ''
     };
 
     try {

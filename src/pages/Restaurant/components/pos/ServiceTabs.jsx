@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 
 const ServiceTabs = ({ serviceType, setServiceType }) => {
   const containerRef = useRef(null);
-  const tabs = ['Dine In', 'Delivery', 'Pickup'];
+  const tabs = ['Dine In', 'Delivery', 'Takeaway'];
 
   const handleKeyDown = (e) => {
     const idx = tabs.indexOf(serviceType);

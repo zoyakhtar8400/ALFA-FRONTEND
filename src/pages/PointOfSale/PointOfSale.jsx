@@ -16,7 +16,7 @@ import HSNCodeEntryPage from './Masters/ItemMenu/HSNCodeEntry/HSNCodeEntryPage';
 import NCTypeMasterPage from './Masters/NCTypeMaster/NCTypeMasterPage';
 import ItemRateUpdatePage from './Masters/ItemRateUpdate/ItemRateUpdatePage';
 import ItemRateCategoryPage from './Masters/ItemRateCategory/ItemRateCategoryPage';
-import ReportsRouter from './reports/ReportsRouter';
+import POSExpenseList from './Operation/ExpenseEntry/POSExpenseList';
 
 
 const PointOfSale = ({ showToast }) => {
@@ -74,6 +74,9 @@ const PointOfSale = ({ showToast }) => {
     }
     if (path.includes('/master/rate-category')) {
       return <ItemRateCategoryPage showToast={showToast} />;
+    }
+    if (path.includes('/pos/operation/expense-entry')) {
+      return <POSExpenseList showToast={showToast} />;
     }
     return (
       <div className="dashboard-panel" style={{ padding: '24px' }}>

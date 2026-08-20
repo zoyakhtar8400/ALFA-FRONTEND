@@ -1,6 +1,6 @@
 import React from 'react';
 
-const POSSummaryBar = ({ totalBill, discountAmt = 0, originalBill, onSplitClick }) => {
+const POSSummaryBar = ({ totalBill, discountAmt = 0, taxAmt = 0, originalBill, onSplitClick, showSplitButton = true }) => {
   const hasDiscount = discountAmt > 0;
 
   return (
@@ -44,40 +44,49 @@ const POSSummaryBar = ({ totalBill, discountAmt = 0, originalBill, onSplitClick 
               borderRadius: '20px',
               padding: '2px 8px'
             }}>
-              − ₹{discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {(() => {
+                let percStr = '';
+                if (originalBill > 0) {
+                  const perc = (discountAmt / originalBill) * 100;
+                  percStr = `(${perc % 1 === 0 ? perc.toFixed(0) : perc.toFixed(1)}%) `;
+                }
+                return `${percStr}− ₹${discountAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              })()}
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Tax breakdown row — shown only when tax is active */}
+      {(taxAmt > 0) && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '6px 20px',
+          background: '#f8fafc',
+          borderBottom: '1px dashed #cbd5e1'
+        }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>
+            GST / Taxes
+          </span>
+          <span style={{
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            color: '#0f172a'
+          }}>
+            + ₹{taxAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
         </div>
       )}
 
       {/* Main total row */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         alignItems: 'center',
         padding: '8px 14px',
       }}>
-        {/* Left: Split button */}
-        <button
-          type="button"
-          onClick={onSplitClick}
-          style={{
-            padding: '5px 12px',
-            borderRadius: '6px',
-            background: '#f1f5f9',
-            border: '1px solid #cbd5e1',
-            color: '#475569',
-            fontWeight: 800,
-            fontSize: '0.74rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
-          onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
-        >
-          Split Bill
-        </button>
-
         {/* Right: Net Total Amount */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
           <span style={{

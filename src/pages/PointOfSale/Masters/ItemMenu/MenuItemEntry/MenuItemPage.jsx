@@ -4,10 +4,11 @@ import DeleteConfirmationModal from '../../../../../components/common/DeleteConf
 import DuplicateConfirmationModal from '../../../../../components/common/DuplicateConfirmationModal';
 import MenuItemForm from './MenuItemForm';
 import { useItemMenu } from '../useItemMenu';
+import useOutletFilter from '../../../../../hooks/useOutletFilter';
 
 const columns = [
   { key: 'name', label: 'Item Name', sortable: true },
-  { key: 'outlet', label: 'Outlet', sortable: true },
+  { key: 'outletName', label: 'Outlet', sortable: true },
   { key: 'price', label: 'Sale Rate', sortable: true, render: (v) => `₹${v}` },
   { key: 'category', label: 'Item Category', sortable: true },
   { key: 'rateEdit', label: 'Rate Edit', sortable: true },
@@ -23,6 +24,8 @@ const MenuItemPage = ({ showToast }) => {
     else if (window.showToast) window.showToast(msg);
   }, [showToast]);
 
+  const { outlets, outletFilter, setOutletFilter, filterData } = useOutletFilter();
+
   const {
     data,
     itemGroups,
@@ -34,7 +37,8 @@ const MenuItemPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    taxCategories
   } = useItemMenu('menu-item', toastTrigger);
 
   const handleOpenAdd = () => {
@@ -45,12 +49,15 @@ const MenuItemPage = ({ showToast }) => {
     setModal({ open: true, isEdit: true, fields: row });
   };
 
+  // Filter menu items using common hook helper
+  const filteredData = filterData(data, 'outlet');
+
   return (
     <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
       <CommonTable
         title="Item Menu - Menu Item Entry"
         columns={columns}
-        data={data}
+        data={filteredData}
         actions={[
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
@@ -62,6 +69,9 @@ const MenuItemPage = ({ showToast }) => {
         breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Menu', 'Menu Item Entry']}
         emptyMessage="No Menu Item Entry records found."
         statusFilterKey="status"
+        outletFilter={outletFilter}
+        setOutletFilter={setOutletFilter}
+        outletsList={outlets}
       />
 
       {modal.open && (
@@ -73,6 +83,8 @@ const MenuItemPage = ({ showToast }) => {
           isEdit={modal.isEdit}
           itemGroups={itemGroups}
           mainGroups={mainGroups}
+          outlets={outlets}
+          taxCategories={taxCategories}
         />
       )}
 

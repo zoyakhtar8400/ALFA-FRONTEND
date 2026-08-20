@@ -4,6 +4,7 @@ import { LuEye, LuPencil, LuTrash2, LuCheck, LuChefHat, LuPrinter, LuRefreshCw }
 
 import PageHeader from '../../../components/common/PageHeader';
 import CommonModal from '../../../components/common/CommonModal';
+import CancelKOTModal from '../components/CancelKOTModal';
 import { useRestaurant } from '../../../context/RestaurantContext';
 import { printKitchenKOT, printTaxInvoice, printStationKOT } from '../utils/printInvoice';
 import { kotService } from '../../../services/kotService';
@@ -24,6 +25,7 @@ const KITCHEN_STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
 const formatTableNoDisplay = (tableVal) => {
   if (!tableVal) return 'T--';
   const str = String(tableVal).trim();
+  if (str.startsWith('TK-') || str.startsWith('DL-') || str.toLowerCase().includes('takeaway') || str.toLowerCase().includes('delivery')) return str;
   const numMatches = str.match(/\d+/);
   if (numMatches) return `T${numMatches[0].padStart(2, '0')}`;
   return str.startsWith('T') ? str : `T${str}`;
@@ -31,10 +33,12 @@ const formatTableNoDisplay = (tableVal) => {
 
 const ViewKOTPage = () => {
   const navigate = useNavigate();
-  const { setTables, activeStoreId } = useRestaurant();
+  const { tables, setTables, activeStoreId, setOrderItemsMap, refreshTables } = useRestaurant();
 
   const [selected, setSelected]         = useState(null);
   const [statusFilter, setStatusFilter] = useState('All');
+  const [areaFilter, setAreaFilter]     = useState('All Areas');
+  const [orderTypeFilter, setOrderTypeFilter] = useState('All Orders');
   const [activeFilter, setActiveFilter] = useState('active'); // 'active' | 'inactive' | 'all'
   const [loadingKots, setLoadingKots]   = useState(false);
   const [dbKots, setDbKots]             = useState([]);
@@ -49,10 +53,11 @@ const ViewKOTPage = () => {
   useEffect(() => {
     async function loadMasters() {
       try {
+        const activeOutletId = localStorage.getItem('activeOutletId') || 'STORE_1';
         const [catRes, printRes, menuRes] = await Promise.allSettled([
-          apiClient.get('/production-categories'),
-          apiClient.get('/printers'),
-          apiClient.get('/menu-items')
+          apiClient.get('/production-categories', { params: { store_id: activeOutletId } }),
+          apiClient.get('/printers', { params: { store_id: activeOutletId } }),
+          apiClient.get('/menu-items', { params: { store_id: activeOutletId } })
         ]);
         if (catRes.status === 'fulfilled' && catRes.value) {
           setCategories(catRes.value.data || catRes.value || []);
@@ -112,17 +117,43 @@ const ViewKOTPage = () => {
     }
   }, []);
 
-  // ── Apply kitchen-status filter on top of active/inactive ──────────────────
+  // ── Apply kitchen-status and area filter on top of active/inactive ──────────────────
+  const availableAreas = useMemo(() => {
+    const areaSet = new Set(['All Areas']);
+    tables.forEach(t => {
+      const a = t.area_name || t.area;
+      if (a && String(a).trim()) areaSet.add(String(a).trim());
+    });
+    return Array.from(areaSet);
+  }, [tables]);
+
   const kots = useMemo(() => {
     let rows = [...dbKots];
     if (statusFilter !== 'All') rows = rows.filter(k => k.status === statusFilter);
+    if (areaFilter !== 'All Areas') {
+      rows = rows.filter(k => {
+        const matchingTable = tables.find(t => String(t.id) === String(k.table_id) || t.no === k.tableId);
+        return matchingTable && (matchingTable.area_name === areaFilter || matchingTable.area === areaFilter);
+      });
+    }
+    if (orderTypeFilter !== 'All Orders') {
+      rows = rows.filter(k => {
+        const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : (k.extra_details || {});
+        const kotOrderType = extra.order_type || k.order_type || (String(k.tableId).startsWith('TK-') ? 'Takeaway' : String(k.tableId).startsWith('DL-') ? 'Delivery' : 'Dine In');
+        
+        if (orderTypeFilter === 'Dine In') return kotOrderType === 'Dine In' || kotOrderType === 'DINE_IN';
+        if (orderTypeFilter === 'Takeaway') return kotOrderType === 'Takeaway' || kotOrderType === 'TAKEAWAY';
+        if (orderTypeFilter === 'Delivery') return kotOrderType === 'Delivery' || kotOrderType === 'DELIVERY';
+        return true;
+      });
+    }
     return rows;
-  }, [dbKots, statusFilter]);
+  }, [dbKots, statusFilter, areaFilter, orderTypeFilter, tables]);
 
   const counts = useMemo(() => ({
-    All: dbKots.length,
-    ...Object.fromEntries(KITCHEN_STATUSES.map(s => [s, dbKots.filter(k => k.status === s).length])),
-  }), [dbKots]);
+    All: dbKots.filter(k => areaFilter === 'All Areas' || (tables.find(t => String(t.id) === String(k.table_id) || t.no === k.tableId)?.area_name === areaFilter || tables.find(t => String(t.id) === String(k.table_id) || t.no === k.tableId)?.area === areaFilter)).length,
+    ...Object.fromEntries(KITCHEN_STATUSES.map(s => [s, dbKots.filter(k => k.status === s && (areaFilter === 'All Areas' || (tables.find(t => String(t.id) === String(k.table_id) || t.no === k.tableId)?.area_name === areaFilter || tables.find(t => String(t.id) === String(k.table_id) || t.no === k.tableId)?.area === areaFilter))).length])),
+  }), [dbKots, areaFilter, tables]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleStatusChange = async (kotId, nextStatus) => {
@@ -177,12 +208,19 @@ const ViewKOTPage = () => {
     } else {
       const groups = groupItemsByPrinter(kot.items || [], menuItems, categories, printers);
       const isReprint = !!(kot.print_count && kot.print_count > 0);
+      
+      const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+      const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC');
+      const cleanServerNo = String(kot.id).replace(/[^0-9]/g, '');
+      const formattedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+
       const payloads = groups.map(g => generateKOTPayload({
         tableNo: kot.tableId,
         tableId: kot.tableId,
-        kotNo: kot.id,
+        kotNo: formattedKotNo,
         group: g,
         waiter: kot.waiter || 'Staff',
+        remarks: kot.remark || kot.remarks || kot.note || extra.remarks || '',
         isReprint
       }));
       printAllStationKOTs(payloads);
@@ -191,8 +229,9 @@ const ViewKOTPage = () => {
 
   const handleViewInPOS = (kot) => {
     const kotIdVal = kot.kotId || kot.id;
+    const activeItems = (kot.items || []).filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
     navigate(`/restaurant/pos-billing?kotId=${kotIdVal}`, {
-      state: { kotId: kotIdVal, isKotView: true, kot, rows: kot.items }
+      state: { kotId: kotIdVal, isKotView: true, kot, rows: activeItems }
     });
   };
 
@@ -211,24 +250,7 @@ const ViewKOTPage = () => {
       {/* ── Controls row ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '12px', margin: '20px 0 16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
 
-        {/* Status filter pills */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {['All', ...KITCHEN_STATUSES].map(s => {
-            const cfg = STATUS_CONFIG[s] || { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
-            const active = statusFilter === s;
-            return (
-              <button key={s} onClick={() => setStatusFilter(s)} style={{
-                padding: '6px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '700',
-                cursor: 'pointer', transition: 'all 150ms',
-                border: `1.5px solid ${active ? cfg.color : '#e2e8f0'}`,
-                background: active ? cfg.bg : '#fff',
-                color: active ? cfg.color : '#475569',
-              }}>
-                {s} <span style={{ marginLeft: '4px', fontSize: '11px', opacity: 0.7 }}>({counts[s] ?? 0})</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Status filter pills removed as requested */}
 
         {/* Right-side controls: dropdown + refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -247,6 +269,37 @@ const ViewKOTPage = () => {
             <option value="cancelled">❌ Cancelled KOTs</option>
             <option value="nc">🍽️ NC (Non-Chargeable) KOTs</option>
             <option value="all">📋 All KOTs</option>
+          </select>
+
+          <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap', marginLeft: '4px' }}>Area:</label>
+          <select
+            value={areaFilter}
+            onChange={e => setAreaFilter(e.target.value)}
+            style={{
+              padding: '7px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700',
+              border: '1.5px solid #e2e8f0', background: '#fff', color: '#1e293b',
+              cursor: 'pointer', outline: 'none', minWidth: '140px',
+            }}
+          >
+            {availableAreas.map(area => (
+              <option key={area} value={area}>{area}</option>
+            ))}
+          </select>
+
+          <label style={{ fontSize: '13px', fontWeight: '600', color: '#475569', whiteSpace: 'nowrap', marginLeft: '4px' }}>Type:</label>
+          <select
+            value={orderTypeFilter}
+            onChange={e => setOrderTypeFilter(e.target.value)}
+            style={{
+              padding: '7px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700',
+              border: '1.5px solid #e2e8f0', background: '#fff', color: '#1e293b',
+              cursor: 'pointer', outline: 'none', minWidth: '140px',
+            }}
+          >
+            <option value="All Orders">All Orders</option>
+            <option value="Dine In">Dine In</option>
+            <option value="Takeaway">Takeaway</option>
+            <option value="Delivery">Delivery</option>
           </select>
 
           <button
@@ -275,7 +328,7 @@ const ViewKOTPage = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-              {['Table', 'KOT No.', 'Date', 'Time', 'Items', 'Waiter', 'State', 'Kitchen Status', 'Actions'].map(h => (
+              {['Table', 'Area', 'KOT No.', 'Date', 'Time', 'Items', 'Waiter', 'State', 'Actions'].map(h => (
                 <th key={h} style={{ padding: '12px 14px', textAlign: h === 'Actions' ? 'center' : 'left', fontSize: '11.5px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
                   {h}
                 </th>
@@ -306,16 +359,39 @@ const ViewKOTPage = () => {
                 >
                   {/* Table badge */}
                   <td style={{ padding: '12px 14px' }}>
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      height: '32px', padding: '0 10px', borderRadius: '9px',
-                      background: closed ? '#f1f5f9' : '#f0fdfa',
-                      border: `1.5px solid ${closed ? '#e2e8f0' : '#99f6e4'}`,
-                      fontWeight: '800', fontSize: '13px',
-                      color: closed ? '#94a3b8' : '#0f766e', whiteSpace: 'nowrap',
-                    }}>
-                      {formatTableNoDisplay(kot.tableId)}
-                    </div>
+                    {(() => {
+                      const matchingTable = tables.find(t => String(t.id) === String(kot.table_id) || t.no === kot.tableId);
+                      const displayTableName = matchingTable 
+                        ? (matchingTable.table_name || `T${parseInt(matchingTable.no || matchingTable.table_no || '1', 10)}`)
+                        : (kot.tableName || formatTableNoDisplay(kot.tableId));
+                      
+                      return (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          height: '32px', padding: '0 10px', borderRadius: '9px',
+                          background: closed ? '#f1f5f9' : '#f0fdfa',
+                          border: `1.5px solid ${closed ? '#e2e8f0' : '#99f6e4'}`,
+                          fontWeight: '800', fontSize: '13px',
+                          color: closed ? '#94a3b8' : '#0f766e', whiteSpace: 'nowrap',
+                        }}>
+                          {(() => {
+                            const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+                            if (extra.takeaway_no) return extra.takeaway_no;
+                            if (extra.delivery_no) return extra.delivery_no;
+                            if (String(kot.tableId).startsWith('TK-') || String(kot.tableId).startsWith('DL-')) return kot.tableId;
+                            return displayTableName;
+                          })()}
+                        </div>
+                      );
+                    })()}
+                  </td>
+
+                  {/* Area */}
+                  <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: '700', color: '#334155', textTransform: 'uppercase' }}>
+                    {(() => {
+                      const matchingTable = tables.find(t => String(t.id) === String(kot.table_id) || t.no === kot.tableId);
+                      return matchingTable?.area || matchingTable?.area_name || '—';
+                    })()}
                   </td>
 
                   {/* KOT No */}
@@ -385,23 +461,6 @@ const ViewKOTPage = () => {
                     )}
                   </td>
 
-                  {/* Kitchen status dropdown (active only) or static badge (closed) */}
-                  <td style={{ padding: '12px 14px' }}>
-                    {closed ? (
-                      <span style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}` }}>
-                        {kot.status}
-                      </span>
-                    ) : (
-                      <select
-                        value={kot.status}
-                        onChange={e => handleStatusChange(kot.kotId, e.target.value)}
-                        style={{ padding: '5px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', border: `1.5px solid ${cfg.border}`, background: cfg.bg, color: cfg.color, cursor: 'pointer', outline: 'none' }}
-                      >
-                        {KITCHEN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    )}
-                  </td>
-
                   {/* Actions */}
                   <td style={{ padding: '12px 14px' }}>
                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
@@ -417,28 +476,8 @@ const ViewKOTPage = () => {
                           >
                             <LuEye size={13} />
                           </button>
-                          <button
-                            onClick={() => handleViewInPOS(kot)}
-                            title="Edit in POS Billing"
-                            style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
-                            onMouseEnter={e => { e.currentTarget.style.background = '#15803d'; e.currentTarget.style.color = '#fff'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = '#f0fdf4'; e.currentTarget.style.color = '#15803d'; }}
-                          >
-                            <LuPencil size={13} />
-                          </button>
                         </>
                       )}
-
-                      {/* Print — always available */}
-                      <button
-                        onClick={() => handlePrint(kot)}
-                        title="Print KOT"
-                        style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#0e7490'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-                      >
-                        <LuPrinter size={13} />
-                      </button>
 
                       {/* Details modal */}
                       <button
@@ -481,7 +520,12 @@ const ViewKOTPage = () => {
           maxWidth="480px"
         >
            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
-            {formatTableNoDisplay(selected.tableId)} &nbsp;·&nbsp; {selected.date} &nbsp;·&nbsp; {selected.time} &nbsp;·&nbsp; {selected.waiter}
+            {(() => {
+              const extra = typeof selected.extra_details === 'string' ? JSON.parse(selected.extra_details || '{}') : (selected.extra_details || {});
+              if (extra.takeaway_no) return extra.takeaway_no;
+              if (extra.delivery_no) return extra.delivery_no;
+              return formatTableNoDisplay(selected.tableId);
+            })()} &nbsp;·&nbsp; {selected.date} &nbsp;·&nbsp; {selected.time} &nbsp;·&nbsp; {selected.waiter}
           </div>
 
           {selected.cancel_reason && (
@@ -544,85 +588,30 @@ const ViewKOTPage = () => {
       )}
 
       {/* Custom Reason Modal for KOT cancellation */}
-      {kotToCancel && (
-        <CommonModal
-          isOpen={!!kotToCancel}
-          onClose={() => setKotToCancel(null)}
-          title={`Cancel KOT — ${kotToCancel.id}`}
-          maxWidth="440px"
-        >
-          <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
-            <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#1e293b', fontWeight: 800 }}>
-              why do you want to cancel the KOT {kotToCancel.id}?
-            </h4>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <textarea
-                placeholder="Enter cancellation reason..."
-                rows={3}
-                value={kotCancelReason}
-                onChange={e => {
-                  setKotCancelReason(e.target.value);
-                  if (e.target.value.trim()) setKotCancelError('');
-                }}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: kotCancelError ? '1.5px solid #ef4444' : '1.5px solid #cbd5e1',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  outline: 'none',
-                  background: '#f8fafc',
-                  color: '#0f172a',
-                  resize: 'none',
-                  fontFamily: 'inherit'
-                }}
-                autoFocus
-              />
-              {kotCancelError && (
-                <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 700 }}>
-                  {kotCancelError}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '6px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setKotToCancel(null)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  cursor: 'pointer'
-                }}
-              >
-                Confirm Cancel
-              </button>
-            </div>
-          </div>
-        </CommonModal>
-      )}
+      <CancelKOTModal
+        isOpen={!!kotToCancel}
+        onClose={() => setKotToCancel(null)}
+        kots={kotToCancel ? [kotToCancel] : []}
+        onCancelSuccess={() => {
+          const targetTableId = kotToCancel?.tableId || kotToCancel?.table_id;
+          const targetTableNo = kotToCancel?.tableNo || kotToCancel?.table_no || kotToCancel?.table_name;
+          if (targetTableId) {
+            try { sessionStorage.removeItem(`alfa_draft_rows_${targetTableId}`); } catch(e){}
+            try { sessionStorage.removeItem('alfa_selected_pos_table'); } catch(e){}
+            if (typeof setOrderItemsMap === 'function') {
+              setOrderItemsMap(prev => {
+                const newMap = { ...prev };
+                delete newMap[targetTableId];
+                if (targetTableNo) delete newMap[targetTableNo];
+                return newMap;
+              });
+            }
+          }
+          setKotToCancel(null);
+          loadKots(activeFilter); // re-fetch to ensure KOT list is updated
+          if (typeof refreshTables === 'function') refreshTables(); // re-fetch tables to update currentTable.kots
+        }}
+      />
     </div>
   );
 };

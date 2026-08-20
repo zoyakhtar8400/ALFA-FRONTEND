@@ -92,9 +92,11 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       }
     };
     window.addEventListener('companyProfileUpdated', handleUpdate);
+    window.addEventListener('authLoginSuccess', loadComp);
     return () => {
       isMounted = false;
       window.removeEventListener('companyProfileUpdated', handleUpdate);
+      window.removeEventListener('authLoginSuccess', loadComp);
     };
   }, []);
 
@@ -211,20 +213,18 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       !location.pathname.includes('order-details')) {
       initialOpen[activeOutletId || 1] = true;
     }
+    if (location.pathname.includes('order-details')) {
+      initialOpen[activeOutletId || 1] = true;
+    }
     return initialOpen;
   });
   const [posOpen, setPosOpen] = useState(() =>
-    location.pathname.startsWith('/pos') ||
+    (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')) ||
     location.pathname.includes('/restaurant/masters') ||
     location.pathname.includes('/restaurant/master') ||
     location.pathname.includes('order-details')
   );
-  const [posMasterOpen, setPosMasterOpen] = useState(() =>
-    location.pathname.includes('/pos/master') ||
-    location.pathname.includes('/pos/masters') ||
-    location.pathname.includes('/restaurant/master') ||
-    location.pathname.includes('/restaurant/masters')
-  );
+  const [posMasterOpen, setPosMasterOpen] = useState(() => location.pathname.startsWith('/restaurant/master') || location.pathname.startsWith('/restaurant/masters') || (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')));
   const [posReportOpen, setPosReportOpen] = useState(() => location.pathname.includes('order-details'));
   const [itemMenuOpen, setItemMenuOpen] = useState(() =>
     location.pathname.includes('/pos/master/item-menu') ||
@@ -493,131 +493,10 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             <span>Dashboard</span>
           </NavLink>
 
-          {/* Front Desk Accordion Container (Commented)
-          <div>
-            <div
-              tabIndex={0} className={`sidebar-item ${location.pathname.startsWith('/front-desk') ? 'active' : ''}`}
-              onClick={() => {
-                if (isCollapsed) {
-                  setActiveFlyout(prev => prev ? null : { menu: 'front-desk', top: 150 });
-                  setActiveSubFlyout(null);
-                } else {
-                  setFrontDeskOpen(!frontDeskOpen);
-                }
-              }}
-              onMouseEnter={handleFrontDeskMouseEnter}
-              onMouseLeave={handleFrontDeskMouseLeave}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              title={isCollapsed ? "Front Desk" : ""}
-            >
-              <FaConciergeBell className="sidebar-icon" />
-              <span>Front Desk</span>
-              <FaChevronRight className={`chevron-icon ${frontDeskOpen ? 'open' : ''}`} />
-            </div>
-
-            {frontDeskOpen && !isCollapsed && (
-              <div className="sidebar-submenu">
-                <div>
-                  <div tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={handleMasterToggle}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaCogs style={{ fontSize: '0.95rem' }} />
-                    <span>Master</span>
-                    <FaChevronRight className={`chevron-icon ${masterOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {masterOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      {masters.map((m) => (
-                        <NavLink tabIndex={0}
-                          key={m.name}
-                          to={m.path}
-                          className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                          onClick={handleMobileNav}
-                        >
-                          {m.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={handleOperationToggle}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaFolder style={{ fontSize: '0.95rem' }} />
-                    <span>Operation</span>
-                    <FaChevronRight className={`chevron-icon ${operationOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {operationOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      {operations.map((o) => (
-                        <NavLink tabIndex={0}
-                          key={o.name}
-                          to={o.path}
-                          className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                          onClick={handleMobileNav}
-                        >
-                          {o.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={handleMisToggle}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaChartBar style={{ fontSize: '0.95rem' }} />
-                    <span>MIS</span>
-                    <FaChevronRight className={`chevron-icon ${misOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {misOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      {misItems.map((mis) => (
-                        <NavLink tabIndex={0}
-                          key={mis.name}
-                          to={mis.path}
-                          className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                          onClick={handleMobileNav}
-                        >
-                          {mis.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <NavLink to="/front-desk/report" tabIndex={0} className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`} onClick={handleMobileNav}>
-                  <FaFileAlt style={{ fontSize: '0.95rem' }} />
-                  <span>Report</span>
-                </NavLink>
-              </div>
-            )}
-          </div>
-          */}
-
-          {/* House Keeping (Commented)
-          <NavLink to="/housekeeping" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "House Keeping" : ""}>
-            <FaBroom className="sidebar-icon" />
-            <span>House Keeping</span>
-          </NavLink>
-          */}
-
           {/* Point Of Sale Accordion Container */}
           <div>
             <div
-              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant/master') || location.pathname.startsWith('/restaurant/masters') || location.pathname.startsWith('/pos') || location.pathname.includes('order-details')) ? 'active' : ''}`}
+              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant/master') || location.pathname.startsWith('/restaurant/masters') || (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')) || location.pathname.includes('order-details')) ? 'active' : ''}`}
               onClick={() => {
                 if (isCollapsed) {
                   setActiveFlyout(prev => prev ? null : { menu: 'point-of-sale', top: 280 });
@@ -731,9 +610,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
 
           {/* Restaurant Accordion Container */}
           {(() => {
-            const outletsToRender = allOutlets.length > 0
-              ? [...allOutlets].sort((a, b) => Number(a.id) - Number(b.id))
-              : [{ id: activeOutletId || 1, store_name: activeOutletName || 'Restaurant' }];
+            const outletsToRender = [...allOutlets].sort((a, b) => Number(a.id) - Number(b.id));
 
             return outletsToRender.map((outlet) => {
               const outletId = Number(outlet.id);
@@ -754,7 +631,15 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
                         );
                         setActiveSubFlyout(null);
                       } else {
-                        setOpenOutlets(prev => ({ ...prev, [outletId]: !prev[outletId] }));
+                        setOpenOutlets(prev => {
+                          const nextState = { [outletId]: !prev[outletId] };
+                          if (nextState[outletId]) {
+                            setPosOpen(false);
+                            setFrontDeskOpen(false);
+                            setPurchaseOpen(false);
+                          }
+                          return nextState;
+                        });
                       }
                     }}
                     onMouseEnter={(e) => handleRestaurantMouseEnter(e, outletId)}
@@ -946,7 +831,17 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
           */}
 
           {/* Setting */}
-          <NavLink to="/setting" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Setting" : ""}>
+          <NavLink
+            to="/setting"
+            tabIndex={0}
+            className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
+            onClick={(e) => {
+              handleMobileNav(e);
+              setPosOpen(false);
+            }}
+            onMouseEnter={handleOtherItemMouseEnter}
+            title={isCollapsed ? "Setting" : ""}
+          >
             <FaCog className="sidebar-icon" />
             <span>Setting</span>
           </NavLink>

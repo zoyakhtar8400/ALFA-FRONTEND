@@ -10,8 +10,9 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
   const [fields, setFields] = useState({
     name: '',
     shortName: '',
-    companyTitle: '',
-    outletTitle: '',
+    gstin: '',
+    companyTitle: 'Yes',
+    outletTitle: 'Yes',
     customerInfo: 'Optional',
     autoSettlement: 'No',
     focusOn: 'Item Search',
@@ -37,8 +38,9 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
       setFields({
         name: '',
         shortName: '',
-        companyTitle: '',
-        outletTitle: '',
+        gstin: '',
+        companyTitle: 'Yes',
+        outletTitle: 'Yes',
         customerInfo: 'Optional',
         autoSettlement: 'No',
         focusOn: 'Item Search',
@@ -58,7 +60,8 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
         billSlogan3: '',
         status: 'Active',
         ...initialData,
-        shortName: initialData.shortName || initialData.code || ''
+        shortName: initialData.shortName || initialData.code || '',
+        gstin: initialData.gstin || ''
       });
     }
   }, [isOpen, isEdit, initialData]);
@@ -134,35 +137,34 @@ const OutletMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 
                 <F label="Company Title" style={{ marginBottom: 0 }}>
                   <select
-                    value={fields.companyTitle || ''}
+                    value={fields.companyTitle || 'Yes'}
                     onChange={e => setFields(p => ({ ...p, companyTitle: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
-                    <option value="">--Select Company--</option>
-                    <option value="Alfa Hotels & Resorts">Alfa Hotels & Resorts</option>
-                    <option value="Grand Plaza Group">Grand Plaza Group</option>
-                    <option value="Downtown Hospitality">Downtown Hospitality</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
                   </select>
                 </F>
 
                 <F label="Outlet Title" style={{ marginBottom: 0 }}>
                   <select
-                    value={fields.outletTitle || ''}
+                    value={fields.outletTitle || 'Yes'}
                     onChange={e => setFields(p => ({ ...p, outletTitle: parseVal(e) }))}
                     className="form-select"
                     style={{ fontSize: '0.9rem', padding: '4px 6px', height: '34px' }}
                   >
-                    <option value="">--Select Outlet Title--</option>
-                    <option value="Main Dining Room">Main Dining Room</option>
-                    <option value="Rooftop Grill">Rooftop Grill</option>
-                    <option value="Poolside Cafe">Poolside Cafe</option>
-                    <option value="Executive Lounge">Executive Lounge</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
                   </select>
                 </F>
 
-                <F label="Phone Number" value={fields.phone} onChange={val => setFields(p => ({ ...p, phone: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
-                <F label="HSN / SAC" value={fields.hsnSac} onChange={val => setFields(p => ({ ...p, hsnSac: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="Phone Number *" value={fields.phone} onChange={val => setFields(p => ({ ...p, phone: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                <F label="HSN / SAC *" value={fields.hsnSac} onChange={val => setFields(p => ({ ...p, hsnSac: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                
+                <div style={{ gridColumn: 'span 2' }}>
+                  <F label="GST No / GSTIN *" value={fields.gstin} onChange={val => setFields(p => ({ ...p, gstin: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />
+                </div>
                 
                 <div style={{ gridColumn: 'span 2' }}>
                   <F label="General" value={fields.general} onChange={val => setFields(p => ({ ...p, general: parseVal(val) }))} style={{ marginBottom: 0 }} inputStyle={{ height: '34px' }} />

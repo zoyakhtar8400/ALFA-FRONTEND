@@ -132,7 +132,7 @@ export function groupItemsByPrinter(
 /**
  * Generate a structured KOT payload for a single station printer group.
  */
-export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain, isReprint = false }) {
+export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain, remarks, isReprint = false }) {
   const stationName = group.productionCategory?.name || group.stationName || 'Kitchen Station';
   const printerName = group.printer?.printer_name || group.printerName || 'KOT Printer';
   const printerIp = group.printer?.printer_ip || '';
@@ -144,6 +144,7 @@ export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerNam
     customerName: customerName || 'Walk-in',
     waiter: waiter || 'Staff',
     captain: captain || '',
+    remarks: remarks || '',
     stationName,
     printerName,
     printerIp,

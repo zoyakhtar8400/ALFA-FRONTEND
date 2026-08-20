@@ -97,6 +97,8 @@ export const AuthProvider = ({ children }) => {
           toastFn(`Welcome back, ${response.user.name || response.user.username || 'User'}! Logged in successfully. 🎉`, 'success');
         }
 
+        window.dispatchEvent(new Event('authLoginSuccess'));
+
         if (callback) callback();
         return true;
       } else {

@@ -282,64 +282,82 @@ const TABLE_STATUS_S = {
 const DisplayTableGrid = memo(({ tables = [], showToast }) => {
   const navigate = typeof window !== 'undefined' ? window.location : null;
   const displayTables = tables && tables.length > 0 ? tables : [];
+  
+  // Group tables by area
+  const groupedTables = displayTables.reduce((acc, table) => {
+    const area = table.area || table.floor || 'Main Dining Area';
+    if (!acc[area]) acc[area] = [];
+    acc[area].push(table);
+    return acc;
+  }, {});
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '10px' }}>
-      {displayTables.map(table => {
-        const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
-        const hasBill = Number(table.amount || 0) > 0;
-        return (
-          <div
-            key={table.id || table.no}
-            onClick={() => {
-              window.location.href = `#/restaurant/pos-billing?table=${table.id || table.no}`;
-              showToast?.(`Opening POS Billing for Table T${table.no}`);
-            }}
-            title={`Table T${table.no} — ${table.status || 'Available'} · ${table.capacity || table.seats || 4} Pax · ${table.waiter ? `Waiter: ${table.waiter}` : 'No Waiter'}`}
-            style={{
-              padding: '10px 6px',
-              borderRadius: '10px',
-              textAlign: 'center',
-              border: `1.5px solid ${s.border}`,
-              background: s.bg,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: s.glow || '0 1px 3px rgba(0,0,0,0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '3px'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px) scale(1.04)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = s.glow || '0 1px 3px rgba(0,0,0,0.03)';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>T{table.no}</span>
-              <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot }} />
-            </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {Object.entries(groupedTables).map(([areaName, areaTables]) => (
+        <div key={areaName}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#418A8B', fontWeight: '800', borderBottom: '2px solid #e2e8f0', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {areaName}
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '10px' }}>
+            {areaTables.map(table => {
+              const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
+              const hasBill = Number(table.amount || 0) > 0;
+              return (
+                <div
+                  key={table.id || table.no}
+                  onClick={() => {
+                    window.location.href = `#/restaurant/pos-billing?table=${table.id || table.no}`;
+                    showToast?.(`Opening POS Billing for Table ${table.table_name || 'T' + table.no}`);
+                  }}
+                  title={`Table ${table.table_name || 'T' + table.no} — ${table.status || 'Available'} · ${table.capacity || table.seats || 4} Pax · ${table.waiter ? `Waiter: ${table.waiter}` : 'No Waiter'}`}
+                  style={{
+                    padding: '10px 6px',
+                    borderRadius: '10px',
+                    textAlign: 'center',
+                    border: `1.5px solid ${s.border}`,
+                    background: s.bg,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: s.glow || '0 1px 3px rgba(0,0,0,0.03)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '3px'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.04)';
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = s.glow || '0 1px 3px rgba(0,0,0,0.03)';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>{table.table_name || `T${table.no}`}</span>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot }} />
+                  </div>
 
-            <span style={{ fontSize: '9px', fontWeight: '700', color: s.color, background: s.bg, padding: '1px 5px', borderRadius: '4px' }}>
-              {table.status || 'Available'}
-            </span>
+                  <span style={{ fontSize: '9px', fontWeight: '700', color: s.color, background: s.bg, padding: '1px 5px', borderRadius: '4px' }}>
+                    {table.status || 'Available'}
+                  </span>
 
-            {hasBill ? (
-              <span style={{ fontSize: '11px', fontWeight: '900', color: '#15803d', marginTop: '2px' }}>
-                ₹{Number(table.amount).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </span>
-            ) : (
-              <span style={{ fontSize: '9px', color: '#64748b' }}>
-                {table.capacity || table.seats || 4} Pax
-              </span>
-            )}
+                  {hasBill ? (
+                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#15803d', marginTop: '2px' }}>
+                      ₹{Number(table.amount).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '9px', color: '#64748b' }}>
+                      {table.capacity || table.seats || 4} Pax
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 });

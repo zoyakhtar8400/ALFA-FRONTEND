@@ -16,6 +16,8 @@ import BillingLayout from '../components/pos/BillingLayout';
 import MenuPanel from '../components/pos/MenuPanel';
 import BillingPanel from '../components/pos/BillingPanel';
 import { printTaxInvoice, printKitchenKOT } from '../utils/printInvoice';
+import QuickPaymentModal from '../components/QuickPaymentModal';
+import posApi from '../../../api/posApi';
 
 const INITIAL_ROWS = [];
 
@@ -30,6 +32,14 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const [allMenuItems, setAllMenuItems] = useState([]);
   const [dbCategories, setDbCategories] = useState([]);
   const [dbPrinters, setDbPrinters] = useState([]);
+  const [taxLines, setTaxLines] = useState([]);
+
+  useEffect(() => {
+    posApi.getItemTaxCategories().then(res => {
+      const taxes = Array.isArray(res?.data) ? res.data : [];
+      setTaxLines(taxes.map(t => ({ name: t.name || 'Tax', rate: Number(t.percentage || 0) })));
+    }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
+  }, []);
 
   const toast = useCallback((msg) => {
     if (window.showToast) {
@@ -96,7 +106,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           price: Number(item.sale_price || item.price || item.rate || 0),
           active: item.active === 0 ? 'No' : 'Yes',
           variants: item.variants || [],
-          areaPrices: {}
+          areaPrices: {},
+          is_open_item: item.is_open_item || 0,
+          open_price: item.open_price || 0
         }));
         setAllMenuItems(mapped);
       }
@@ -135,8 +147,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   // Check if opened from "Book Table" button in new booking flow
   const isNewBooking = location.state?.isNewBooking || location.state?.newBooking || false;
+  const isViewMode = location.state?.isViewMode || false;
   const preselectedTableId = location.state?.tableId || null;
   const preselectedTableNumber = location.state?.tableNumber || null;
+  const [existingRows, setExistingRows] = useState(location.state?.existingRows || []);
 
   // Tables List for Assignment
   const { tables: tablesList, setTables: setTablesList, refreshTables, orderItemsMap = {}, setOrderItemsMap } = useRestaurant();
@@ -163,7 +177,31 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   }, [availableCategories, category]);
   const [searchItem, setSearchItem] = useState('');
   const [shortCode, setShortCode] = useState('');
-  const [serviceType, setServiceType] = useState('Dine In');
+  const [serviceType, setServiceType] = useState(location.state?.serviceType || 'Dine In');
+  const [generatedTakeawayNo, setGeneratedTakeawayNo] = useState(() => {
+    const passed = location.state?.tableNumber?.toString();
+    return passed?.startsWith('TK') ? passed : null;
+  });
+  const [generatedDeliveryNo, setGeneratedDeliveryNo] = useState(() => {
+    const passed = location.state?.tableNumber?.toString();
+    return passed?.startsWith('DL') ? passed : null;
+  });
+
+  useEffect(() => {
+    if (tablesList && tablesList.length > 0) {
+      if (!generatedTakeawayNo) {
+        const tkTables = tablesList.filter(t => t.no?.toString().startsWith('TK-')).map(t => parseInt(t.no.replace('TK-', '')) || 0);
+        const maxTk = tkTables.length > 0 ? Math.max(...tkTables) : 0;
+        setGeneratedTakeawayNo(`TK-${String(maxTk + 1).padStart(2, '0')}`);
+      }
+      if (!generatedDeliveryNo) {
+        const dlTables = tablesList.filter(t => t.no?.toString().startsWith('DL-')).map(t => parseInt(t.no.replace('DL-', '')) || 0);
+        const maxDl = dlTables.length > 0 ? Math.max(...dlTables) : 0;
+        setGeneratedDeliveryNo(`DL-${String(maxDl + 1).padStart(2, '0')}`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tablesList]);
 
   // Customer Information inputs
   const [customerName, setCustomerName] = useState(restoredTable?.customer || '');
@@ -242,6 +280,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   // KOT Print Modal states (multi-printer routing)
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
+  const [showQuickPaymentModal, setShowQuickPaymentModal] = useState(false);
   const [kotGroups, setKotGroups] = useState([]);
   const [kotPayloads, setKotPayloads] = useState([]);
   const kotSuccessCallbackRef = React.useRef(null);
@@ -270,12 +309,26 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     };
   }, []);
 
-  // Initialize rows from state, context cache, or empty
+  // Initialize rows from state, sessionStorage, context cache, or empty
   const initialFallbackRows = () => {
-    if (location.state?.rows && Array.isArray(location.state.rows) && location.state.rows.length > 0) {
-      return location.state.rows.map((r, i) => mapItemToRow(r, i));
+    if (location.state && location.state.hasOwnProperty('rows')) {
+      if (Array.isArray(location.state.rows) && location.state.rows.length > 0) {
+        return location.state.rows.map((r, i) => mapItemToRow(r, i));
+      }
+      return [{ lineId: `empty-row-0`, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }];
     }
     const initTblId = preselectedTableId || restoredTableId;
+    if (initTblId) {
+      try {
+        const savedDraft = sessionStorage.getItem(`alfa_draft_rows_${initTblId}`);
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((r, i) => mapItemToRow(r, i));
+          }
+        }
+      } catch (e) {}
+    }
     if (initTblId && orderItemsMap) {
       const cached = orderItemsMap[initTblId] || orderItemsMap[String(initTblId)] || orderItemsMap[`T${initTblId}`];
       if (Array.isArray(cached) && cached.length > 0) {
@@ -344,7 +397,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             setMobileNumber(singleKot.customer?.mobile || singleKot.mobile_number || '');
             setWaiter(singleKot.waiter || '');
             setRemarks(singleKot.remark || singleKot.remarks || '');
-            setRows(singleKot.items.map((r, i) => mapItemToRow(r, i)));
+            const activeSingleItems = singleKot.items.filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
+            setRows(activeSingleItems.map((r, i) => mapItemToRow(r, i)));
             const extra = typeof singleKot.extra_details === 'string' ? JSON.parse(singleKot.extra_details || '{}') : singleKot.extra_details;
             if (extra?.ncType || singleKot.ncType) {
               setNcType(extra?.ncType || singleKot.ncType || '');
@@ -371,9 +425,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       ) || restoredTable || recentRunningTable;
 
       // Check if rows were passed in navigation state
-      const stateRows = location.state?.rows;
-      if (Array.isArray(stateRows) && stateRows.length > 0) {
-        setRows(stateRows.map((r, i) => mapItemToRow(r, i)));
+      if (location.state && location.state.hasOwnProperty('rows')) {
+        const stateRows = location.state.rows;
+        if (Array.isArray(stateRows) && stateRows.length > 0) {
+          setRows(stateRows.map((r, i) => mapItemToRow(r, i)));
+        } else {
+          setRows([{ lineId: `empty-row-0`, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }]);
+        }
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.mobile || currentTable?.phone) setMobileNumber(currentTable.mobile || currentTable.phone);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
@@ -392,7 +450,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
       // Check if table object from tablesList already has active KOTs
       if (currentTable && Array.isArray(currentTable.kots) && currentTable.kots.length > 0) {
-        const rawTableKotItems = currentTable.kots.flatMap(k => Array.isArray(k.items) ? k.items : []);
+        const rawTableKotItems = currentTable.kots
+          .flatMap(k => Array.isArray(k.items) ? k.items : [])
+          .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
         if (rawTableKotItems.length > 0) {
           setRows(rawTableKotItems.map((r, i) => mapItemToRow(r, i)));
           if (currentTable.customer) setCustomerName(currentTable.customer);
@@ -418,7 +478,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : k.extra_details;
             return !(extra?.isNC || k.isNC || k.ncType);
           });
-          const rawKotItems = nonNcKots.flatMap(k => k.items || []);
+          const rawKotItems = nonNcKots
+            .flatMap(k => k.items || [])
+            .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
           if (rawKotItems.length > 0) {
             const mappedRows = [];
             rawKotItems.forEach((item, idx) => {
@@ -459,6 +521,22 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         console.warn('Error fetching KOT items from PostgreSQL:', err);
       }
 
+      // Check for unsaved draft in sessionStorage before clearing
+      try {
+        const savedDraft = sessionStorage.getItem(`alfa_draft_rows_${activeTableId}`);
+        if (savedDraft) {
+          const parsed = JSON.parse(savedDraft);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRows(parsed.map((r, i) => mapItemToRow(r, i)));
+            if (currentTable?.customer) setCustomerName(currentTable.customer);
+            if (currentTable?.mobile || currentTable?.phone || currentTable?.customer_phone) setMobileNumber(currentTable.mobile || currentTable.phone || currentTable.customer_phone);
+            if (currentTable?.waiter) setWaiter(currentTable.waiter);
+            if (currentTable?.captain) setCaptain(currentTable.captain);
+            return;
+          }
+        }
+      } catch (e) {}
+
       // Only if all sources returned no items, set empty rows
       setRows([]);
       if (currentTable?.customer) setCustomerName(currentTable.customer);
@@ -472,19 +550,24 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   }, [assignedTableId, targetKotId, location.state]);
 
 
-  // Sync changes in rows to orderItemsMap in context & localStorage.
+  // Sync changes in rows to orderItemsMap in context & sessionStorage.
   // Skip in KOT view mode — we must never write single-KOT items into the table-level cache.
   useEffect(() => {
     if (targetKotId) return; // KOT view mode: do not pollute table cache
     const tableKey = assignedTableId || restoredTableId || routedTable?.id;
-    if (tableKey && setOrderItemsMap && Array.isArray(rows)) {
+    if (tableKey && Array.isArray(rows)) {
       const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
       if (activeRows.length > 0) {
-        setOrderItemsMap(prev => ({
-          ...prev,
-          [tableKey]: activeRows,
-          ...(routedTable?.no ? { [routedTable.no]: activeRows } : {})
-        }));
+        if (setOrderItemsMap) {
+          setOrderItemsMap(prev => ({
+            ...prev,
+            [tableKey]: activeRows,
+            ...(routedTable?.no ? { [routedTable.no]: activeRows } : {})
+          }));
+        }
+        try { sessionStorage.setItem(`alfa_draft_rows_${tableKey}`, JSON.stringify(activeRows)); } catch(e) {}
+      } else {
+        try { sessionStorage.removeItem(`alfa_draft_rows_${tableKey}`); } catch(e) {}
       }
     }
   }, [rows, assignedTableId, restoredTableId, routedTable, setOrderItemsMap, targetKotId]);
@@ -766,7 +849,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               price: price,
               rate: price,
               total: price,
-              remark: ''
+              remark: '',
+              is_open_item: foodItem.is_open_item || 0
             };
           }
           return r;
@@ -789,7 +873,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             price: price,
             rate: price,
             total: price,
-            remark: ''
+            remark: '',
+            is_open_item: foodItem.is_open_item || 0
           }
         ];
       }
@@ -838,6 +923,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             updated.itemId = match.id;
             updated.itemName = match.name;
             updated.name = match.name;
+            updated.is_open_item = match.is_open_item || 0;
 
             let resolvedPrice = Number(match.price || 0);
 
@@ -876,6 +962,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             updated.unitPrice = 0;
             updated.price = 0;
             updated.rate = 0;
+            updated.is_open_item = 0;
           }
         }
 
@@ -999,10 +1086,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     }
   };
 
-  const totalBill = useMemo(() => {
-    if (ncType && ncType.trim()) return 0;
-    return rows.reduce((sum, row) => sum + (row.qty * (row.unitPrice || row.price || 0)), 0);
-  }, [rows, ncType]);
+  // Stop calculating totals on the frontend. Use backend values.
+  const activeTableIdForTax = assignedTableId || restoredTableId;
+  const currentTableObj = tablesList.find(t => String(t.id) === String(activeTableIdForTax) || String(t.no) === String(activeTableIdForTax)) || routedTable;
 
   const [showDiscountPanel, setShowDiscountPanel] = useState(false);
   const [discountLines, setDiscountLines] = useState([
@@ -1024,24 +1110,43 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     setDiscountLines(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
   };
 
-  const totalDiscountAmt = useMemo(() => {
-    let running = totalBill;
-    return discountLines.reduce((totalDeducted, line) => {
-      const val = parseFloat(line.value) || 0;
-      if (val <= 0) return totalDeducted;
-      if (line.type === 'Percentage') {
-        const deduct = (running * val) / 100;
-        running -= deduct;
-        return totalDeducted + deduct;
-      } else {
-        const deduct = Math.min(val, running);
-        running -= deduct;
-        return totalDeducted + deduct;
-      }
-    }, 0);
-  }, [discountLines, totalBill]);
+  const [calculatedSubtotal, setCalculatedSubtotal] = useState(0);
+  const [calculatedDiscount, setCalculatedDiscount] = useState(0);
+  const [calculatedTax, setCalculatedTax] = useState(0);
+  const [calculatedTaxBreakdown, setCalculatedTaxBreakdown] = useState([]);
+  const [calculatedNetBill, setCalculatedNetBill] = useState(0);
 
-  const netBill = totalBill - totalDiscountAmt;
+  useEffect(() => {
+    const calculateTotals = async () => {
+      try {
+        const payload = {
+          items: [...existingRows, ...rows].filter(r => r.name || r.itemName),
+          discountLines
+        };
+        if (payload.items.length === 0) {
+          setCalculatedSubtotal(0); setCalculatedDiscount(0); setCalculatedTax(0); setCalculatedNetBill(0); setCalculatedTaxBreakdown([]);
+          return;
+        }
+        // Use apiClient instead of hardcoded fetch
+        const res = await apiClient.post('/pos/calculate', payload);
+        if (res && res.data) {
+          setCalculatedSubtotal(res.data.subtotal || 0);
+          setCalculatedDiscount(res.data.discount || 0);
+          setCalculatedTax(res.data.tax_amount || 0);
+          setCalculatedTaxBreakdown(res.data.tax_breakdown || []);
+          setCalculatedNetBill(res.data.net_amount || 0);
+        }
+      } catch (err) {
+        console.warn('Error calculating totals:', err);
+      }
+    };
+    calculateTotals();
+  }, [rows, existingRows, discountLines]);
+
+  const totalBill = calculatedSubtotal || Number(currentTableObj?.amount || kotViewData?.amount || 0);
+  const totalDiscountAmt = calculatedDiscount || Number(currentTableObj?.discount_amount || currentTableObj?.discountAmount || kotViewData?.discount_amount || 0);
+  const totalTax = calculatedTax || Number(currentTableObj?.tax_amount || currentTableObj?.taxAmount || currentTableObj?.tax || kotViewData?.tax_amount || 0);
+  const netBill = calculatedNetBill || Number(currentTableObj?.total_amount || currentTableObj?.totalAmount || currentTableObj?.net_amount || (totalBill - totalDiscountAmt + totalTax));
 
   const handleAddKOT = async () => {
     const activeRows = rows.filter(r => r.name || r.itemName);
@@ -1064,6 +1169,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
     const groups = groupItemsByPrinter(rowsToCut, allMenuItems, dbCategories, dbPrinters);
 
+    // Pre-open print windows synchronously to bypass browser popup blockers
+    const printWindows = groups.map(() => window.open('', '_blank', 'width=800,height=600'));
+
     const payloads = groups.map(group =>
       generateKOTPayload({
         tableNo,
@@ -1073,6 +1181,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         customerName: customerName || 'Walk-in',
         waiter: activeWaiter,
         captain,
+        remarks: remarks || resolvedTable?.remarks || '',
       })
     );
 
@@ -1094,7 +1203,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             ...t,
             status: 'KOT_CUT',
             color: 'yellow',
-            amount: finalAmt,
+            amount: calculatedSubtotal > 0 ? calculatedSubtotal : (finalAmt > 0 ? finalAmt : Number(currentTableObj?.amount || 0)),
             waiter: activeWaiter,
             customer: customerName || 'Walk-in',
             updatedAt: Date.now()
@@ -1128,7 +1237,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         isNewSession: isNewSession,
         ncType: ncType || '',
         isNC,
-        store_id: activeStoreId
+        store_id: activeStoreId,
+        order_type: serviceType,
+        takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+        delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
       });
 
       // Check if backend returned stock or validation error message
@@ -1139,10 +1251,31 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
       const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
       if (serverKotNo) {
-        actualKotNo = serverKotNo;
+        const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
+        actualKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
       }
 
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
+
+      // Update Table status in PostgreSQL to KOT_CUT so the backend knows the session is active
+      if (!isNC) {
+        try {
+          await restaurantApi.patchTableStatus(resolvedTableId, {
+            status: 'KOT_CUT',
+            amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
+            discount_amount: calculatedDiscount,
+            tax_amount: calculatedTax,
+            total_amount: calculatedNetBill,
+            taxes_breakdown: calculatedTaxBreakdown,
+            waiter: activeWaiter,
+            customer: customerName || 'Walk-in',
+            mobile: mobileNumber || ''
+          });
+        } catch (err) {
+          console.warn('Error syncing table status to KOT_CUT:', err);
+        }
+      }
+
       // Mark active rows as cut in local state
       setRows(prev => prev.map(r => ({ ...r, isCut: true })));
       if (typeof refreshTables === 'function') refreshTables();
@@ -1154,28 +1287,44 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     }
 
     const finalRows = rows.filter(r => r.name || r.itemName);
-    const updatedTableForNav = {
+    const allAggregatedRows = [...existingRows, ...finalRows];
+    const updatedTableForNav = isNC ? (resolvedTable || { id: resolvedTableId, no: tableNo, status: 'Blank', color: 'white' }) : {
       ...(resolvedTable || { id: resolvedTableId, no: tableNo }),
-      status: isNC ? 'NC_BLOCKED' : 'KOT_CUT',
-      color: isNC ? 'purple' : 'yellow',
-      available_actions: isNC ? ['view_kot'] : ['print_kot', 'view_kot'],
+      status: 'KOT_CUT',
+      color: 'yellow',
+      available_actions: ['print_kot', 'view_kot'],
       updatedAt: Date.now(),
       customer: customerName || resolvedTable?.customer || 'Walk-in',
       mobile: mobileNumber || resolvedTable?.mobile || '',
       waiter: activeWaiter,
       captain: captain || resolvedTable?.captain || '',
       remarks: remarks || resolvedTable?.remarks || '',
-      amount: isNC ? 0 : finalAmt,
+      amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
       openedAt: resolvedTable?.openedAt || Date.now(),
     };
 
     kotSuccessCallbackRef.current = () => {
       toast(`KOT ${actualKotNo} created! Table T${resolvedTable?.no || tableNo} ${isNC ? 'saved' : '→ Running'}`);
-      navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: finalRows } });
+      navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
     };
 
-    setShowKotPrintModal(true);
-    toast(`KOT ${actualKotNo} → ${groups.length} printer station${groups.length > 1 ? 's' : ''}`);
+    // Automatically print to all accessible kitchen stations
+    groups.forEach((group, idx) => {
+      printKitchenKOT({
+        tableId: String(tableNo),
+        id: actualKotNo,
+        items: group.items,
+        waiter: activeWaiter,
+        stationName: group.printer?.name || group.printerName || group.department,
+        printerName: group.printer?.ip || group.printerIp || '',
+        order_type: serviceType,
+        takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+        delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null,
+        remarks: remarks || resolvedTable?.remarks || ''
+      }, printWindows[idx]);
+    });
+
+    toast(`KOT ${actualKotNo} printed to ${groups.length} station${groups.length > 1 ? 's' : ''}`);
   };
 
   const handleConfirmBooking = async () => {
@@ -1189,7 +1338,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     try {
       await restaurantApi.patchTableStatus(targetTable?.id || resolvedTableId, {
         status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE',
-        amount: finalAmt,
+        amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
+        discount_amount: calculatedDiscount,
+        tax_amount: calculatedTax,
+        total_amount: calculatedNetBill,
+        taxes_breakdown: calculatedTaxBreakdown,
         waiter: waiter || 'Staff',
         customer: customerName || 'Walk-in',
         mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : ''
@@ -1204,7 +1357,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       status: activeRows.length > 0 ? 'KOT_CUT' : 'Blank',
       color: activeRows.length > 0 ? 'yellow' : 'white',
       available_actions: activeRows.length > 0 ? ['print_kot', 'view_kot'] : [],
-      amount: finalAmt,
+      amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
       waiter: waiter || 'Staff',
       customer: customerName || 'Walk-in',
       mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
@@ -1248,14 +1401,23 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const uncutRows = activeRows.filter(r => !r.isCut);
     const invoiceNo = `KOT-new`;
     let printedKotNo = invoiceNo;
+    let groups = [];
 
     if (uncutRows.length > 0) {
       setGeneratedKotNo(invoiceNo);
       setKotCreated(true);
 
-      const groups = groupItemsByPrinter(uncutRows, allMenuItems, dbCategories, dbPrinters);
+      groups = groupItemsByPrinter(uncutRows, allMenuItems, dbCategories, dbPrinters);
+      
+      // Pre-open print windows synchronously to bypass browser popup blockers
+      const printWindows = groups.map(() => window.open('', '_blank', 'width=800,height=600'));
+
       const payloads = groups.map(group =>
-        generateKOTPayload({ tableNo, tableId: targetTableId, kotNo: invoiceNo, group, customerName: customerName || 'Walk-in', waiter: activeWaiter, captain })
+        generateKOTPayload({ 
+          tableNo, tableId: targetTableId, kotNo: invoiceNo, group, 
+          customerName: customerName || 'Walk-in', waiter: activeWaiter, captain,
+          remarks: remarks || resolvedTable?.remarks || '' 
+        })
       );
       setKotGroups(groups);
       setKotPayloads(payloads);
@@ -1280,15 +1442,36 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           isNewSession,
           ncType: ncType || '',
           isNC,
-          store_id: activeStoreId
+          store_id: activeStoreId,
+          order_type: serviceType,
+          takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+          delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
         });
         const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
         if (serverKotNo) {
-          printedKotNo = serverKotNo;
-          setGeneratedKotNo(serverKotNo);
+          const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
+          printedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+          setGeneratedKotNo(printedKotNo);
         }
 
         setRows(prev => prev.map(r => ({ ...r, isCut: true })));
+
+        // Automatically print KOT to all accessible kitchen stations
+        groups.forEach((group, idx) => {
+          printKitchenKOT({
+            tableId: String(targetTableNo),
+            id: printedKotNo,
+            items: group.items,
+            waiter: activeWaiter,
+            stationName: group.printer?.name || group.printerName || group.department,
+            printerName: group.printer?.ip || group.printerIp || '',
+            order_type: serviceType,
+            takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+            delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null,
+            remarks: remarks || resolvedTable?.remarks || ''
+          }, printWindows[idx]);
+        });
+
       } catch (err) {
         console.warn('Error calling KOT API in Save & Print:', err);
         toast(`Failed to send KOT: ${err.response?.data?.message || err.message || 'Unknown error'}`);
@@ -1301,7 +1484,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       try {
         await restaurantApi.patchTableStatus(targetTableId, {
           status: 'KOT_CUT',
-          amount: finalAmt,
+          amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
+          discount_amount: calculatedDiscount,
+          tax_amount: calculatedTax,
+          total_amount: calculatedNetBill,
+          taxes_breakdown: calculatedTaxBreakdown,
           customer: customerName || 'Walk-in',
           waiter: activeWaiter
         });
@@ -1311,35 +1498,36 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
     }
 
-    // Print the KOT copy
-    printKitchenKOT({
-      tableId: String(targetTableNo),
-      id: printedKotNo,
-      items: activeRows,
-      waiter: activeWaiter
-    });
+
 
     // Navigate back showing table details
-    const updatedTableForNav = {
+    const updatedTableForNav = isNC ? (resolvedTable || { id: targetTableId, no: tableNo, status: 'Blank', color: 'white' }) : {
       ...(resolvedTable || { id: targetTableId, no: tableNo }),
-      status: isNC ? 'NC_BLOCKED' : 'KOT_CUT',
-      color: isNC ? 'purple' : 'yellow',
-      available_actions: isNC ? ['view_kot'] : ['print_kot', 'view_kot', 'quick_pay'],
+      status: 'KOT_CUT',
+      color: 'yellow',
+      available_actions: ['print_kot', 'view_kot', 'quick_pay'],
       updatedAt: Date.now(),
       customer: customerName || resolvedTable?.customer || 'Walk-in',
       mobile: mobileNumber || resolvedTable?.mobile || '',
       waiter: activeWaiter,
-      amount: isNC ? 0 : finalAmt,
+      amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
     };
 
-    toast(isNC ? `NC KOT printed for Table T${targetTableNo}.` : `Bill printed for Table T${targetTableNo}. Table is now Running (Yellow).`);
-    navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: activeRows.map(r => ({ ...r, isCut: true })) } });
+    const allAggregatedRows = [...existingRows, ...activeRows.map(r => ({ ...r, isCut: true }))];
+    toast(isNC ? `NC KOT printed for Table T${targetTableNo}.` : `KOTs printed to ${groups.length} station(s) for Table T${targetTableNo}.`);
+    navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
   };
 
 
   const handleDirectComplete = async () => {
+    // Pre-open print window synchronously to bypass popup blocker
+    const invoicePrintWindow = window.open('', '_blank', 'width=800,height=600');
+
     const resolvedId = assignedTableId || routedTable?.id || null;
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+    const allFinalItems = [...existingRows, ...activeRows];
+    
+    // Ensure allFinalItems has valid items
     const cleanMobile = (mobileNumber && mobileNumber !== '—') ? mobileNumber : '';
     setIsSettling(true);
 
@@ -1350,28 +1538,29 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         customerName: customerName || 'Walk-in',
         mobileNo: cleanMobile,
         waiter: waiter || 'Staff',
-        status: 'completed',
-        items: activeRows,
+        status: 'unpaid',
+        items: allFinalItems,
         discount: totalDiscountAmt,
         tax: (totalBill - totalDiscountAmt) * 0.05,
-        store_id: activeStoreId
+        store_id: activeStoreId,
+        order_type: serviceType,
+        takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+        delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
       });
 
       const createdOrderId = orderRes?.order?.order_id || orderRes?.data?.order_id || orderRes?.order?.id || orderRes?.data?.id;
-      if (createdOrderId) {
-        await orderService.processPayment({
-          orderId: createdOrderId,
-          paymentMethod: 'Cash',
-          amount: netBill
-        });
-      }
+      
       if (resolvedId) {
         try {
           await tableService.patchTableStatus(resolvedId, {
-            status: 'PAYMENT_COMPLETED',
-            amount: 0,
-            customer: 'Walk-in',
-            waiter: null
+            status: 'UNPAID_BILL',
+            amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
+            discount_amount: calculatedDiscount,
+            tax_amount: calculatedTax,
+            total_amount: calculatedNetBill,
+            taxes_breakdown: calculatedTaxBreakdown,
+            customer: customerName || 'Walk-in',
+            waiter: waiter || 'Staff'
           });
         } catch (err) { }
         const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
@@ -1382,13 +1571,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           if (t.id === resolvedId || String(t.id) === String(resolvedId) || (targetSettledNum !== '00' && curNum === targetSettledNum)) {
             return {
               ...t,
-              status: 'PAYMENT_COMPLETED',
-              color: 'green',
-              amount: 0,
-              paidAt: Date.now(),
-              payment_completed_at: Date.now(),
-              remaining_seconds: 60,
-              cleanup_after_seconds: 60,
+              status: 'UNPAID_BILL',
+              color: 'blue',
+              amount: netBill,
               updatedAt: Date.now()
             };
           }
@@ -1396,12 +1581,47 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         }));
       }
       refreshTables();
-      toast(`${serviceType} order settled! Table T${preselectedTableNumber || resolvedId} status changed to PAYMENT_COMPLETED (Green).`);
+      
+      // Auto-print the Tax Invoice / Bill using the pre-opened window
+      import('../utils/printInvoice').then(({ printTaxInvoice }) => {
+        printTaxInvoice({
+          invoice_number: createdOrderId || `INV-${preselectedTableNumber || resolvedId}`,
+          table_number: preselectedTableNumber || routedTable?.no || '1',
+          customer_name: customerName || 'Walk-in',
+          waiter_name: waiter || 'Staff',
+          payment_method: 'Unpaid',
+          items: allFinalItems,
+          subtotal: totalBill,
+          discount: totalDiscountAmt,
+          grand_total: netBill,
+          taxes_breakdown: calculatedTaxBreakdown && calculatedTaxBreakdown.length > 0 ? calculatedTaxBreakdown : [{ name: 'Tax', rate: 5, amount: totalTax }],
+          serviceType: serviceType,
+          takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+          delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
+        }, invoicePrintWindow);
+      }).catch(e => {
+        console.warn('Failed to load print module:', e);
+        if (invoicePrintWindow) invoicePrintWindow.close();
+      });
+
+      toast(`${serviceType} order settled! Bill printed for Table T${preselectedTableNumber || resolvedId}.`);
     } catch (err) {
       console.warn('Error settling order in PostgreSQL:', err);
+      if (invoicePrintWindow) invoicePrintWindow.close();
     } finally {
       setIsSettling(false);
-      navigate('/restaurant/display-table', { state: { settledTableId: resolvedId } });
+      navigate('/restaurant/display-table', {
+        state: {
+          updatedTable: {
+            id: resolvedId,
+            no: preselectedTableNumber || routedTable?.no || '1',
+            status: 'UNPAID_BILL',
+            color: 'blue',
+            amount: netBill
+          },
+          updatedRows: allFinalItems
+        }
+      });
     }
   };
 
@@ -1474,6 +1694,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         totalDiscountAmt={totalDiscountAmt}
         totalBill={totalBill}
         netBill={netBill}
+        totalTax={totalTax}
         handleConfirmBooking={handleConfirmBooking}
         handleSaveAndPrint={handleSaveAndPrint}
         handleDirectComplete={handleDirectComplete}
@@ -1507,10 +1728,25 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         isSettling={isSettling}
         showKotPrintModal={showKotPrintModal}
         setShowKotPrintModal={setShowKotPrintModal}
+        showQuickPaymentModal={showQuickPaymentModal}
+        setShowQuickPaymentModal={setShowQuickPaymentModal}
         kotGroups={kotGroups}
         kotPayloads={kotPayloads}
         kotSuccessCallbackRef={kotSuccessCallbackRef}
         toast={toast}
+        isViewMode={isViewMode}
+      />
+      
+      <QuickPaymentModal
+        isOpen={showQuickPaymentModal}
+        onClose={() => setShowQuickPaymentModal(false)}
+        table={tablesList?.find(t => String(t.id) === String(assignedTableId)) || routedTable || { id: assignedTableId, no: assignedTableId || '1', customer: customerName, waiter: waiter, mobile: mobileNumber }}
+        items={rows}
+        onTableUpdated={() => {
+           if (typeof refreshTables === 'function') refreshTables();
+           navigate('/restaurant/display-table');
+        }}
+        showToast={toast}
       />
     </BillingLayout>
   );

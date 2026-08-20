@@ -141,7 +141,7 @@ const TableSelector = ({ isOpen, onClose, tablesList = [], currentTableId, onSel
                     boxShadow: isFocused ? '0 4px 12px rgba(14,116,144,0.25)' : 'none'
                   }}
                 >
-                  <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>T{parseInt(table.no || table.id, 10)}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>{table.table_name || `T${parseInt(table.no || table.id, 10)}`}</div>
                   <div style={{ fontSize: '0.62rem', fontWeight: 700, marginTop: '2px', opacity: 0.75 }}>
                     {table.status}
                   </div>

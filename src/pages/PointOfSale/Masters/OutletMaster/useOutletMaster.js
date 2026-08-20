@@ -35,6 +35,7 @@ export const useOutletMaster = (showToast) => {
           noOfKOT: String(extra.noOfKOT || '1'),
           noOfBills: String(extra.noOfBills || '1'),
           hsnSac: extra.hsnSac || '9963',
+          gstin: extra.gstin || '',
           general: extra.general || '',
           phone: s.store_phone || s.user_phone || s.phone || '',
           billHeader1: s.user_line_1 || extra.billHeader1 || '',
@@ -46,35 +47,6 @@ export const useOutletMaster = (showToast) => {
           status: s.disable_ordering === 1 || s.status === 'Inactive' ? 'Inactive' : 'Active'
         };
       });
-
-      if (mapped.length === 0) {
-        mapped = [{
-          id: 1,
-          store_id: 'STORE_1',
-          name: 'Main Restaurant',
-          shortName: 'RES',
-          companyTitle: 'Alfa Hotels & Resorts',
-          outletTitle: 'Main Dining Room',
-          customerInfo: 'Optional',
-          autoSettlement: 'No',
-          focusOn: 'Item Search',
-          kot: 'Print & Save',
-          kotPrint: 'Immediate',
-          roomService: 'Disabled',
-          noOfKOT: '1',
-          noOfBills: '1',
-          hsnSac: '9963',
-          general: '',
-          phone: '',
-          billHeader1: '',
-          billHeader2: '',
-          billHeader3: '',
-          billSlogan1: '',
-          billSlogan2: '',
-          billSlogan3: '',
-          status: 'Active'
-        }];
-      }
 
       setData(mapped);
     }).catch(err => {
@@ -99,7 +71,23 @@ export const useOutletMaster = (showToast) => {
 
   const validate = (fields, skipDuplicateCheck = false) => {
     if (!fields.name || fields.name.trim().length < 2) {
-      showToast('Outlet Name must be at least 2 characters.');
+      showToast('Outlet Name is mandatory and must be at least 2 characters.');
+      return false;
+    }
+    if (!fields.shortName || fields.shortName.trim().length === 0) {
+      showToast('Short Name is mandatory.');
+      return false;
+    }
+    if (!fields.gstin || fields.gstin.trim().length === 0) {
+      showToast('GST No / GSTIN is mandatory.');
+      return false;
+    }
+    if (!fields.phone || fields.phone.trim().length === 0) {
+      showToast('Phone No is mandatory.');
+      return false;
+    }
+    if (!fields.hsnSac || fields.hsnSac.trim().length === 0) {
+      showToast('HSN No / HSN/SAC is mandatory.');
       return false;
     }
     if (!skipDuplicateCheck) {
@@ -126,12 +114,14 @@ export const useOutletMaster = (showToast) => {
       store_name: fields.name,
       name: fields.name,
       phone: fields.phone,
+      gstin: fields.gstin,
       address: fields.billHeader1 || fields.address
     };
 
     posApi.saveOutlet(payload).then(() => {
       showToast(modal.isEdit ? 'Outlet updated in PostgreSQL.' : 'Outlet created in PostgreSQL.');
       fetchOutlets();
+      window.dispatchEvent(new CustomEvent('outletsMasterRefreshed'));
       setModal({ open: false, isEdit: false, fields: {} });
       setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
     }).catch(err => {
@@ -153,6 +143,7 @@ export const useOutletMaster = (showToast) => {
       .then(() => {
         showToast('Outlet deleted successfully.');
         fetchOutlets();
+        window.dispatchEvent(new CustomEvent('outletsMasterRefreshed'));
         setDeleteModal({ open: false, row: null });
       })
       .catch(err => {

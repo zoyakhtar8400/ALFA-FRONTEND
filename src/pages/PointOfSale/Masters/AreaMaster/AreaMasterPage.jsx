@@ -5,13 +5,23 @@ import DuplicateConfirmationModal from '../../../../components/common/DuplicateC
 import AreaMasterForm from './AreaMasterForm';
 import { useAreaMaster } from './useAreaMaster';
 
-const columns = [
-  { key: 'name', label: 'Area Name', sortable: true },
-  { key: 'description', label: 'Description', sortable: true, render: (v) => v || '—' },
-  { key: 'active', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Yes' },
-];
+import { useRestaurant } from '../../../../context/RestaurantContext';
 
 const AreaMasterPage = ({ showToast }) => {
+  const { allOutlets } = useRestaurant();
+
+  const columns = [
+    { key: 'name', label: 'Area Name', sortable: true },
+    { key: 'store_id', label: 'Outlet', sortable: true, render: (v) => {
+        if (!v) return 'All / Global';
+        const outlet = allOutlets?.find(o => String(o.id) === String(v));
+        return outlet?.store_name || outlet?.name || `Outlet ${v}`;
+      } 
+    },
+    { key: 'description', label: 'Description', sortable: true, render: (v) => v || '—' },
+    { key: 'active', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Yes' },
+  ];
+
   const toastTrigger = useCallback((msg, type = 'success') => {
     if (typeof showToast === 'function') {
       showToast(msg);

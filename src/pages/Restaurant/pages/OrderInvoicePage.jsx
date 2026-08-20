@@ -189,14 +189,21 @@ const OrderInvoicePage = () => {
       >
         {/* Restaurant Header */}
         <div style={{ textAlign: 'center', borderBottom: '1.5px dashed #000000', paddingBottom: '16px', marginBottom: '16px' }}>
-          <div style={{ fontSize: '23px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif', color: '#000000' }}>
-            {order.restaurant_name || order.restaurantName || 'ALFA HMS RESTAURANT'}
-          </div>
+          {order.restaurant_name && (
+            <div style={{ fontSize: '23px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif', color: '#000000' }}>
+              {order.restaurant_name}
+            </div>
+          )}
+          {order.outlet_name && (
+            <div style={{ fontSize: '15px', fontWeight: '800', marginTop: '2px', color: '#000000', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif' }}>
+              {order.outlet_name}
+            </div>
+          )}
           <div style={{ fontSize: '11px', marginTop: '6px', color: '#333333', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
             {order.address || 'Main Dining Area'}
           </div>
           <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
-            GSTIN: {order.gstin || '27AAAAA0000A1Z5'} | FSSAI: {order.fssai || '10020021000123'}
+            GSTIN: {order.gstin || '27AAAAA0000A1Z5'} {order.hsn ? `| HSN: ${order.hsn}` : ''} | FSSAI: {order.fssai || '10020021000123'}
           </div>
           <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
             PHONE: {order.phone || '+91 98765 43210'}

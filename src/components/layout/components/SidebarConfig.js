@@ -95,5 +95,6 @@ export const restaurantMasters = [
   },
   { name: 'NC Type Master', label: 'NC Type Master', path: '/pos/master/nc-type' },
   { name: 'Item Rate Update', label: 'Item Rate Update', path: '/pos/master/rate-update' },
-  { name: 'Item Rate Category', label: 'Item Rate Category', path: '/pos/master/rate-category' }
+  { name: 'Item Rate Category', label: 'Item Rate Category', path: '/pos/master/rate-category' },
+  { name: 'Expense Master', label: 'Expense Master', path: '/pos/operation/expense-entry' }
 ];

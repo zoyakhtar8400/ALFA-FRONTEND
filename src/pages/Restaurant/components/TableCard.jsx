@@ -1,14 +1,36 @@
 import React from 'react';
-import { FaPrint, FaEye } from 'react-icons/fa';
+import { FaPrint, FaEye, FaWallet, FaRupeeSign } from 'react-icons/fa';
 
 const COLOR_MAP = {
-  white: { bg: '#ffffff', text: '#6b7280', border: '1px solid #d1d5db' },
+  white: { bg: '#ffffff', text: '#6b7280', border: '1px dashed #d1d5db' },
   yellow: { bg: '#f5c842', text: '#1e293b', border: '1px solid #d4a800' }, // Running Table (Yellow)
   orange: { bg: '#f97316', text: '#ffffff', border: '1px solid #ea580c' }, // Reserved Table (Orange)
-  green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' },   // Paid / Cleaning (Green)
+  // green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' },   // Paid / Cleaning (Green)
   blue: { bg: '#2563eb', text: '#ffffff', border: '1px solid #1d4ed8' },   // Unpaid Bill (Blue)
   red: { bg: '#ef4444', text: '#ffffff', border: '1px solid #b91c1c' },    // Error / Override (Red)
-  purple: { bg: '#c084fc', text: '#1e293b', border: '1px solid #a855f7' }  // NC / Blocked Table (Purple)
+  // purple: { bg: '#c084fc', text: '#1e293b', border: '1px solid #a855f7' }  // NC / Blocked Table (Purple)
+};
+const AREA_BORDER_COLORS = [
+  '#ef4444', // Red
+  '#3b82f6', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#8b5cf6', // Violet
+  '#ec4899', // Pink
+  '#14b8a6', // Teal
+  '#f97316', // Orange
+  '#6366f1', // Indigo
+  '#84cc16'  // Lime
+];
+
+const getAreaBorder = (areaStr) => {
+  if (!areaStr || areaStr === 'Unassigned Area') return '#d1d5db';
+  let hash = 0;
+  for (let i = 0; i < areaStr.length; i++) {
+    hash = areaStr.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AREA_BORDER_COLORS.length;
+  return AREA_BORDER_COLORS[index];
 };
 
 const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSelected }) => {
@@ -19,21 +41,27 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
   const isReserved = !isBlank && !isNCBlocked && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
   const isPaidOrCleaning = !isBlank && !isReserved && !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
   const isUnpaidBill = !isBlank && !isReserved && !isPaidOrCleaning && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
-  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(table.amount || 0) > 0));
+  const kotCount = table.kotCount || (Array.isArray(table.kots) ? table.kots.length : 0);
+  const hasActualItems = (Number(table.amount || 0) > 0) || kotCount > 0 || (Array.isArray(table.items) && table.items.length > 0);
+
+  // STRICT RULE: Only consider it running if it ACTUALLY has items/amount/KOTs. 
+  // Ignore phantom 'RUNNING'/'OCCUPIED' statuses from backend for empty tables.
+  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked && (hasActualItems);
 
   const colorKey = isNCBlocked
     ? 'purple'
     : isPaidOrCleaning
-    ? 'green'
-    : isReserved
-    ? 'orange'
-    : isUnpaidBill
-    ? 'blue'
-    : isRunning
-    ? 'yellow'
-    : 'white';
+      ? 'green'
+      : isReserved
+        ? 'orange'
+        : isUnpaidBill
+          ? 'blue'
+          : isRunning
+            ? 'yellow'
+            : 'white';
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
+  // If it doesn't have actual items and isn't reserved/blocked/paid, it's available (blank).
   const isAvailable = isBlank || (!isReserved && !isRunning && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked);
   const isPaymentCompleted = isPaidOrCleaning;
 
@@ -43,9 +71,9 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
   // White/Reserved table -> []
   const actions = isNCBlocked
     ? []
-    : (Array.isArray(table.available_actions) && table.available_actions.length > 0)
-    ? table.available_actions
-    : (isPaymentCompleted ? ['print_kot'] : (colorKey === 'yellow' || colorKey === 'red' || isRunning || isUnpaidBill || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
+    : isUnpaidBill ? ['quick_pay'] : (Array.isArray(table.available_actions) && table.available_actions.length > 0 && hasActualItems)
+      ? table.available_actions
+      : (isPaymentCompleted ? ['quick_pay'] : (colorKey === 'yellow' || colorKey === 'red' || isRunning || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
 
   // Format remaining_seconds into 00:SS or MM:SS
   const formatTimer = (totalSec) => {
@@ -60,7 +88,7 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
     ? table.remaining_seconds
     : (startTime ? Math.max(0, 60 - Math.floor((Date.now() - startTime) / 1000)) : 60);
 
-  const timerText = isPaymentCompleted && computedRemaining > 0 ? formatTimer(computedRemaining) : null;
+  const timerText = null;
   const showActions = actions.length > 0;
 
   return (
@@ -76,6 +104,7 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
+
         alignItems: 'center',
         justifyContent: 'center',
         height: '105px',
@@ -154,26 +183,15 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
 
       {/* ── Table number ── */}
       <div style={{ fontSize: '1.1rem', fontWeight: 800, lineHeight: 1 }}>
-        T{parseInt(table.no || table.table_no || '1', 10)}
+        {(() => {
+          if (table.table_name && table.table_name.trim() !== '') return table.table_name;
+          const noStr = String(table.no || table.table_no || '1').trim();
+          if (noStr.startsWith('TK-') || noStr.startsWith('DL-')) return noStr;
+          return `T${parseInt(noStr, 10) || noStr}`;
+        })()}
       </div>
 
-      {/* ── Status label ── */}
-      <div style={{
-        fontSize: '0.62rem',
-        fontWeight: 700,
-        marginTop: '3px',
-        lineHeight: 1,
-        letterSpacing: '0.6px',
-        textTransform: 'uppercase',
-        opacity: 0.85,
-      }}>
-        {isNCBlocked ? 'NC Blocked'
-          : isPaymentCompleted ? 'Paid'
-          : isUnpaidBill ? 'Unpaid'
-          : isReserved ? 'Reserved'
-          : isRunning ? 'Running'
-          : 'Available'}
-      </div>
+      {/* ── Status label removed per user request ── */}
 
       {/* ── Amount (for running / unpaid tables) ── */}
       {!isAvailable && !isPaymentCompleted && !isReserved && table.amount > 0 && (
@@ -202,13 +220,18 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
           }}
         >
           {actions.includes('print_kot') && (
-            <Btn title="Print KOT" onClick={onSave} color="#374151">
+            <Btn title="Print Bill" onClick={onSave} color="#374151">
               <FaPrint size={15} />
             </Btn>
           )}
           {actions.includes('view_kot') && (
-            <Btn title="View / Edit Order" onClick={onView} color="#374151">
+            <Btn title="View POS Billing" onClick={onView} color="#374151">
               <FaEye size={15} />
+            </Btn>
+          )}
+          {actions.includes('quick_pay') && (
+            <Btn title="Quick Payment" onClick={(e) => onClick?.(e, 'quick_pay')} color="#16a34a">
+              <FaRupeeSign size={15} />
             </Btn>
           )}
         </div>

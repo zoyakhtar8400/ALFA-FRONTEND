@@ -6,6 +6,8 @@ export const useItemMenu = (activeTab, showToast) => {
   const [itemGroups, setItemGroups] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [outlets, setOutlets] = useState([]);
+  const [taxCategories, setTaxCategories] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -20,11 +22,29 @@ export const useItemMenu = (activeTab, showToast) => {
     Promise.all([
       posApi.getProductGroups(),
       posApi.getCategories(),
-      posApi.getMenuItems()
-    ]).then(([pgRes, catRes, menuRes]) => {
+      posApi.getMenuItems(),
+      posApi.getOutlets(),
+      posApi.getItemTaxCategories()
+    ]).then(([pgRes, catRes, menuRes, outletsRes, taxesRes]) => {
       const groups = Array.isArray(pgRes?.data?.productGroups) ? pgRes.data.productGroups : (Array.isArray(pgRes?.data) ? pgRes.data : []);
       const categories = Array.isArray(catRes?.data?.categories) ? catRes.data.categories : (Array.isArray(catRes?.data) ? catRes.data : []);
       const items = Array.isArray(menuRes?.data?.menuItems) ? menuRes.data.menuItems : (Array.isArray(menuRes?.data) ? menuRes.data : []);
+      const stores = Array.isArray(outletsRes?.data) ? outletsRes.data : (Array.isArray(outletsRes) ? outletsRes : []);
+      const taxes = Array.isArray(taxesRes?.data) ? taxesRes.data : [];
+
+      const mappedOutlets = stores.map((s, idx) => ({
+        id: s.id,
+        store_id: s.store_id || `STORE_${s.id || idx + 1}`,
+        name: s.store_name || s.name || `Outlet ${s.id || idx + 1}`
+      }));
+      setOutlets(mappedOutlets);
+      
+      const mappedTaxes = taxes.map((t, idx) => ({
+        id: t.id || idx + 1,
+        name: t.name || 'GST Category',
+        percentage: t.percentage || 5
+      }));
+      setTaxCategories(mappedTaxes);
 
       const mappedProductGroups = groups.map((g, idx) => ({
         id: g.id || g.product_group_id || idx + 1,
@@ -38,22 +58,28 @@ export const useItemMenu = (activeTab, showToast) => {
         code: c.hsnCode || '2106'
       }));
 
-      const mappedMenuItems = items.map((m, idx) => ({
-        id: m.id || m.item_id || idx + 1,
-        name: m.name || m.title || `Menu Item ${idx + 1}`,
-        dispCode: String(m.id || idx + 100),
-        itemGroup: m.category || 'General',
-        mainGroup: 'Food',
-        unitType: 'Plate',
-        outlet: 'Main Restaurant',
-        price: Number(m.price || m.sale_price || 0),
-        category: m.foodType || 'Veg',
-        rateEdit: 'No',
-        discApp: 'Yes',
-        kitchen: 'Main Kitchen',
-        status: m.active !== 0 ? 'Active' : 'Inactive',
-        hsnCode: '2106'
-      }));
+      const mappedMenuItems = items.map((m, idx) => {
+        const itemStoreId = m.store_id || (mappedOutlets.length > 0 ? mappedOutlets[0].store_id : 'STORE_1');
+        const outletObj = mappedOutlets.find(o => String(o.store_id) === String(itemStoreId));
+        return {
+          id: m.id || m.item_id || idx + 1,
+          name: m.name || m.title || `Menu Item ${idx + 1}`,
+          dispCode: m.short_code || String(m.id || idx + 100),
+          itemGroup: m.category || 'General',
+          mainGroup: 'Food',
+          unitType: 'Plate',
+          outlet: itemStoreId,
+          outletName: outletObj ? outletObj.name : 'Main Restaurant',
+          price: Number(m.price || m.sale_price || 0),
+          category: m.foodType || 'Veg',
+          rateEdit: m.is_open_item === 1 ? 'Yes' : 'No',
+          discApp: 'Yes',
+          kitchen: 'Main Kitchen',
+          status: m.active !== 0 ? 'Active' : 'Inactive',
+          hsnCode: '2106',
+          taxCategory: m.tax_name || 'Default 5%'
+        };
+      });
 
       setMainGroups(mappedProductGroups);
       setItemGroups(mappedCategories);
@@ -148,14 +174,27 @@ export const useItemMenu = (activeTab, showToast) => {
         showToast(err?.response?.data?.message || 'Failed to save Item Group');
       });
     } else if (activeTab === 'menu-item') {
+      const matchedCat = itemGroups.find(c => c.name === fields.itemGroup);
+      const matchedTax = taxCategories.find(t => t.name === fields.taxCategory);
+      const taxName = matchedTax ? matchedTax.name : 'Default 5%';
+      const taxPer = matchedTax ? Number(matchedTax.percentage) : 5;
+
       posApi.saveMenuItem({
-        ...(modal.isEdit && { id: fields.id || fields.item_id, item_id: fields.id || fields.item_id }),
-        title: fields.name,
+        ...fields,
+        id: fields.id,
         name: fields.name,
         price: Number(fields.price || 0),
         sale_price: Number(fields.price || 0),
         food_type: fields.category || 'Veg',
-        inventory_type: 'RECIPE'
+        inventory_type: 'RECIPE',
+        store_id: fields.outlet || 'STORE_1',
+        short_code: fields.dispCode || '',
+        is_open_item: fields.rateEdit === 'Yes' ? 1 : 0,
+        open_price: fields.rateEdit === 'Yes' ? 1 : 0,
+        category_ref_ids: matchedCat ? matchedCat.id : undefined,
+        kitchen_dept: fields.kitchen === 'Main Kitchen' ? 1 : (fields.kitchen === 'Bar Kitchen' ? 2 : (fields.kitchen === 'Chinese Kitchen' ? 3 : 4)),
+        tax_name: taxName,
+        tax_per: taxPer
       }).then(() => {
         showToast(modal.isEdit ? 'Menu item updated in PostgreSQL.' : 'Menu item created in PostgreSQL.');
         fetchMenuData();
@@ -217,7 +256,9 @@ export const useItemMenu = (activeTab, showToast) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    outlets,
+    taxCategories
   };
 };
 

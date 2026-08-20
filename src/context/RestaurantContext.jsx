@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { INITIAL_TABLES, INITIAL_MOCK_ORDER_DETAILS } from '../pages/Restaurant/constants/mockData';
 import { tableService } from '../services/tableService';
 import { menuService } from '../services/menuService';
@@ -52,15 +52,36 @@ export const RestaurantProvider = ({ children }) => {
     fetchStaticData();
   }, []);
 
-  // Fetch all outlets on mount so sidebar/navbar can resolve outlet names immediately
-  useEffect(() => {
+  const refreshOutlets = useCallback(() => {
     posApi.getOutlets()
       .then(res => {
         const outlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
-        if (outlets.length > 0) setAllOutlets(outlets);
+        setAllOutlets(outlets);
       })
-      .catch(err => console.warn('Failed to preload outlets:', err.message));
+      .catch(err => console.warn('Failed to preload/refresh outlets:', err.message));
   }, []);
+
+  // Fetch all outlets on mount so sidebar/navbar can resolve outlet names immediately
+  useEffect(() => {
+    refreshOutlets();
+
+    const handleLogin = () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
+        if (user.store_id) setActiveStoreId(user.store_id);
+      } catch (e) {}
+      refreshOutlets();
+    };
+
+    window.addEventListener('authLoginSuccess', handleLogin);
+    return () => window.removeEventListener('authLoginSuccess', handleLogin);
+  }, [refreshOutlets]);
+
+  // Listen for live outlet master refresh events
+  useEffect(() => {
+    window.addEventListener('outletsMasterRefreshed', refreshOutlets);
+    return () => window.removeEventListener('outletsMasterRefreshed', refreshOutlets);
+  }, [refreshOutlets]);
 
   // Map raw table API response to normalized table object
   function mapTable(t) {
@@ -75,18 +96,23 @@ export const RestaurantProvider = ({ children }) => {
 
     const color = isNCBlocked ? 'purple' : isPaid ? 'green' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
     const normalizedStatus = isNCBlocked ? 'NC_BLOCKED' : isReserved ? 'Reserved' : isPaid ? 'Paid' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
-    
+
     const isPaymentCompleted = color === 'green';
     const isAvailable = color === 'white';
     const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0
       ? t.available_actions
       : (isPaymentCompleted ? ['print_kot'] : (color === 'yellow' || color === 'blue' || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
 
+    const prefix = t.prefix || extra.prefix || '';
+    const tableNoStr = String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '') || String(t.id);
+    const cleanNum = parseInt(tableNoStr, 10) || tableNoStr;
+    const displayName = prefix ? `${prefix}${cleanNum}` : (t.table_name || `Table ${tableNoStr}`);
+
     return {
       id: t.id,
       table_id: t.table_id || t.id,
-      no: String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '').padStart(2, '0') || String(t.id).padStart(2, '0'),
-      table_name: t.table_name || `Table ${t.no}`,
+      no: String(tableNoStr).padStart(2, '0'),
+      table_name: displayName,
       seats: Number(t.seats || t.max_person) || 4,
       status: normalizedStatus,
       raw_status: rawStatus,
@@ -204,7 +230,7 @@ export const RestaurantProvider = ({ children }) => {
 
   // Sync state changes to localStorage
   useEffect(() => {
-    try { localStorage.setItem('alfa_restaurant_tables', JSON.stringify(tables)); } catch {}
+    try { localStorage.setItem('alfa_restaurant_tables', JSON.stringify(tables)); } catch { }
   }, [tables]);
 
   // Listen for Table Master & Area Master CRUD events → immediately re-fetch from PostgreSQL
@@ -246,7 +272,7 @@ export const RestaurantProvider = ({ children }) => {
       setOutletNotFound(false);
       let outlets = allOutlets;
       let matched = outlets.find(o => Number(o.id) === Number(outletId));
-      
+
       if (!matched) {
         const res = await posApi.getOutlets();
         const freshOutlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
@@ -256,14 +282,14 @@ export const RestaurantProvider = ({ children }) => {
           matched = outlets.find(o => Number(o.id) === Number(outletId));
         }
       }
-      
+
       if (!matched) {
         setOutletNotFound(true);
         return;
       }
-      
+
       const storeIdStr = matched.store_id || `STORE_${matched.id}`;
-      
+
       // Clear active tables list, orders map, and sessionStorage immediately to prevent leakage
       setTables([]);
       setOrderItemsMap({});
@@ -271,18 +297,18 @@ export const RestaurantProvider = ({ children }) => {
         sessionStorage.removeItem('alfa_selected_pos_table');
         sessionStorage.removeItem('alfa_selected_order');
         localStorage.removeItem('alfa_restaurant_tables');
-      } catch (e) {}
+      } catch (e) { }
 
       setActiveOutletId(Number(outletId));
       setActiveStoreId(storeIdStr);
-      
+
       // Update local storage so session stays aligned
       try {
         const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
         user.store_id = storeIdStr;
         localStorage.setItem('alfa_user', JSON.stringify(user));
         localStorage.setItem('user', JSON.stringify(user));
-      } catch (e) {}
+      } catch (e) { }
 
       // Trigger table refresh for this specific store_id
       await refreshTables(storeIdStr);
@@ -293,13 +319,13 @@ export const RestaurantProvider = ({ children }) => {
   }, [allOutlets, refreshTables]);
 
   return (
-    <RestaurantContext.Provider value={{ 
-      tables, 
-      setTables, 
-      refreshTables, 
-      orderItemsMap, 
-      setOrderItemsMap, 
-      tableHistory, 
+    <RestaurantContext.Provider value={{
+      tables,
+      setTables,
+      refreshTables,
+      orderItemsMap,
+      setOrderItemsMap,
+      tableHistory,
       loading,
       activeOutletId,
       activeStoreId,

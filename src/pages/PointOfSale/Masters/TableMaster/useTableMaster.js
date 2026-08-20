@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import posApi from '../../../../api/posApi';
+import areaService from '../../../../services/areaService';
 
 export function getActiveOutletId() {
   try {
@@ -36,34 +37,68 @@ export const useTableMaster = (showToast) => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  
+  const [outletFilter, setOutletFilter] = useState('All');
+  const [areaFilter, setAreaFilter] = useState('All');
+
+  const [outletsList, setOutletsList] = useState([]);
+  const [areasList, setAreasList] = useState([]);
+
   // Modal/Form open states
   const [modal, setModal] = useState({ open: false, isEdit: false, fields: {} });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
 
+  // Fetch all Outlets / Stores for the dropdown filter
+  useEffect(() => {
+    posApi.getOutlets()
+      .then(res => {
+        let list = [];
+        if (Array.isArray(res)) list = res;
+        else if (Array.isArray(res?.data)) list = res.data;
+        setOutletsList(list);
+      })
+      .catch(err => console.warn('Error fetching outlets in useTableMaster:', err));
+  }, []);
+
+  // Fetch all Areas from Area Master
+  useEffect(() => {
+    areaService.getAreas()
+      .then(res => {
+        let list = [];
+        if (Array.isArray(res)) list = res;
+        else if (Array.isArray(res?.data)) list = res.data;
+        const names = list.map(a => a.name || a.area_name || a.title).filter(Boolean);
+        setAreasList([...new Set(names)]);
+      })
+      .catch(err => console.warn('Error fetching areas in useTableMaster:', err));
+  }, []);
+
   // ─── FETCH ────────────────────────────────────────────────────────────────
   const fetchTables = useCallback(async () => {
     setLoading(true);
     try {
-      const activeStoreId = getActiveOutletId();
-      const res = await posApi.getTables({ store_id: activeStoreId });
-      // Axios interceptor unwraps response.data → res = { status, tables, data }
+      // Fetch all tables so admin/staff can filter across outlets
+      const res = await posApi.getTables({ store_id: 'all' });
       const tablesList = Array.isArray(res?.tables) ? res.tables
         : Array.isArray(res?.data) ? res.data
         : [];
 
-      const mapped = tablesList.map((t, idx) => ({
-        id: t.id || t.table_id || idx + 1,
-        no: t.no || t.table_no || String(idx + 1).padStart(2, '0'),
-        name: t.table_name || t.name || `T${String(idx + 1).padStart(2, '0')}`,
-        pax: Number(t.seats || t.max_person || 4),
-        department: t.section || t.department || 'Restaurant',
-        area: t.area || t.floor || 'Main Area',
-        floor: t.area || t.floor || 'Main Area',
-        status: t.status || 'AVAILABLE',
-        isActive: (t.status || '').toUpperCase() !== 'INACTIVE' && t.isactive !== 0,
-      }));
+      const mapped = tablesList.map((t, idx) => {
+        return {
+          id: t.id || t.table_id || idx + 1,
+          no: t.no || t.table_no || String(idx + 1).padStart(2, '0'),
+          name: t.table_name || t.name || `T${String(idx + 1).padStart(2, '0')}`,
+          pax: Number(t.seats || t.max_person || 4),
+          department: t.section || t.department || 'Restaurant',
+          area: t.area || t.floor || 'Main Area',
+          floor: t.area || t.floor || 'Main Area',
+          status: t.status || 'AVAILABLE',
+          isActive: (t.status || '').toUpperCase() !== 'INACTIVE' && t.isactive !== 0,
+          prefix: t.prefix || (t.extra_details && t.extra_details.prefix) || '',
+          store_id: t.store_id || 'STORE_1',
+          extra_details: t.extra_details || {}
+        };
+      });
 
       setData(mapped);
 
@@ -94,9 +129,17 @@ export const useTableMaster = (showToast) => {
         (statusFilter === 'Active' && item.isActive) ||
         (statusFilter === 'Inactive' && !item.isActive);
 
-      return matchSearch && matchStatus;
+      const matchOutlet =
+        outletFilter === 'All' ||
+        String(item.store_id) === String(outletFilter);
+
+      const matchArea =
+        areaFilter === 'All' ||
+        String(item.area || '').toLowerCase() === String(areaFilter).toLowerCase();
+
+      return matchSearch && matchStatus && matchOutlet && matchArea;
     });
-  }, [data, searchTerm, statusFilter]);
+  }, [data, searchTerm, statusFilter, outletFilter, areaFilter]);
 
   // ─── VALIDATE ─────────────────────────────────────────────────────────────
   const validate = (fields, skipDuplicateCheck = false) => {
@@ -131,6 +174,8 @@ export const useTableMaster = (showToast) => {
       ...(isEdit ? { id: fields.id } : {}),
       name: fields.name,
       table_name: fields.name,
+      no: fields.no || fields.name.replace(/\D/g, ''),
+      table_no: fields.no || fields.name.replace(/\D/g, ''),
       seats: Number(fields.pax) || 4,
       max_person: Number(fields.pax) || 4,
       section: fields.department || 'Main Area',
@@ -139,6 +184,7 @@ export const useTableMaster = (showToast) => {
       floor: fields.area || fields.floor || 'Main Area',
       status: fields.isActive !== false ? 'AVAILABLE' : 'INACTIVE',
       store_id: fields.store_id || activeStoreId,
+      prefix: fields.prefix || ''
     };
 
     try {
@@ -226,6 +272,12 @@ export const useTableMaster = (showToast) => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    outletFilter,
+    setOutletFilter,
+    areaFilter,
+    setAreaFilter,
+    outletsList,
+    areasList,
     modal,
     setModal,
     deleteModal,

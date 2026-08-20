@@ -16,8 +16,16 @@ const OrderDetailsPage = ({ showToast }) => {
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [printOrderId, setPrintOrderId] = useState(null);
   const [printTriggerKey, setPrintTriggerKey] = useState(0);
+  const [areaFilter, setAreaFilter] = useState('All');
+  const { tables, activeStoreId } = useRestaurant();
 
-  const { activeStoreId } = useRestaurant();
+  const availableAreas = React.useMemo(() => {
+    const areaSet = new Set();
+    tables.forEach(t => {
+      if (t.area && t.area.trim()) areaSet.add(t.area.trim());
+    });
+    return Array.from(areaSet);
+  }, [tables]);
 
   useEffect(() => {
     async function loadOrders() {
@@ -25,17 +33,26 @@ const OrderDetailsPage = ({ showToast }) => {
         const res = await orderService.getOrders({ store_id: activeStoreId });
         const rawOrders = res?.orders || res?.data || [];
         if (Array.isArray(rawOrders)) {
-          const completedOrders = rawOrders.filter(o => {
-            const statusStr = String(o.status || o.order_state || o.payment_status || '').toLowerCase();
-            return statusStr === 'completed' || statusStr === 'paid';
-          });
-          const mapped = completedOrders.map((o, idx) => {
+          const mapped = rawOrders.map((o, idx) => {
             return {
               id: o.id || o.order_id || o.billNo || (idx + 1),
               billNo: o.billNo || `Bill ${o.order_number || o.orderNo || (idx + 1)}`,
               tableNo: o.tableNo || o.table_name || `Table ${o.table_id || (idx + 1)}`,
-              billType: o.billType || o.order_type || 'DINE_IN',
-              billDate: new Date(o.createdAt || o.billDate || Date.now()).toLocaleDateString(),
+              table_id: o.table_id || o.tableId,
+              billType: (() => {
+                const type = o.billType || o.order_type;
+                if (type && type.toUpperCase() !== 'DINE_IN') return type;
+                const tbl = String(o.tableNo || o.table_name || o.table_id || o.tableId || '');
+                if (tbl.startsWith('TK-') || tbl.toUpperCase().includes('TAKEAWAY')) return 'Takeaway';
+                if (tbl.startsWith('DL-') || tbl.toUpperCase().includes('DELIVERY')) return 'Delivery';
+                return type || 'Dine In';
+              })(),
+              billDate: (() => {
+                const dStr = o.createdAt || o.billDate;
+                if (!dStr) return new Date().toLocaleDateString();
+                const dt = new Date(dStr);
+                return isNaN(dt) ? dStr : dt.toLocaleDateString();
+              })(),
               orderNo: String(o.orderNo || o.order_number || (idx + 1)),
               amount: Number(o.amount || o.total_amount || 0),
               customerName: o.customerName || o.customer_name || 'Walk-in',
@@ -106,7 +123,28 @@ const OrderDetailsPage = ({ showToast }) => {
         </button>
       )
     },
-    { key: 'tableNo', label: 'Table No/Token No' },
+    { 
+      key: 'tableNo', 
+      label: 'Table No',
+      render: (val, row) => {
+        const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || t.no === val);
+        const displayTableName = matchingTable 
+          ? (matchingTable.table_name || `T${parseInt(matchingTable.no || matchingTable.table_no || '1', 10)}`)
+          : val;
+        return (
+          <div>{displayTableName}</div>
+        );
+      }
+    },
+    {
+      key: 'area',
+      label: 'Area',
+      render: (val, row) => {
+        const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || t.no === row.tableNo);
+        const areaName = matchingTable?.area_name || matchingTable?.area || '—';
+        return <div style={{ textTransform: 'uppercase' }}>{areaName}</div>;
+      }
+    },
     { key: 'billType', label: 'Bill Type', renderStatus: true, activeValue: 'DINE_IN' },
     { key: 'billDate', label: 'Bill Date' },
     { key: 'orderNo', label: 'Order No' },
@@ -139,12 +177,19 @@ const OrderDetailsPage = ({ showToast }) => {
       <CommonTable
         title="Order Details"
         columns={columns}
-        data={data}
+        data={data.filter(row => {
+          if (areaFilter === 'All') return true;
+          const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || t.no === row.tableNo);
+          return matchingTable && matchingTable.area === areaFilter;
+        })}
         actions={actions}
         onAddEntry={null}
         searchPlaceholder="Search orders by table, customer, type..."
         showToast={showToast}
         breadcrumbs={['Dashboard', 'Restaurant', 'Order Details']}
+        areaFilter={areaFilter}
+        setAreaFilter={setAreaFilter}
+        areasList={availableAreas}
       />
 
       {/* Ordered Items Quick View Modal */}

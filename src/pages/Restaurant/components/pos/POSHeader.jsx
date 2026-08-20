@@ -5,7 +5,7 @@ import HeaderActions from './HeaderActions';
 
 const getServiceIcon = (type) => {
   if (type === 'Delivery') return <FaTruck size={11} style={{ marginRight: '4px' }} />;
-  if (type === 'Pickup') return <FaShoppingBag size={11} style={{ marginRight: '4px' }} />;
+  if (type === 'Takeaway') return <FaShoppingBag size={11} style={{ marginRight: '4px' }} />;
   return <FaUtensils size={11} style={{ marginRight: '4px' }} />;
 };
 
@@ -30,7 +30,7 @@ const POSHeader = ({
   onPaxClick,
   onRemarksClick
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   return (
     <div style={{
@@ -95,7 +95,7 @@ const POSHeader = ({
           }}>
             {getServiceIcon(serviceType)}
             {serviceType}
-            {assignedTableNo ? ` · T${String(assignedTableNo).replace(/[^0-9]/g, '').padStart(2, '0')}` : ''}
+            {assignedTableNo ? (/[a-zA-Z]/.test(String(assignedTableNo)) ? ` · ${assignedTableNo}` : ` · T${String(assignedTableNo).replace(/[^0-9]/g, '').padStart(2, '0')}`) : ''}
           </span>
 
           <button
@@ -148,6 +148,7 @@ const POSHeader = ({
 
           {/* Table, Customer, PAX, Remarks, Waiter, Delivery, NC Type Actions */}
           <HeaderActions
+            serviceType={serviceType}
             assignedTableNo={assignedTableNo}
             customerName={customerName}
             mobileNumber={mobileNumber}

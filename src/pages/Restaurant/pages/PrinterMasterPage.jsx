@@ -6,13 +6,16 @@ import CommonActionButtons from '../../../components/common/CommonActionButtons'
 import F from '../../../components/common/F';
 import StatusBadge from '../../../components/common/StatusBadge';
 import apiClient from '../../../services/apiClient';
+import useOutletFilter from '../../../hooks/useOutletFilter';
 
 const PRINTER_TYPES = ['Network', 'USB', 'Windows'];
-const emptyPrinter = { id: '', name: '', type: 'Network', ip: '', port: 9100, status: 'Active', isDefault: false };
+const emptyPrinter = { id: '', name: '', type: 'Network', ip: '', port: 9100, status: 'Active', isDefault: false, store_id: 'STORE_1' };
 
 const PrinterMasterPage = () => {
   const [printers, setPrinters] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const { outlets, outletFilter, setOutletFilter, filterData } = useOutletFilter();
 
   const [modal, setModal] = useState({ open: false, mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
@@ -33,7 +36,8 @@ const PrinterMasterPage = () => {
           port: p.printer_port_number || 9100,
           status: (p.is_active === 1 || p.activate === 1 || p.status === 'Active') ? 'Active' : 'Inactive',
           isDefault: p.no_of_prints === 1 || idx === 0,
-          isSinglePrinter: p.no_of_prints === 1 || idx === 0
+          isSinglePrinter: p.no_of_prints === 1 || idx === 0,
+          store_id: p.store_id || 'STORE_1'
         }));
         setPrinters(mapped);
       }
@@ -132,6 +136,15 @@ const PrinterMasterPage = () => {
         );
       }
     },
+    {
+      key: 'store_id',
+      label: 'Outlet',
+      sortable: true,
+      render: (val) => {
+        const outletObj = outlets.find(o => o.store_id === val);
+        return outletObj ? outletObj.name : val || 'Main Restaurant';
+      }
+    },
     { key: 'status', label: 'Status', sortable: true, render: (val, row) => <StatusBadge value={val || row?.status || 'Active'} /> },
     { key: 'action', label: 'Action' }
   ];
@@ -145,7 +158,8 @@ const PrinterMasterPage = () => {
     setForm({
       ...row,
       ip: row.ip || (row.ipPort ? row.ipPort.split(' : ')[0] : '192.168.1.100'),
-      port: row.port || (row.ipPort ? Number(row.ipPort.split(' : ')[1]) : 9100)
+      port: row.port || (row.ipPort ? Number(row.ipPort.split(' : ')[1]) : 9100),
+      store_id: row.store_id || 'STORE_1'
     });
     setModal({ open: true, mode: 'edit', row });
   };
@@ -161,7 +175,8 @@ const PrinterMasterPage = () => {
       printer_ip: form.ip,
       ip_address: form.ip,
       printer_type: form.type === 'USB' ? 2 : (form.type === 'Windows' ? 3 : 1),
-      is_active: form.status === 'Active' ? 1 : 0
+      is_active: form.status === 'Active' ? 1 : 0,
+      store_id: form.store_id || 'STORE_1'
     };
 
     try {
@@ -187,12 +202,14 @@ const PrinterMasterPage = () => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const filteredPrinters = filterData(printers, 'store_id');
+
   return (
-    <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col p-6 animate-in fade-in duration-200" style={{ gap: '16px' }}>
       <CommonTable
         title="Printer Master"
         columns={columns}
-        data={printers}
+        data={filteredPrinters}
         actions={[
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
@@ -202,6 +219,9 @@ const PrinterMasterPage = () => {
         searchPlaceholder="Search Printers..."
         breadcrumbs={['Dashboard', 'POS', 'Master', 'Printer Master']}
         emptyMessage="No Printers configured."
+        outletFilter={outletFilter}
+        setOutletFilter={setOutletFilter}
+        outletsList={outlets}
       />
 
       <CommonModal
@@ -245,6 +265,19 @@ const PrinterMasterPage = () => {
               </div>
             </div>
           )}
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>
+            Outlet *
+            <select
+              value={form.store_id || 'STORE_1'}
+              onChange={(e) => setForm((p) => ({ ...p, store_id: e.target.value }))}
+              style={{ padding: '9px 12px', borderRadius: '7px', border: '1.5px solid #e2e8f0', fontSize: '0.85rem' }}
+            >
+              {outlets.map((o) => (
+                <option key={o.store_id} value={o.store_id}>{o.name}</option>
+              ))}
+            </select>
+          </label>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>
             Status

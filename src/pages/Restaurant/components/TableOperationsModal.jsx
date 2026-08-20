@@ -108,9 +108,11 @@ const TableOperationsModal = (props) => {
                           cursor: 'pointer', userSelect: 'none', transition: 'all 100ms',
                         }}
                       >
-                        T{parseInt(t.no)}
-                        {isFrom && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>FROM</span>}
-                        {isTo && <span style={{ fontSize: '0.6rem', marginLeft: '4px', opacity: 0.8 }}>TO</span>}
+                        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {t.table_name || `T${parseInt(t.no)}`}
+                        </div>
+                        {isFrom && <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>FROM</span>}
+                        {isTo && <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>TO</span>}
                       </div>
                     );
                   })}
@@ -138,11 +140,24 @@ const TableOperationsModal = (props) => {
                 style={{ flex: 1, padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #3b82f6', background: '#eff6ff', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="">Select occupied table...</option>
-                {tables.filter(t => {
-                  const st = String(t.status || '').toLowerCase().trim();
-                  return Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
-                }).map(t => (
-                  <option key={t.id} value={t.id}>T{parseInt(t.no)} ({t.status || 'Occupied'}) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
+                {Object.entries(
+                  tables
+                    .filter(t => {
+                      const st = String(t.status || '').toLowerCase().trim();
+                      return Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
+                    })
+                    .reduce((acc, t) => {
+                      const area = t.area_name || 'Main Area';
+                      if (!acc[area]) acc[area] = [];
+                      acc[area].push(t);
+                      return acc;
+                    }, {})
+                ).map(([area, areaTables]) => (
+                  <optgroup key={`from-${area}`} label={`--- ${area} ---`}>
+                    {areaTables.map(t => (
+                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} ({t.status || 'Occupied'}) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>
@@ -155,8 +170,26 @@ const TableOperationsModal = (props) => {
                 style={{ flex: 1, padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #db2777', background: '#fdf2f8', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
               >
                 <option value="">Select target table...</option>
-                {tables.filter(t => String(t.id) !== fromTableId).map(t => (
-                  <option key={t.id} value={t.id}>T{parseInt(t.no)} ({t.status})</option>
+                {Object.entries(
+                  tables
+                    .filter(t => String(t.id) !== fromTableId)
+                    .filter(t => {
+                      const st = String(t.status || '').toLowerCase().trim();
+                      const isOccupied = Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid' && st !== '');
+                      return !isOccupied; // Only show available tables in To field
+                    })
+                    .reduce((acc, t) => {
+                      const area = t.area_name || 'Main Area';
+                      if (!acc[area]) acc[area] = [];
+                      acc[area].push(t);
+                      return acc;
+                    }, {})
+                ).map(([area, areaTables]) => (
+                  <optgroup key={`to-${area}`} label={`--- ${area} ---`}>
+                    {areaTables.map(t => (
+                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} ({t.status || 'Blank'})</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

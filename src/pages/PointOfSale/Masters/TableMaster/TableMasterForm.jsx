@@ -83,11 +83,17 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
           else if (Array.isArray(res?.data?.areas)) list = res.data.areas;
 
           if (isMounted && list.length > 0) {
-            const names = list
+            const parsedAreas = list
               .filter(a => a && (a.active !== 'No' && a.isActive !== false))
-              .map(a => typeof a === 'string' ? a : (a.name || a.area_name || a.areaName || ''))
-              .filter(Boolean);
-            setDbAreas(names);
+              .map(a => {
+                if (typeof a === 'string') return { name: a, store_id: null };
+                return {
+                  name: a.name || a.area_name || a.areaName || '',
+                  store_id: a.store_id ? String(a.store_id).replace('STORE_', '') : null
+                };
+              })
+              .filter(a => Boolean(a.name));
+            setDbAreas(parsedAreas);
           }
         })
         .catch(err => console.warn('Error fetching areas for TableMasterForm:', err));
@@ -112,12 +118,26 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
 
   const areaOptions = useMemo(() => {
     if (dbAreas.length > 0) {
-      const merged = new Set(dbAreas);
-      if (fields.area) merged.add(fields.area);
+      const activeStore = fields.store_id ? String(fields.store_id).replace('STORE_', '') : null;
+      const validNames = dbAreas
+        .filter(a => {
+          if (!activeStore) return true;
+          if (!a.store_id || a.store_id === '') return true;
+          return a.store_id === activeStore;
+        })
+        .map(a => a.name);
+        
+      const merged = new Set(validNames);
       return Array.from(merged);
     }
-    return fields.area ? [fields.area] : [];
-  }, [dbAreas, fields.area]);
+    return [];
+  }, [dbAreas, fields.store_id]);
+
+  useEffect(() => {
+    if (areaOptions.length > 0 && !areaOptions.includes(fields.area)) {
+      setFields(prev => ({ ...prev, area: areaOptions[0] }));
+    }
+  }, [areaOptions, fields.area]);
 
   // Set fields on form open or edit
   useEffect(() => {
@@ -130,19 +150,23 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
         department: defaultDept,
         store_id: initialData?.store_id || targetStoreId,
         name: '',
+        no: initialData?.no || initialData?.table_no || '',
         pax: '4',
-        area: initialData?.area || initialData?.floor || dbAreas[0] || 'Main Dining Area',
+        area: initialData?.area || initialData?.floor || (dbAreas[0]?.name || 'Main Dining Area'),
         description: '',
         isActive: true,
+        prefix: initialData?.prefix || initialData?.extra_details?.prefix || '',
         ...initialData
       } : {
         department: defaultDept,
         store_id: targetStoreId,
         name: '',
+        no: '',
         pax: '4',
-        area: dbAreas[0] || 'Main Dining Area',
+        area: dbAreas[0]?.name || 'Main Dining Area',
         description: '',
-        isActive: true
+        isActive: true,
+        prefix: ''
       });
     }
   }, [isOpen, isEdit, initialData, dbAreas, outletInfo, dbOutlets]);
@@ -196,6 +220,31 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
                 onChange={(e) => setFields(p => ({ ...p, name: e.target.value }))}
                 className="form-input"
                 required
+              />
+            </div>
+
+            {/* Table No */}
+            <div className="form-field">
+              <label className="form-label">Table No *</label>
+              <input
+                type="text"
+                placeholder="e.g. 1, 01, 10A"
+                value={fields.no || ''}
+                onChange={(e) => setFields(p => ({ ...p, no: e.target.value }))}
+                className="form-input"
+                required
+              />
+            </div>
+
+            {/* Table Prefix */}
+            <div className="form-field">
+              <label className="form-label">Table Prefix</label>
+              <input
+                type="text"
+                placeholder="e.g. T, B, VIP"
+                value={fields.prefix || ''}
+                onChange={(e) => setFields(p => ({ ...p, prefix: e.target.value }))}
+                className="form-input"
               />
             </div>
             

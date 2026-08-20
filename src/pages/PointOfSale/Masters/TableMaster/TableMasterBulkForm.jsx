@@ -80,11 +80,17 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
           else if (Array.isArray(res?.data?.areas)) list = res.data.areas;
 
           if (isMounted && list.length > 0) {
-            const names = list
+            const parsedAreas = list
               .filter(a => a && (a.active !== 'No' && a.isActive !== false))
-              .map(a => typeof a === 'string' ? a : (a.name || a.area_name || a.areaName || ''))
-              .filter(Boolean);
-            setDbAreas(names);
+              .map(a => {
+                if (typeof a === 'string') return { name: a, store_id: null };
+                return {
+                  name: a.name || a.area_name || a.areaName || '',
+                  store_id: a.store_id ? String(a.store_id).replace('STORE_', '') : null
+                };
+              })
+              .filter(a => Boolean(a.name));
+            setDbAreas(parsedAreas);
           }
         })
         .catch(err => console.warn('Error fetching areas for TableMasterBulkForm:', err));
@@ -109,10 +115,26 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
 
   const areaOptions = useMemo(() => {
     if (dbAreas.length > 0) {
-      return dbAreas;
+      const activeStore = fields.store_id ? String(fields.store_id).replace('STORE_', '') : null;
+      const validNames = dbAreas
+        .filter(a => {
+          if (!activeStore) return true;
+          if (!a.store_id || a.store_id === '') return true;
+          return a.store_id === activeStore;
+        })
+        .map(a => a.name);
+        
+      const merged = new Set(validNames);
+      return Array.from(merged);
     }
     return [];
-  }, [dbAreas]);
+  }, [dbAreas, fields.store_id]);
+
+  useEffect(() => {
+    if (areaOptions.length > 0 && !areaOptions.includes(fields.area)) {
+      setFields(prev => ({ ...prev, area: areaOptions[0] }));
+    }
+  }, [areaOptions, fields.area]);
 
   useEffect(() => {
     if (isOpen) {
@@ -126,7 +148,7 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
         endNum: '10',
         department: defaultDept,
         store_id: targetStoreId,
-        area: dbAreas[0] || 'Main Dining Area',
+        area: dbAreas[0]?.name || 'Main Dining Area',
         pax: '4',
         isActive: true
       });

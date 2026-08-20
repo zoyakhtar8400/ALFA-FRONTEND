@@ -163,75 +163,14 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
         <FaSearch size={16} />
       </button>
 
-      {/* Global Search Component — desktop only */}
+      {/* Global Search Component — desktop only
       <div className="flex-1 max-w-md mx-8 relative no-print navbar-search" ref={searchRef}>
-        <div className="relative">
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowResults(true);
-            }}
-            onFocus={() => setShowResults(true)}
-            placeholder="Search Guest, Company, Booking, Room, Bill, GRC... (Ctrl+F)"
-            className="w-full bg-slate-50 border border-slate-200 rounded-full py-1.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 focus:bg-white transition-all duration-200"
-          />
-          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-            {/* <FaSearch size={11} /> */}
-          </div>
-          {searchQuery && (
-            <button
-              onClick={() => {
-                setSearchQuery('');
-                setShowResults(false);
-              }}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              aria-label="Clear Search"
-            >
-              <FaTimes size={11} />
-            </button>
-          )}
-        </div>
-
-        {/* Global Search Results Dropdown */}
-        {showResults && searchQuery.trim() && (
-          <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-[1001] max-h-80 overflow-y-auto p-1.5 flex flex-col gap-0.5">
-            <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide border-b border-slate-50">
-              Search Results ({filteredResults.length})
-            </div>
-            {filteredResults.length > 0 ? (
-              filteredResults.map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => handleResultClick(item)}
-                  className="px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer flex justify-between items-center gap-4 transition-colors"
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-semibold text-slate-700">{item.name}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">{item.detail}</span>
-                  </div>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${item.type === 'Room' ? 'bg-indigo-50 text-indigo-500' :
-                    item.type === 'Guest' ? 'bg-emerald-50 text-emerald-500' :
-                      item.type === 'Booking' ? 'bg-amber-50 text-amber-500' :
-                        item.type === 'Company' ? 'bg-cyan-50 text-[#418a8b]' :
-                          'bg-slate-100 text-slate-600'
-                    }`}>
-                    {item.type}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="px-3 py-4 text-center text-xs text-slate-400 font-medium">
-                No matches found for "{searchQuery}"
-              </div>
-            )}
-          </div>
-        )}
+        ... [code commented out per user request] ...
       </div>
+      */}
 
       <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Audit Trail Button */}
+        {/* Audit Trail Button and Notification Bell Dropdown commented out
         <button
           className="navbar-dummy-btn"
           onClick={() => setShowAudit(true)}
@@ -242,51 +181,10 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
           <span>Audit Log</span>
         </button>
 
-        {/* Notification Bell Dropdown */}
         <div className="relative" ref={notifRef} style={{ position: 'relative' }}>
-          <button className="navbar-action-btn" aria-label="Notifications" onClick={() => setShowNotif(!showNotif)}
-            style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer' }}>
-            <FaBell size={18} color="#475569" />
-            {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#ef4444', color: '#fff', borderRadius: '50%', width: '15px', height: '15px', fontSize: '9px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotif && (
-            <div style={{ position: 'absolute', right: 0, marginTop: '8px', width: '320px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 1000, padding: '12px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px 8px 16px', borderBottom: '1px solid #f1f5f9' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: '#0f172a' }}>Notifications</span>
-                {unreadCount > 0 && (
-                  <button onClick={markAllNotificationsRead} style={{ background: 'none', border: 'none', color: '#0e7490', fontSize: '10px', fontWeight: '700', cursor: 'pointer' }}>
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
-                {notifications.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>
-                    No notifications available
-                  </div>
-                ) : (
-                  notifications.map(n => (
-                    <div key={n.id} style={{ display: 'flex', gap: '8px', padding: '10px 16px', borderBottom: '1px solid #f8fafc', background: n.read ? 'transparent' : '#f0f9ff', position: 'relative' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '11px', fontWeight: '800', color: '#1e293b' }}>{n.title}</div>
-                        <div style={{ fontSize: '10px', color: '#64748b', marginTop: '2px' }}>{n.message}</div>
-                        <div style={{ fontSize: '9px', color: '#94a3b8', marginTop: '4px' }}>{n.time}</div>
-                      </div>
-                      <button onClick={() => clearNotification(n.id)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', alignSelf: 'flex-start', fontSize: '12px', padding: 0 }}>
-                        <FaTimes size={10} />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+          ...
         </div>
+        */}
 
         {/* User Profile / Company Header */}
         <div

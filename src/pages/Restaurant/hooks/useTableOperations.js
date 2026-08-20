@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { useRestaurant } from '../../../context/RestaurantContext';
 import { kotService } from '../../../services/kotService';
+import { printShiftKOT } from '../utils/printInvoice';
 
 export const useTableOperations = (location, navigate) => {
   const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading, activeStoreId } = useRestaurant();
@@ -53,7 +54,7 @@ export const useTableOperations = (location, navigate) => {
       setTables(prev => prev.map(t => {
         const curNum = normalizeNum(t.no || t.table_no || t.id);
         if (t.id === settledId || String(t.id) === String(settledId) || (targetSettledNum !== '00' && curNum === targetSettledNum)) {
-          return { ...t, status: 'PAYMENT_COMPLETED', color: 'green', paidAt: Date.now(), payment_completed_at: Date.now(), remaining_seconds: 60, cleanup_after_seconds: 60, updatedAt: Date.now() };
+          return { ...t, status: 'PAYMENT_COMPLETED', color: 'green', paidAt: Date.now(), payment_completed_at: Date.now(), remaining_seconds: 0, cleanup_after_seconds: 0, updatedAt: Date.now() };
         }
         return t;
       }));
@@ -522,6 +523,9 @@ export const useTableOperations = (location, navigate) => {
     }
 
     try {
+      // Pre-open window synchronously to bypass popup blocker
+      const invoicePrintWindow = window.open('', '_blank', 'width=800,height=600');
+
       const { orderService } = await import('../../../services/orderService');
 
       // 1. Create Bill in PostgreSQL
@@ -546,9 +550,35 @@ export const useTableOperations = (location, navigate) => {
         amount: grandTotal
       });
 
+      // 3. Clear Table instantly
+      const { tableService } = await import('../../../services/tableService');
+      await tableService.patchTableStatus(srcId, {
+        status: 'Blank',
+        amount: 0,
+        waiter: null,
+        customer: 'Walk-in'
+      }).catch(() => {});
+
       await refreshTables();
       setShowSettleSuccess(true);
-      toast(`Payment received. Bill settled in database.`);
+      toast(`Payment received. Bill printed and table cleared.`);
+
+      // 4. Generate Bill Print
+      import('../utils/printInvoice').then(({ printTaxInvoice }) => {
+        printTaxInvoice(createdOrder || {
+          invoice_number: `INV-${orderId}`,
+          table_number: srcId,
+          items: orderItemsMap[srcId] || [],
+          subtotal: subtotal,
+          discount: discount,
+          grand_total: grandTotal,
+          payment_method: paymentMethod,
+          taxes_breakdown: [{ name: 'Tax', rate: 5, amount: gst }]
+        }, invoicePrintWindow);
+      }).catch(e => {
+        console.warn('Failed to load print module:', e);
+        if (invoicePrintWindow) invoicePrintWindow.close();
+      });
     } catch (err) {
       console.error("Error settling payment in database:", err);
       toast(err.response?.data?.message || err.message || "Failed to settle payment in database.");
@@ -589,6 +619,15 @@ export const useTableOperations = (location, navigate) => {
       try {
         await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
         toast(`Moved Table complete order to target table.`);
+        
+        const srcTable = tables.find(t => String(t.id) === String(srcId));
+        const dstTable = tables.find(t => String(t.id) === String(dstId));
+        const fromTableLabel = srcTable?.table_name || `T${parseInt(srcTable?.no || srcId)}`;
+        const toTableLabel = dstTable?.table_name || `T${parseInt(dstTable?.no || dstId)}`;
+        const printItems = srcTable?.kots?.flatMap(k => k.items || []) || [];
+        
+        printShiftKOT({ fromTableLabel, toTableLabel, items: printItems, kotNo: '' });
+
         await refreshTables();
       } catch (err) {
         console.error("Error moving table:", err);
@@ -603,22 +642,37 @@ export const useTableOperations = (location, navigate) => {
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
+      const srcTable = tables.find(t => String(t.id) === String(srcId));
+      const dstTable = tables.find(t => String(t.id) === String(dstId));
+      const fromTableLabel = srcTable?.table_name || `T${parseInt(srcTable?.no || srcId)}`;
+      const toTableLabel = dstTable?.table_name || `T${parseInt(dstTable?.no || dstId)}`;
+
       const selectedKots = Object.keys(selectedTransferKots).filter(k => selectedTransferKots[k]);
       const selectedItemKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0 || selectedTransferItems[k] === true);
 
       try {
+        let printItems = [];
+        let printKotNo = '';
+
         if (selectedKots.length > 0) {
           for (const kotId of selectedKots) {
             await kotService.moveKOT(kotId, { toTableId: dstId, fromTableId: srcId });
           }
           toast(`Moved ${selectedKots.length} KOT(s) to target table.`);
+          printItems = srcTable?.kots?.filter(k => selectedKots.includes(k.id)).flatMap(k => k.items || []) || [];
+          printKotNo = selectedKots.join(', ');
         } else if (selectedItemKeys.length > 0) {
           await kotService.moveItems({ fromTableId: srcId, toTableId: dstId, items: selectedTransferItems });
           toast(`Moved selected items to target table.`);
+          printItems = srcTable?.kots?.flatMap(k => (k.items || []).map((it, idx) => ({ ...it, itemKey: `${k.id}-${idx}` })))?.filter(it => selectedTransferItems[it.itemKey]) || [];
         } else {
           await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
           toast(`Moved order to target table.`);
+          printItems = srcTable?.kots?.flatMap(k => k.items || []) || [];
         }
+
+        printShiftKOT({ fromTableLabel, toTableLabel, items: printItems, kotNo: printKotNo });
+
         await refreshTables();
       } catch (err) {
         console.error("Error moving KOT:", err);

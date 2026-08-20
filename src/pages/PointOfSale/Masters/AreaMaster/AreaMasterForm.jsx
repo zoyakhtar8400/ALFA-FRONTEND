@@ -3,13 +3,17 @@ import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
+import { useRestaurant } from '../../../../context/RestaurantContext';
 
 const AreaMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
+  const { allOutlets } = useRestaurant();
+
   const [fields, setFields] = useState({
     name: '',
     description: '',
     active: 'Yes',
-    isActive: true
+    isActive: true,
+    store_id: ''
   });
 
   useEffect(() => {
@@ -20,6 +24,7 @@ const AreaMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) =
           description: initialData.description || '',
           active: initialData.active || (initialData.isActive !== false ? 'Yes' : 'No'),
           isActive: initialData.active !== 'No' && initialData.isActive !== false,
+          store_id: initialData.store_id || '',
           ...initialData
         });
       } else {
@@ -27,7 +32,8 @@ const AreaMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) =
           name: '',
           description: '',
           active: 'Yes',
-          isActive: true
+          isActive: true,
+          store_id: ''
         });
       }
     }
@@ -65,6 +71,25 @@ const AreaMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) =
                 className="form-input"
                 autoFocus
               />
+            </div>
+
+            {/* Outlet Selection */}
+            <div className="form-field">
+              <label className="form-label">
+                Outlet (Store)
+              </label>
+              <select
+                value={fields.store_id || ''}
+                onChange={(e) => setFields((prev) => ({ ...prev, store_id: e.target.value }))}
+                className="form-select"
+              >
+                <option value="">-- All Outlets / Global --</option>
+                {allOutlets?.map(outlet => (
+                  <option key={outlet.id} value={outlet.id}>
+                    {outlet.store_name || outlet.name || `Outlet ${outlet.id}`}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Active Status */}

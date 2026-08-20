@@ -3,21 +3,22 @@ import CommonModal from '../../../../../components/common/CommonModal';
 import FormCard from '../../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../../components/common/CommonActionButtons';
 
-const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemGroups = [], mainGroups = [] }) => {
+const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemGroups = [], mainGroups = [], outlets = [], taxCategories = [] }) => {
   const [fields, setFields] = useState({
     name: '',
     dispCode: '',
     itemGroup: '',
     mainGroup: '',
     unitType: 'Plate',
-    outlet: 'Main Restaurant',
+    outlet: '',
     price: '',
     category: 'Veg',
     rateEdit: 'No',
     discApp: 'Yes',
     kitchen: 'Main Kitchen',
     status: 'Active',
-    hsnCode: ''
+    hsnCode: '',
+    taxCategory: 'Default 5%'
   });
 
   const groupOptions = itemGroups.map(g => g.name);
@@ -25,13 +26,14 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
 
   useEffect(() => {
     if (isOpen) {
+      const firstOutletId = outlets.length > 0 ? outlets[0].store_id : '';
       setFields(isEdit ? {
         name: '',
         dispCode: '',
         itemGroup: groupOptions[0],
         mainGroup: parentOptions[0],
         unitType: 'Plate',
-        outlet: 'Main Restaurant',
+        outlet: firstOutletId,
         price: '',
         category: 'Veg',
         rateEdit: 'No',
@@ -39,6 +41,7 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
         kitchen: 'Main Kitchen',
         status: 'Active',
         hsnCode: '',
+        taxCategory: 'Default 5%',
         ...initialData
       } : {
         name: '',
@@ -46,17 +49,18 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
         itemGroup: groupOptions[0],
         mainGroup: parentOptions[0],
         unitType: 'Plate',
-        outlet: 'Main Restaurant',
+        outlet: firstOutletId,
         price: '',
         category: 'Veg',
         rateEdit: 'No',
         discApp: 'Yes',
         kitchen: 'Main Kitchen',
         status: 'Active',
-        hsnCode: ''
+        hsnCode: '',
+        taxCategory: 'Default 5%'
       });
     }
-  }, [isOpen, isEdit, initialData, itemGroups, mainGroups]);
+  }, [isOpen, isEdit, initialData, itemGroups, mainGroups, outlets]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -146,16 +150,16 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
               <div className="form-field">
                 <label className="form-label">Outlet *</label>
                 <select
-                  value={fields.outlet || 'Main Restaurant'}
+                  value={fields.outlet || (outlets.length > 0 ? outlets[0].store_id : '')}
                   onChange={(e) => setFields(p => ({ ...p, outlet: e.target.value }))}
                   className="form-select"
                   required
                 >
-                  <option value="Main Restaurant">Main Restaurant</option>
-                  <option value="Bar Outlet">Bar Outlet</option>
-                  <option value="Cafe Outlet">Cafe Outlet</option>
-                  <option value="Banquet Hall">Banquet Hall</option>
-                  <option value="Room Service">Room Service</option>
+                  {outlets.length > 0 ? outlets.map((o) => (
+                    <option key={o.store_id} value={o.store_id}>{o.name}</option>
+                  )) : (
+                    <option value="">Loading outlets...</option>
+                  )}
                 </select>
               </div>
 
@@ -182,6 +186,20 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
                   <option value="Veg">Veg</option>
                   <option value="Non-Veg">Non-Veg</option>
                   <option value="Beverage">Beverage</option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label className="form-label">Tax Category</label>
+                <select
+                  value={fields.taxCategory || 'Default 5%'}
+                  onChange={(e) => setFields(p => ({ ...p, taxCategory: e.target.value }))}
+                  className="form-select"
+                >
+                  {taxCategories.length > 0 ? taxCategories.map((t) => (
+                    <option key={t.id || t.name} value={t.name}>{t.name} ({t.percentage}%)</option>
+                  )) : null}
+                  <option value="Default 5%">Default 5%</option>
                 </select>
               </div>
 

@@ -6,15 +6,6 @@ import TableMasterForm from './TableMasterForm';
 import TableMasterBulkForm from './TableMasterBulkForm';
 import { useTableMaster } from './useTableMaster';
 
-const columns = [
-  { key: 'no', label: 'Table No', sortable: true },
-  { key: 'name', label: 'Table Name', sortable: true },
-  { key: 'department', label: 'Section', sortable: true },
-  { key: 'pax', label: 'PAX', sortable: true, render: (v) => (v !== undefined && v !== null && v !== '') ? `${v} Pax` : '' },
-  { key: 'area', label: 'Area', sortable: true, render: (v, row) => row.area || row.floor || '' },
-  { key: 'status', label: 'Status', sortable: true }
-];
-
 const TableMasterPage = ({ showToast }) => {
   const toastTrigger = useCallback((msg) => {
     if (showToast) showToast(msg);
@@ -29,6 +20,12 @@ const TableMasterPage = ({ showToast }) => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    outletFilter,
+    setOutletFilter,
+    areaFilter,
+    setAreaFilter,
+    outletsList,
+    areasList,
     modal,
     setModal,
     deleteModal,
@@ -39,6 +36,24 @@ const TableMasterPage = ({ showToast }) => {
     handleDelete,
     handleBulkSave
   } = useTableMaster(toastTrigger);
+
+  const columns = [
+    { key: 'no', label: 'Table No', sortable: true },
+    { key: 'name', label: 'Table Name', sortable: true },
+    {
+      key: 'store_id',
+      label: 'Outlet',
+      sortable: true,
+      render: (v) => {
+        const outlet = outletsList.find(o => o.store_id === v || String(o.id) === String(v));
+        return outlet?.store_name || outlet?.name || v || 'Main Restaurant';
+      }
+    },
+    { key: 'department', label: 'Section', sortable: true },
+    { key: 'pax', label: 'PAX', sortable: true, render: (v) => (v !== undefined && v !== null && v !== '') ? `${v} Pax` : '' },
+    { key: 'area', label: 'Area', sortable: true, render: (v, row) => row.area || row.floor || '' },
+    { key: 'status', label: 'Status', sortable: true }
+  ];
 
   const handleOpenAdd = () => {
     setModal({ open: true, isEdit: false, fields: {} });
@@ -71,6 +86,12 @@ const TableMasterPage = ({ showToast }) => {
             className: 'btn-secondary'
           }
         ]}
+        outletFilter={outletFilter}
+        setOutletFilter={setOutletFilter}
+        outletsList={outletsList}
+        areaFilter={areaFilter}
+        setAreaFilter={setAreaFilter}
+        areasList={areasList}
       />
 
       {modal.open && (

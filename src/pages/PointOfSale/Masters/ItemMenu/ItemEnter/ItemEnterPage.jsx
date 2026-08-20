@@ -1,12 +1,14 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { LuUpload } from 'react-icons/lu';
-import { 
-  FaCloudUploadAlt, FaDownload, FaCheckCircle, FaExclamationTriangle, 
+import {
+  FaCloudUploadAlt, FaDownload, FaCheckCircle, FaExclamationTriangle,
   FaFileExcel, FaFileCsv, FaUtensils, FaListAlt, FaLayerGroup, FaRedoAlt, FaArrowRight
 } from 'react-icons/fa';
 import PageHeader from '../../../../../components/common/PageHeader';
 import posApi from '../../../../../api/posApi';
 import { parseExcelOrCsvFile, downloadSampleTemplate, getRowFieldValue } from '../../../../../utils/excelImportUtils';
+import CommonModal from '../../../../../components/common/CommonModal';
+import useOutletFilter from '../../../../../hooks/useOutletFilter';
 
 const ItemEnterPage = ({ showToast }) => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -19,6 +21,11 @@ const ItemEnterPage = ({ showToast }) => {
   const [dbItemGroups, setDbItemGroups] = useState([]);
   const [dbMainGroups, setDbMainGroups] = useState([]);
   const [filterTab, setFilterTab] = useState('ALL');
+
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [targetOutlet, setTargetOutlet] = useState('');
+  const [pendingFile, setPendingFile] = useState(null);
+  const { outlets } = useOutletFilter();
 
   const toastTrigger = useCallback((msg) => {
     if (showToast) showToast(msg);
@@ -180,7 +187,9 @@ const ItemEnterPage = ({ showToast }) => {
           row.__resolvedMainGroup = getRowFieldValue(row, ['MainGroup', 'maingroup', 'main_group']) || 'Food';
           row.__resolvedDispCode = getRowFieldValue(row, ['DispCode', 'dispcode', 'disp_code', 'Code', 'code']) || String(100 + index);
           row.__resolvedUnitType = getRowFieldValue(row, ['UnitType', 'unittype', 'unit_type', 'Unit', 'unit']) || 'Plate';
-          row.__resolvedOutlet = getRowFieldValue(row, ['Outlet', 'outlet']) || 'Main Restaurant';
+          
+          const selectedOutletObj = outlets.find(o => String(o.store_id) === String(targetOutlet));
+          row.__resolvedOutlet = selectedOutletObj ? selectedOutletObj.name : (getRowFieldValue(row, ['Outlet', 'outlet']) || 'Main Restaurant');
           row.__resolvedKitchen = getRowFieldValue(row, ['Kitchen', 'kitchen']) || 'Main Kitchen';
           row.__resolvedRateEdit = getRowFieldValue(row, ['RateEdit', 'rateedit', 'rate_edit']) || 'No';
           row.__resolvedDiscApp = getRowFieldValue(row, ['DiscApp', 'discapp', 'disc_app']) || 'Yes';
@@ -210,6 +219,25 @@ const ItemEnterPage = ({ showToast }) => {
     return true;
   });
 
+  const handleDropzoneClick = (e) => {
+    if (e.target.id === 'posItemFileInputPage') return;
+    e.preventDefault();
+    if (outlets.length > 0) {
+      setTargetOutlet(outlets[0].store_id);
+    }
+    setUploadModalOpen(true);
+  };
+
+  const handleUploadConfirm = () => {
+    setUploadModalOpen(false);
+    if (pendingFile) {
+      handleFileSelect(pendingFile);
+      setPendingFile(null);
+    } else {
+      document.getElementById('posItemFileInputPage').click();
+    }
+  };
+
   const handleUploadToDb = () => {
     const validRows = parsedRows.filter((r) => r.__isValid !== false);
     if (validRows.length === 0) {
@@ -227,7 +255,8 @@ const ItemEnterPage = ({ showToast }) => {
       itemGroup: r.__resolvedGroup,
       mainGroup: r.__resolvedMainGroup,
       unitType: r.__resolvedUnitType,
-      outlet: r.__resolvedOutlet,
+      outlet: targetOutlet || r.__resolvedOutlet || 'STORE_1',
+      store_id: targetOutlet || r.__resolvedOutlet || 'STORE_1',
       kitchen: r.__resolvedKitchen,
       rateEdit: r.__resolvedRateEdit,
       discApp: r.__resolvedDiscApp,
@@ -237,7 +266,7 @@ const ItemEnterPage = ({ showToast }) => {
 
     posApi.uploadItemsCsv(payload)
       .then((res) => {
-        toastTrigger(res?.data?.message || `Successfully imported ${payload.length} menu items with all fields into PostgreSQL!`);
+        toastTrigger(res?.data?.message || `Successfully imported ${payload.length} menu items into PostgreSQL!`);
         setSelectedFile(null);
         setParsedRows([]);
       })
@@ -265,7 +294,7 @@ const ItemEnterPage = ({ showToast }) => {
 
       {/* Main Container Card */}
       <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)', padding: '28px' }}>
-        
+
         {/* Step Indicator & Header Info */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {/* Step 1 Card */}
@@ -331,9 +360,15 @@ const ItemEnterPage = ({ showToast }) => {
           onDrop={(e) => {
             e.preventDefault();
             setDragActive(false);
-            if (e.dataTransfer.files?.[0]) handleFileSelect(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files?.[0]) {
+              setPendingFile(e.dataTransfer.files[0]);
+              if (outlets.length > 0) {
+                setTargetOutlet(outlets[0].store_id);
+              }
+              setUploadModalOpen(true);
+            }
           }}
-          onClick={() => document.getElementById('posItemFileInputPage').click()}
+          onClick={handleDropzoneClick}
           style={{
             border: `2.5px dashed ${dragActive ? '#0e7490' : '#cbd5e1'}`,
             borderRadius: '16px',
@@ -386,14 +421,14 @@ const ItemEnterPage = ({ showToast }) => {
         {/* Parsed Data Preview & Table Section */}
         {parsedRows.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '12px' }}>
-            
+
             {/* Stat Counters & Filters Bar */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '12px 18px', borderRadius: '12px', border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#1e293b' }}>
                   Parsed Summary ({parsedRows.length} Total Rows)
                 </span>
-                
+
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     type="button"
@@ -523,6 +558,50 @@ const ItemEnterPage = ({ showToast }) => {
         )}
 
       </div>
+      {uploadModalOpen && (
+        <CommonModal
+          isOpen={uploadModalOpen}
+          onClose={() => setUploadModalOpen(false)}
+          title="Select Target Outlet for Bulk Import"
+          maxWidth="450px"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '12px 6px' }}>
+            <p style={{ margin: 0, fontSize: '0.86rem', color: '#475569', lineHeight: '1.4' }}>
+              Please select the outlet where you want to insert these menu items:
+            </p>
+
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+              Outlet *
+              <select
+                value={targetOutlet}
+                onChange={(e) => setTargetOutlet(e.target.value)}
+                style={{ padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', outline: 'none' }}
+              >
+                {outlets.map((o) => (
+                  <option key={o.store_id} value={o.store_id}>{o.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setUploadModalOpen(false)}
+                style={{ padding: '8px 16px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUploadConfirm}
+                style={{ padding: '8px 20px', background: '#0e7490', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', cursor: 'pointer' }}
+              >
+                Proceed
+              </button>
+            </div>
+          </div>
+        </CommonModal>
+      )}
     </div>
   );
 };

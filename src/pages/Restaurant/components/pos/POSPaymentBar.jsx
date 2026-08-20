@@ -236,40 +236,6 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
             </button>
           )}
         </div>
-
-        {/* Roomier "Paid" Toggle Pill */}
-        <label style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '7px',
-          cursor: 'pointer',
-          padding: '6px 12px',
-          height: '38px',
-          borderRadius: '8px',
-          background: isPaid ? '#DCFCE7' : '#FFFFFF',
-          border: isPaid ? '1.5px solid #22C55E' : '1px solid #CBD5E1',
-          color: isPaid ? '#15803D' : '#475569',
-          fontWeight: 800,
-          fontSize: '0.82rem',
-          boxShadow: isPaid ? '0 2px 6px rgba(34, 197, 94, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
-          userSelect: 'none',
-          transition: 'all 0.15s ease',
-          whiteSpace: 'nowrap',
-          flexShrink: 0
-        }}>
-          <input
-            type="checkbox"
-            checked={isPaid}
-            onChange={e => onChangeIsPaid(e.target.checked)}
-            style={{
-              width: '16px',
-              height: '16px',
-              cursor: 'pointer',
-              accentColor: '#22C55E'
-            }}
-          />
-          <span>Paid</span>
-        </label>
       </div>
 
       {/* Expandable More Payment Options Panel */}

@@ -61,7 +61,7 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
             </button>
           </div>
 
-          {activeTab === 'overview' && (
+          {/* activeTab === 'overview' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', maxWidth: '100%' }}>
               <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Quick Action:
@@ -91,7 +91,7 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
                 );
               })}
             </div>
-          )}
+          ) */}
         </div>
       </div>
 

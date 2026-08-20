@@ -13,7 +13,9 @@ import DeleteConfirmationModal from '../../../components/common/DeleteConfirmati
 import BookTableModal from '../components/BookTableModal';
 import CommonModal from '../../../components/common/CommonModal';
 import QuickPaymentModal from '../components/QuickPaymentModal';
+import TableMasterForm from '../../PointOfSale/Masters/TableMaster/TableMasterForm';
 import NCReleaseModal from '../components/NCReleaseModal';
+import CancelKOTModal from '../components/CancelKOTModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
@@ -427,11 +429,6 @@ const DisplayTablePage = () => {
 
   // Add Table modal state
   const [addTableModalOpen, setAddTableModalOpen] = useState(false);
-  const [newTableNo, setNewTableNo] = useState('');
-  const [newTableSeats, setNewTableSeats] = useState(4);
-  const [newTableArea, setNewTableArea] = useState('Main Dining Area');
-  const [newTableSection, setNewTableSection] = useState('Main Area');
-  const [newTableError, setNewTableError] = useState('');
 
   const handleBookTable = async (bookingData) => {
     const { tableId, tableNo, tableName, customerName, phone, guestsCount, persons, occasion, bookingDate, bookingTime, checkIn, isToday } = bookingData;
@@ -557,7 +554,7 @@ const DisplayTablePage = () => {
           const u = JSON.parse(userRaw);
           isUserAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (!isUserAdmin) {
         toast("This table has an active Non-Chargeable KOT and cannot be billed.");
@@ -568,7 +565,7 @@ const DisplayTablePage = () => {
       return;
     }
 
-    const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []) : [];
+    const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [];
     const tableRows = isBlankTable ? [] : (
       (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
       (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
@@ -625,7 +622,8 @@ const DisplayTablePage = () => {
             table,
             tableId: table.id,
             tableNumber: `T${table.no}`,
-            rows: tableRows
+            rows: [],
+            existingRows: tableRows
           }
         });
       }
@@ -676,91 +674,33 @@ const DisplayTablePage = () => {
   };
 
   const handleAddNewTable = () => {
-    setNewTableNo('');
-    setNewTableSeats(4);
-    setNewTableArea(dbAreasList[0] || 'Main Dining Area');
-    setNewTableSection('Main Area');
-    setNewTableError('');
     setAddTableModalOpen(true);
   };
 
-  const handleSaveNewTable = async (e) => {
-    e.preventDefault();
-    if (!newTableNo.trim()) {
-      setNewTableError("Table number is required!");
-      return;
-    }
-
-    const tableNum = parseInt(newTableNo);
-    if (isNaN(tableNum) || tableNum <= 0) {
-      setNewTableError("Please enter a valid positive table number!");
-      return;
-    }
-
-    // Check if table number already exists
-    const exists = tables.some(t => parseInt(t.no) === tableNum);
-    if (exists) {
-      setNewTableError(`Table T${String(tableNum).padStart(2, '0')} already exists!`);
-      return;
-    }
-
+  const handleSaveTableFromMaster = async (fields) => {
     try {
-      const userRaw = localStorage.getItem('alfa_user') || localStorage.getItem('user');
-      const selectedOutlet = localStorage.getItem('activeOutletId');
-      let activeStoreId = selectedOutlet || 'STORE_1';
-
-      try {
-        if (userRaw) {
-          const u = JSON.parse(userRaw);
-          const isAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
-          if (isAdmin) {
-            activeStoreId = selectedOutlet || u.store_id || 'STORE_1';
-          } else if (Array.isArray(u.assigned_outlets) && u.assigned_outlets.length > 0) {
-            activeStoreId = (selectedOutlet && u.assigned_outlets.includes(selectedOutlet))
-              ? selectedOutlet
-              : u.assigned_outlets[0];
-          } else {
-            activeStoreId = u.store_id || selectedOutlet || 'STORE_1';
-          }
-        }
-      } catch (e) { }
-
-      const res = await tableService.createTable({
-        table_name: `Table ${tableNum}`,
-        max_person: String(newTableSeats),
+      const activeStoreId = fields.store_id || 'STORE_1';
+      await tableService.createTable({
+        table_name: fields.name || `Table ${fields.no}`,
+        max_person: String(fields.pax || 4),
         department: 1,
-        area: newTableArea,
-        floor: newTableArea,
-        store_id: activeStoreId
+        area: fields.area || 'Main Dining Area',
+        floor: fields.area || 'Main Dining Area',
+        store_id: activeStoreId,
+        no: fields.no
       });
 
-      const createdRecord = res?.table || res?.data || {};
-
-      const newTable = {
-        id: createdRecord.id || Date.now(),
-        no: String(tableNum).padStart(2, '0'),
-        seats: parseInt(newTableSeats) || 4,
-        status: 'Blank',
-        amount: 0,
-        waiter: null,
-        customer: 'Walk-in',
-        area: newTableArea,
-        floor: newTableArea,
-        section: newTableSection,
-        kots: [],
-        kotCount: 0
-      };
-
-      setTables(prev => [...prev, newTable]);
-      setOrderItemsMap(prev => ({
-        ...prev,
-        [newTable.id]: []
-      }));
-
-      toast(`Table T${newTable.no} added successfully to PostgreSQL!`);
+      toast(`Table added successfully!`);
       setAddTableModalOpen(false);
+      refreshTables();
+      
+      // Dispatch events to refresh other views if needed
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tableMasterRefreshed'));
+        window.dispatchEvent(new CustomEvent('areasMasterRefreshed'));
+      }
     } catch (err) {
-      console.error('Error adding table to PostgreSQL:', err);
+      console.error('Error adding table:', err);
       toast("Failed to add table to database.");
     }
   };
@@ -786,6 +726,11 @@ const DisplayTablePage = () => {
       if (list.length > 0) {
         const names = list
           .filter(a => a && (a.active !== 'No' && a.isActive !== false))
+          .filter(a => {
+            if (!activeStoreId) return true;
+            if (!a.store_id || a.store_id === '') return true;
+            return String(a.store_id).replace('STORE_', '') === String(activeStoreId).replace('STORE_', '');
+          })
           .map(a => typeof a === 'string' ? a : (a.name || a.area_name || a.areaName || ''))
           .filter(Boolean);
         setDbAreasList(names);
@@ -793,7 +738,7 @@ const DisplayTablePage = () => {
     } catch (err) {
       console.warn('Error loading areas from Area Master for DisplayTablePage:', err);
     }
-  }, []);
+  }, [activeStoreId]);
 
   useEffect(() => {
     fetchDbAreas();
@@ -882,59 +827,82 @@ const DisplayTablePage = () => {
     });
   }, [tables, selectedDate, todayStr, dateReservations]);
 
-  const filteredData = React.useMemo(() => dateAdjustedTables.filter(t => {
-    const tableNoStr = String(t.no || '');
-    const matchesSearch = !search || tableNoStr.toLowerCase().includes(search.toLowerCase()) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
+  const filteredData = React.useMemo(() => {
+    const result = dateAdjustedTables.filter(t => {
+      const tableNoStr = String(t.no || '');
+      const matchesSearch = !search || tableNoStr.toLowerCase().includes(search.toLowerCase()) || (t.waiter && t.waiter.toLowerCase().includes(search.toLowerCase()));
 
-    // 1. Area filter matching (All Areas / specific area)
-    let matchesArea = true;
-    if (filter && filter !== 'All' && filter !== 'All Areas' && filter !== 'All Floors') {
-      const ta = String(t.area || t.floor || '').toLowerCase().trim();
-      const selA = filter.toLowerCase().trim();
-      const normTa = ta.replace(/\s*(area|floor)\s*$/i, '').trim();
-      const normSel = selA.replace(/\s*(area|floor)\s*$/i, '').trim();
-      matchesArea = ta === selA || normTa === normSel || ta.includes(normSel) || normSel.includes(normTa);
-    }
-
-    // 2. Status filter
-    let matchesStatus = true;
-    if (statusFilter && statusFilter !== 'All') {
-      const st = String(t.status || '').toLowerCase().trim();
-      const hasAmount = Number(t.amount || 0) > 0;
-      const isNCBlocked = st === 'nc_blocked' || st === 'nc' || t.color === 'purple';
-      const isBlank = !isNCBlocked && (!t.status || st === 'blank' || st === 'available' || st === 'white');
-      const isReserved = !isNCBlocked && st === 'reserved';
-      const isPaid = !isNCBlocked && (st === 'paid' || st === 'bill generated');
-      const isCleaning = !isNCBlocked && st === 'cleaning';
-      const isUnpaid = !isNCBlocked && !isReserved && !isPaid && !isCleaning && (st === 'unpaid' || st === 'unpaid_bill' || t.color === 'blue');
-      const isRunning = !isNCBlocked && !isReserved && !isPaid && !isCleaning && !isUnpaid && (st === 'running' || st === 'kot generated' || st === 'kot_cut' || st === 'billed' || st === 'occupied' || hasAmount);
-
-      if (statusFilter === 'Blank') {
-        matchesStatus = isBlank && !hasAmount;
-      } else if (statusFilter === 'Running') {
-        matchesStatus = isRunning;
-      } else if (statusFilter === 'Unpaid') {
-        matchesStatus = isUnpaid;
-      } else if (statusFilter === 'Reserved') {
-        matchesStatus = isReserved;
-      } else if (statusFilter === 'Paid') {
-        matchesStatus = isPaid;
-      } else if (statusFilter === 'Cleaning') {
-        matchesStatus = isCleaning;
-      } else if (statusFilter === 'NC Blocked') {
-        matchesStatus = isNCBlocked;
+      // 1. Area filter matching (All Areas / specific area)
+      let matchesArea = true;
+      if (filter && filter !== 'All' && filter !== 'All Areas' && filter !== 'All Floors') {
+        const ta = String(t.area || t.floor || '').toLowerCase().trim();
+        const selA = filter.toLowerCase().trim();
+        const normTa = ta.replace(/\s*(area|floor)\s*$/i, '').trim();
+        const normSel = selA.replace(/\s*(area|floor)\s*$/i, '').trim();
+        matchesArea = ta === selA || normTa === normSel || ta.includes(normSel) || normSel.includes(ta);
       }
-    }
 
-    return matchesSearch && matchesArea && matchesStatus;
-  }), [dateAdjustedTables, search, filter, statusFilter]);
+      // 2. Status filter
+      let matchesStatus = true;
+      if (statusFilter && statusFilter !== 'All') {
+        const st = String(t.status || '').toLowerCase().trim();
+        const hasAmount = Number(t.amount || 0) > 0;
+        const isNCBlocked = st === 'nc_blocked' || st === 'nc' || t.color === 'purple';
+        const isBlank = !isNCBlocked && (!t.status || st === 'blank' || st === 'available' || st === 'white');
+        const isReserved = !isNCBlocked && st === 'reserved';
+        const isPaid = !isNCBlocked && (st === 'paid' || st === 'bill generated');
+        const isCleaning = !isNCBlocked && st === 'cleaning';
+        const isUnpaid = !isNCBlocked && !isReserved && !isPaid && !isCleaning && (st === 'unpaid' || st === 'unpaid_bill' || t.color === 'blue');
+        const isRunning = !isNCBlocked && !isReserved && !isPaid && !isCleaning && !isUnpaid && (st === 'running' || st === 'kot generated' || st === 'kot_cut' || st === 'billed' || st === 'occupied' || hasAmount);
+
+        if (statusFilter === 'Blank') {
+          matchesStatus = isBlank && !hasAmount;
+        } else if (statusFilter === 'Running') {
+          matchesStatus = isRunning;
+        } else if (statusFilter === 'Unpaid') {
+          matchesStatus = isUnpaid;
+        } else if (statusFilter === 'Reserved') {
+          matchesStatus = isReserved;
+        } else if (statusFilter === 'Paid') {
+          matchesStatus = isPaid;
+        } else if (statusFilter === 'Cleaning') {
+          matchesStatus = isCleaning;
+        } else if (statusFilter === 'NC Blocked') {
+          matchesStatus = isNCBlocked;
+        }
+      }
+
+      return matchesSearch && matchesArea && matchesStatus;
+    });
+
+    // Group tables by area by sorting them
+    return result.sort((a, b) => {
+      let areaA = (a.area || 'Unassigned Area').trim();
+      let areaB = (b.area || 'Unassigned Area').trim();
+
+      if (dbAreasList && dbAreasList.length > 0) {
+        if (!dbAreasList.includes(areaA)) areaA = 'Unassigned Area';
+        if (!dbAreasList.includes(areaB)) areaB = 'Unassigned Area';
+      }
+
+      areaA = areaA.toLowerCase();
+      areaB = areaB.toLowerCase();
+
+      if (areaA < areaB) return -1;
+      if (areaA > areaB) return 1;
+      // If same area, sort by table number
+      const numA = parseInt(String(a.no).replace(/\D/g, '') || '0', 10);
+      const numB = parseInt(String(b.no).replace(/\D/g, '') || '0', 10);
+      return numA - numB;
+    });
+  }, [dateAdjustedTables, search, filter, statusFilter, dbAreasList]);
 
   // Keep refs in sync for keyboard handler (avoids stale closures)
   filteredDataRef.current = filteredData;
   focusedTableIndexRef.current = focusedTableIndex;
 
   return (
-    <div style={{ fontFamily: 'var(--font-family, system-ui)', background: '#fff', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontFamily: 'var(--font-family, system-ui)', background: '#fff', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
       {/* Booking Mode Instruction Banner */}
       {isBookingMode && (
@@ -963,10 +931,63 @@ const DisplayTablePage = () => {
 
       {/* 1. Header Section */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>Display Table</h1>
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          {/* Status Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status:-</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#1e293b',
+                outline: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'border-color 150ms'
+              }}
+            >
+              {STATUS_FILTERS.map(st => (
+                <option key={st} value={st}>
+                  {st === 'All' ? 'All Statuses' : st}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* Area Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Area:-</span>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#1e293b',
+                outline: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                transition: 'border-color 150ms'
+              }}
+            >
+              {dynamicAreas.map(ar => (
+                <option key={ar} value={ar}>
+                  {ar === 'All' ? 'All Areas' : ar}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Table Operations Center */}
           <button
@@ -1040,7 +1061,13 @@ const DisplayTablePage = () => {
               return (
                 <button
                   key={id}
-                  onClick={() => setService(id)}
+                  onClick={() => {
+                    if (id === 'Takeaway' || id === 'Delivery') {
+                      navigate('/restaurant/pos-billing', { state: { serviceType: id, isNewBooking: true, tableNumber: id === 'Takeaway' ? 'Takeaway' : 'Delivery', tableId: id === 'Takeaway' ? 'TK-NEW' : 'DL-NEW' } });
+                    } else {
+                      setService(id);
+                    }
+                  }}
                   style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 150ms ease-in-out', background: isSelected ? '#0f172a' : 'transparent', color: isSelected ? '#fff' : '#64748b' }}
                 >
                   {label}
@@ -1052,65 +1079,7 @@ const DisplayTablePage = () => {
       </div>
 
       {/* 2. Quick Filters, Status Filters and Search */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          {/* Status Filter Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status:-</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#1e293b',
-                outline: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'border-color 150ms'
-              }}
-            >
-              {STATUS_FILTERS.map(st => (
-                <option key={st} value={st}>
-                  {st === 'All' ? 'All Statuses' : st}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Area Filter Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Area:-</span>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#1e293b',
-                outline: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'border-color 150ms'
-              }}
-            >
-              {dynamicAreas.map(ar => (
-                <option key={ar} value={ar}>
-                  {ar === 'All' ? 'All Areas' : ar}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {/* Search box */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1184,16 +1153,8 @@ const DisplayTablePage = () => {
           Unpaid
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#4ade80', border: '1.5px solid #22c55e', display: 'inline-block' }} />
-          Paid
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fb923c', border: '1.5px solid #ea7c1e', display: 'inline-block' }} />
           Reserved
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#c084fc', border: '1.5px solid #a855f7', display: 'inline-block' }} />
-          NC Blocked
         </span>
         <span style={{ marginLeft: 'auto', color: '#94a3b8', fontWeight: 600 }}>
           {selectedDate !== todayStr ? (
@@ -1202,7 +1163,7 @@ const DisplayTablePage = () => {
             </>
           ) : (
             <>
-              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'red' || t.color === 'blue' || t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.order_state === 'UNPAID_BILL').length} Unpaid &nbsp;·&nbsp; {tables.filter(t => t.color === 'purple' || t.status === 'NC_BLOCKED').length} NC Blocked &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
+              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'red' || t.color === 'blue' || t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.order_state === 'UNPAID_BILL').length} Unpaid &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
             </>
           )}
         </span>
@@ -1240,8 +1201,8 @@ const DisplayTablePage = () => {
           flex: 1,
           padding: '20px 20px 36px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-          gap: '26px 14px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+          gap: '20px 10px',
           alignContent: 'start',
           overflowY: 'auto',
         }}>
@@ -1249,57 +1210,90 @@ const DisplayTablePage = () => {
             const isBlank = table.status === 'Blank';
             const isHighlighted = isBookingMode && isBlank;
             const isFaded = isBookingMode && !isBlank;
-            return (
-              <div key={`table-${table.id}-${idx}`} style={{
-                position: 'relative',
-                borderRadius: '8px',
-                border: isHighlighted ? '3px solid #ea580c' : 'none',
-                boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
-                transform: isHighlighted ? 'scale(1.02)' : 'none',
-                opacity: isFaded ? 0.4 : 1,
-                pointerEvents: isFaded ? 'none' : 'auto',
-                transition: 'all 0.2s ease-in-out'
-              }}>
-                <TableCard
-                  table={table}
-                  isSelected={isKeyboardNav && focusedTableIndex === idx}
-                  onClick={() => { setIsKeyboardNav(false); setFocusedTableIndex(idx); handleTableCardClick(table); }}
-                  onView={(e) => {
-                    e?.stopPropagation?.();
-                    const statusUpper = (table.status || table.order_state || '').toUpperCase();
-                    if (statusUpper === 'NC_BLOCKED' || table.color === 'purple') {
-                      toast("This table has an active Non-Chargeable KOT and cannot be billed.");
-                      return;
-                    }
-                    setQuickPaymentTable(table);
-                  }}
-                  onSave={(e) => {
-                    e?.stopPropagation?.();
-                    if (table.status === 'Paid') {
-                      handlePrintPaidTable(table);
-                      return;
-                    }
-                    const tableRows = (
-                      orderItemsMap[table.id] ||
-                      orderItemsMap[table.no] ||
-                      orderItemsMap[String(table.no)] ||
-                      orderItemsMap[Number(table.no)] ||
-                      (table.kots ? table.kots.flatMap(k => k.items || []) : [])
-                    );
-                    const activeKotIds = Array.isArray(table.kots) && table.kots.length > 0
-                      ? table.kots.map(k => k.kotId || k.id || k.kot_no || '').filter(Boolean).join(', ')
-                      : `KOT-${table.no}`;
+            let currentArea = (table.area || 'Unassigned Area').trim();
+            if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(currentArea)) {
+              currentArea = 'Unassigned Area';
+            }
 
-                    printKitchenKOT({
-                      tableId: table.no || table.id,
-                      id: activeKotIds,
-                      items: tableRows,
-                      waiter: table.waiter || 'Staff'
-                    });
-                  }}
-                  onDelete={handleDeleteClick}
-                />
-              </div>
+            let previousArea = null;
+            if (idx > 0) {
+              previousArea = (filteredData[idx - 1].area || 'Unassigned Area').trim();
+              if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(previousArea)) {
+                previousArea = 'Unassigned Area';
+              }
+            }
+
+            const isNewArea = currentArea !== previousArea;
+
+            return (
+              <React.Fragment key={`fragment-${table.id}-${idx}`}>
+                {isNewArea && (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    padding: '8px 4px 4px',
+                    borderBottom: '2px solid #e2e8f0',
+                    marginTop: idx > 0 ? '16px' : '0',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {currentArea}
+                  </div>
+                )}
+                <div key={`table-${table.id}-${idx}`} style={{
+                  position: 'relative',
+                  borderRadius: '8px',
+                  border: isHighlighted ? '3px solid #ea580c' : 'none',
+                  boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
+                  transform: isHighlighted ? 'scale(1.02)' : 'none',
+                  opacity: isFaded ? 0.4 : 1,
+                  pointerEvents: isFaded ? 'none' : 'auto',
+                  transition: 'all 0.2s ease-in-out'
+                }}>
+                  <TableCard
+                    table={table}
+                    isSelected={isKeyboardNav && focusedTableIndex === idx}
+                    onClick={(e, actionType) => {
+                      if (actionType === 'quick_pay') {
+                        e?.stopPropagation?.();
+                        const statusUpper = (table.status || table.order_state || '').toUpperCase();
+                        if (statusUpper === 'NC_BLOCKED' || table.color === 'purple') {
+                          toast("This table has an active Non-Chargeable KOT and cannot be billed.");
+                          return;
+                        }
+                        setQuickPaymentTable(table);
+                      } else {
+                        setIsKeyboardNav(false);
+                        setFocusedTableIndex(idx);
+                        handleTableCardClick(table);
+                      }
+                    }}
+                    onView={(e) => {
+                      e?.stopPropagation?.();
+                      const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [];
+                      const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
+
+                      navigate('/restaurant/pos-billing', {
+                        state: {
+                          table,
+                          tableId: table.id,
+                          tableNumber: `T${table.no}`,
+                          rows: tableRows,
+                          existingRows: [],
+                          isViewMode: true
+                        }
+                      });
+                    }}
+                    onSave={(e) => {
+                      e?.stopPropagation?.();
+                      handlePrintPaidTable(table);
+                    }}
+                    onDelete={handleDeleteClick}
+                  />
+                </div>
+              </React.Fragment>
             );
           })}
 
@@ -1372,126 +1366,15 @@ const DisplayTablePage = () => {
       />
 
       {/* Custom Reason Modal for Table/KOT cancellation */}
-      {kotCancelTable && (
-        <CommonModal
-          isOpen={!!kotCancelTable}
-          onClose={() => setKotCancelTable(null)}
-          title={`Cancel KOTs — Table T${kotCancelTable.no}`}
-          maxWidth="440px"
-        >
-          <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
-            <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#1e293b', fontWeight: 800 }}>
-              why do you want to cancel the kot on Table T{kotCancelTable.no}?
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <textarea
-                placeholder="Enter cancellation reason..."
-                rows={3}
-                value={kotCancelReason}
-                onChange={e => {
-                  setKotCancelReason(e.target.value);
-                  if (e.target.value.trim()) setKotCancelError('');
-                }}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: kotCancelError ? '1.5px solid #ef4444' : '1.5px solid #cbd5e1',
-                  fontSize: '0.85rem',
-                  fontWeight: '700',
-                  outline: 'none',
-                  background: '#f8fafc',
-                  color: '#0f172a',
-                  resize: 'none',
-                  fontFamily: 'inherit'
-                }}
-                autoFocus
-              />
-              {kotCancelError && (
-                <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 700 }}>
-                  {kotCancelError}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '6px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setKotCancelTable(null)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const trimmed = kotCancelReason.trim();
-                  if (!trimmed) {
-                    setKotCancelError("Cancellation reason is required!");
-                    return;
-                  }
-
-                  const table = kotCancelTable;
-                  setKotCancelTable(null);
-
-                  try {
-                    const res = await kotService.getKOTList({ tableId: table.id, active: '1' });
-                    const activeKots = res?.kots || res?.data || [];
-                    if (Array.isArray(activeKots) && activeKots.length > 0) {
-                      for (const kot of activeKots) {
-                        await kotService.deleteKOT(kot.kotId, { reason: trimmed });
-                      }
-                    }
-                  } catch (err) {
-                    console.warn('Error cancelling KOTs before table reset:', err);
-                  }
-
-                  try {
-                    await tableService.patchTableStatus(table.id, { status: 'Blank' });
-                  } catch (err) {
-                    console.warn('Error resetting table status in PostgreSQL:', err);
-                  }
-
-                  setTables(prev => prev.map(t => {
-                    if (t.id === table.id) {
-                      return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
-                    }
-                    return t;
-                  }));
-
-                  setOrderItemsMap(prev => ({
-                    ...prev,
-                    [table.id]: []
-                  }));
-
-                  toast(`Table T${table.no} reset to Blank and all KOTs cancelled.`);
-                }}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: '800',
-                  cursor: 'pointer'
-                }}
-              >
-                Confirm Cancel
-              </button>
-            </div>
-          </div>
-        </CommonModal>
-      )}
+      <CancelKOTModal
+        isOpen={!!kotCancelTable}
+        onClose={() => setKotCancelTable(null)}
+        tableId={kotCancelTable?.id}
+        onCancelSuccess={() => {
+          setKotCancelTable(null);
+          refreshTables();
+        }}
+      />
 
       <NCReleaseModal
         isOpen={!!ncReleaseTable}
@@ -1510,6 +1393,13 @@ const DisplayTablePage = () => {
         tables={tables}
         onBook={handleBookTable}
         initialDate={selectedDate}
+      />
+
+      <TableMasterForm
+        isOpen={addTableModalOpen}
+        onClose={() => setAddTableModalOpen(false)}
+        onSave={handleSaveTableFromMaster}
+        isEdit={false}
       />
 
       {/* Select Table First Dialog */}
@@ -1546,91 +1436,7 @@ const DisplayTablePage = () => {
         </>
       )}
 
-      <CommonModal
-        isOpen={addTableModalOpen}
-        onClose={() => setAddTableModalOpen(false)}
-        title="Add New Dining Table"
-        maxWidth="480px"
-      >
-        <form onSubmit={handleSaveNewTable} style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '8px 4px' }}>
-          {newTableError && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>
-              {newTableError}
-            </div>
-          )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Table Number</label>
-            <input
-              type="text"
-              placeholder="e.g. 13"
-              value={newTableNo}
-              onChange={e => {
-                setNewTableNo(e.target.value);
-                setNewTableError('');
-              }}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
-              required
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Seat Capacity (Pax)</label>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={newTableSeats}
-              onChange={e => setNewTableSeats(parseInt(e.target.value) || 4)}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
-              required
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Area Location</label>
-            <select
-              value={newTableArea}
-              onChange={e => setNewTableArea(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
-            >
-              {dynamicAreas.filter(a => a !== 'All').map(ar => (
-                <option key={ar} value={ar}>{ar}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11px', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>Dining Section</label>
-            <select
-              value={newTableSection}
-              onChange={e => setNewTableSection(e.target.value)}
-              style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: '700', outline: 'none' }}
-            >
-              <option value="Main Area">Main Dining Area</option>
-              <option value="Balcony">Balcony View</option>
-              <option value="Garden">Garden Cafe</option>
-              <option value="Poolside">Poolside Deck</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={() => setAddTableModalOpen(false)}
-              style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}
-            >
-              Save Table
-            </button>
-          </div>
-        </form>
-      </CommonModal>
 
       {/* Global CSS Layout styles */}
       <style>{`
@@ -1756,7 +1562,7 @@ const DisplayTablePage = () => {
                     orderItemsMap[t.no] ||
                     orderItemsMap[String(t.no)] ||
                     orderItemsMap[Number(t.no)] ||
-                    (t.kots ? t.kots.flatMap(k => k.items || []) : [])
+                    (t.kots ? t.kots.flatMap(k => k.items || []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [])
                   );
                   navigate('/restaurant/pos-billing', { state: { table: t, tableId: t.id, tableNumber: t.no, rows: tableRows } });
                 }}
@@ -1780,7 +1586,7 @@ const DisplayTablePage = () => {
           orderItemsMap[quickPaymentTable.no] ||
           orderItemsMap[String(quickPaymentTable.no)] ||
           orderItemsMap[Number(quickPaymentTable.no)] ||
-          (quickPaymentTable.kots ? quickPaymentTable.kots.flatMap(k => k.items || []) : []) ||
+          (quickPaymentTable.kots ? quickPaymentTable.kots.flatMap(k => k.items || []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []) ||
           (quickPaymentTable.items || [])
         ) : []}
         onTableUpdated={refreshTables}
@@ -1788,7 +1594,7 @@ const DisplayTablePage = () => {
       />
 
       {/* Keyboard shortcut hint bar */}
-      <div style={{ padding: '8px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      <div style={{ position: 'sticky', bottom: 0, zIndex: 100, padding: '8px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' }}>
         {[['←→ / ↑↓', 'Navigate'], ['Enter', 'Open Table'], ['F2', 'Book Table'], ['F4', 'Print KOT'], ['F10', 'Quick Bill'], ['Esc', 'Cancel']].map(([key, label]) => (
           <span key={key} style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <kbd style={{ background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'monospace' }}>{key}</kbd>

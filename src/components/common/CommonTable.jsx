@@ -112,7 +112,13 @@ const CommonTable = ({
   emptyMessage = 'No matching records found',
   extraButtons = [],
   showBack = false,
-  onBack = null
+  onBack = null,
+  outletFilter = 'All',
+  setOutletFilter = null,
+  outletsList = [],
+  areaFilter = 'All',
+  setAreaFilter = null,
+  areasList = []
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -381,6 +387,32 @@ const CommonTable = ({
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
+            </select>
+          )}
+
+          {outletsList && setOutletFilter && (
+            <select
+              value={outletFilter}
+              onChange={(e) => setOutletFilter(e.target.value)}
+              className="entries-select"
+            >
+              <option value="All">All Outlets</option>
+              {outletsList.map(o => (
+                <option key={o.store_id} value={o.store_id}>{o.store_name || o.name || o.store_id}</option>
+              ))}
+            </select>
+          )}
+
+          {areasList && setAreaFilter && (
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              className="entries-select"
+            >
+              <option value="All">All Areas</option>
+              {areasList.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
             </select>
           )}
         </div>
