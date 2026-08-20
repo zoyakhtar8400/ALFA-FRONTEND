@@ -869,6 +869,19 @@ const BillingPanel = ({
         </div>
       )}
 
+      {/* Table Selection Modal */}
+      <TableSelector
+        isOpen={isTableModalOpen}
+        onClose={() => setIsTableModalOpen(false)}
+        tablesList={tablesList}
+        currentTableId={assignedTableId}
+        onSelectTable={(t) => {
+          if (typeof setAssignedTableId === 'function') {
+            setAssignedTableId(t.id);
+          }
+        }}
+      />
+
       {/* KOT Print Modal — Multi-printer routing */}
       <KOTPrintModal
         isOpen={showKotPrintModal}

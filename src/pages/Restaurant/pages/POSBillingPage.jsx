@@ -1337,15 +1337,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     // 2. Update Table status in PostgreSQL to KOT_CUT / RUNNING (NO BILL GENERATED)
     try {
       await restaurantApi.patchTableStatus(targetTable?.id || resolvedTableId, {
-        status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE',
-        amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
-        discount_amount: calculatedDiscount,
-        tax_amount: calculatedTax,
-        total_amount: calculatedNetBill,
-        taxes_breakdown: calculatedTaxBreakdown,
-        waiter: waiter || 'Staff',
-        customer: customerName || 'Walk-in',
-        mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : ''
+        status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE'
       });
     } catch (err) { }
 
@@ -1364,7 +1356,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       updatedAt: Date.now()
     };
     toast(`Table T${targetTable?.no || resolvedTableId} saved.`);
-    navigate('/restaurant/display-table', { state: { updatedTable: updatedTableConf, updatedRows: activeRows } });
+    if (!isBillingDesk) {
+      navigate('/restaurant/display-table', { state: { updatedTable: updatedTableConf, updatedRows: activeRows } });
+    }
   };
 
   const handleSaveAndPrint = async () => {
@@ -1381,13 +1375,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const targetTableNo = preselectedTableNumber || routedTable?.no || String(targetTableId || '1');
 
     const resolvedTable = tablesList.find(t => String(t.id) === String(targetTableId) || String(t.no) === String(targetTableId)) || routedTable || { id: targetTableId, no: String(targetTableNo) };
-    const tableNo = String(resolvedTable?.no || targetTableId || '01').replace(/[^0-9]/g, '') || String(targetTableId);
+    const resolvedTableName = resolvedTable.table_name || resolvedTable.no || targetTableNo;
     const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
 
     if (!isNC) {
       // Optimistic table color update to YELLOW immediately
       const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
-      const targetNum = normalizeNum(tableNo || targetTableId);
+      const targetNum = normalizeNum(resolvedTable.no || targetTableId);
       setTablesList(prev => prev.map(t => {
         const curNum = normalizeNum(t.no || t.table_no || t.id);
         if (String(t.id) === String(targetTableId) || (targetNum !== '00' && curNum === targetNum)) {
@@ -1399,6 +1393,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
     // Cut uncut rows to kitchen (only if there are uncut rows)
     const uncutRows = activeRows.filter(r => !r.isCut);
+    if (uncutRows.length === 0) {
+      toast('No new items to KOT. Add new items first.');
+      return;
+    }
+
     const invoiceNo = `KOT-new`;
     let printedKotNo = invoiceNo;
     let groups = [];
@@ -1414,7 +1413,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
       const payloads = groups.map(group =>
         generateKOTPayload({ 
-          tableNo, tableId: targetTableId, kotNo: invoiceNo, group, 
+          tableNo: resolvedTableName, tableId: targetTableId, kotNo: invoiceNo, group, 
           customerName: customerName || 'Walk-in', waiter: activeWaiter, captain,
           remarks: remarks || resolvedTable?.remarks || '' 
         })
@@ -1459,7 +1458,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         // Automatically print KOT to all accessible kitchen stations
         groups.forEach((group, idx) => {
           printKitchenKOT({
-            tableId: String(targetTableNo),
+            tableId: String(resolvedTableName),
             id: printedKotNo,
             items: group.items,
             waiter: activeWaiter,
@@ -1479,43 +1478,37 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
     }
 
-    if (!isNC) {
-      // Persist KOT_CUT state to backend
+    // Persist KOT_CUT state to backend
+    if (targetTableId) {
       try {
-        await restaurantApi.patchTableStatus(targetTableId, {
+        await tableService.patchTableStatus(targetTableId, {
           status: 'KOT_CUT',
-          amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
-          discount_amount: calculatedDiscount,
-          tax_amount: calculatedTax,
-          total_amount: calculatedNetBill,
-          taxes_breakdown: calculatedTaxBreakdown,
-          customer: customerName || 'Walk-in',
-          waiter: activeWaiter
+          amount: finalAmt,
+          waiter: activeWaiter,
+          customer: customerName || 'Walk-in'
         });
-        if (typeof refreshTables === 'function') refreshTables();
       } catch (err) {
         console.warn('Error updating table status to KOT_CUT:', err);
       }
     }
 
-
-
-    // Navigate back showing table details
     const updatedTableForNav = isNC ? (resolvedTable || { id: targetTableId, no: tableNo, status: 'Blank', color: 'white' }) : {
       ...(resolvedTable || { id: targetTableId, no: tableNo }),
       status: 'KOT_CUT',
       color: 'yellow',
       available_actions: ['print_kot', 'view_kot', 'quick_pay'],
-      updatedAt: Date.now(),
-      customer: customerName || resolvedTable?.customer || 'Walk-in',
-      mobile: mobileNumber || resolvedTable?.mobile || '',
-      waiter: activeWaiter,
       amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
+      waiter: activeWaiter,
+      customer: customerName || 'Walk-in',
+      updatedAt: Date.now()
     };
 
     const allAggregatedRows = [...existingRows, ...activeRows.map(r => ({ ...r, isCut: true }))];
-    toast(isNC ? `NC KOT printed for Table T${targetTableNo}.` : `KOTs printed to ${groups.length} station(s) for Table T${targetTableNo}.`);
-    navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
+    toast(isNC ? `NC KOT printed for Table ${resolvedTableName}.` : `KOTs printed to ${groups.length} station(s) for Table ${resolvedTableName}.`);
+    
+    if (!isBillingDesk) {
+      navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
+    }
   };
 
 
@@ -1524,6 +1517,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const invoicePrintWindow = window.open('', '_blank', 'width=800,height=600');
 
     const resolvedId = assignedTableId || routedTable?.id || null;
+    const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedId) || String(t.no) === String(resolvedId)) || routedTable;
+    const resolvedTableName = resolvedTable?.table_name || resolvedTable?.no || preselectedTableNumber || routedTable?.no || '1';
+
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     const allFinalItems = [...existingRows, ...activeRows];
     
@@ -1534,7 +1530,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     try {
       const orderRes = await orderService.createOrder({
         tableId: resolvedId || 1,
-        tableNo: preselectedTableNumber || routedTable?.no || '1',
+        tableNo: resolvedTableName,
         customerName: customerName || 'Walk-in',
         mobileNo: cleanMobile,
         waiter: waiter || 'Staff',
@@ -1585,8 +1581,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       // Auto-print the Tax Invoice / Bill using the pre-opened window
       import('../utils/printInvoice').then(({ printTaxInvoice }) => {
         printTaxInvoice({
-          invoice_number: createdOrderId || `INV-${preselectedTableNumber || resolvedId}`,
-          table_number: preselectedTableNumber || routedTable?.no || '1',
+          invoice_number: createdOrderId || `INV-${resolvedTableName}`,
+          table_number: resolvedTableName,
           customer_name: customerName || 'Walk-in',
           waiter_name: waiter || 'Staff',
           payment_method: 'Unpaid',
@@ -1604,24 +1600,31 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         if (invoicePrintWindow) invoicePrintWindow.close();
       });
 
-      toast(`${serviceType} order settled! Bill printed for Table T${preselectedTableNumber || resolvedId}.`);
+      toast(`${serviceType} order settled! Bill printed for Table ${resolvedTableName}.`);
     } catch (err) {
       console.warn('Error settling order in PostgreSQL:', err);
       if (invoicePrintWindow) invoicePrintWindow.close();
     } finally {
       setIsSettling(false);
-      navigate('/restaurant/display-table', {
-        state: {
-          updatedTable: {
-            id: resolvedId,
-            no: preselectedTableNumber || routedTable?.no || '1',
-            status: 'UNPAID_BILL',
-            color: 'blue',
-            amount: netBill
-          },
-          updatedRows: allFinalItems
-        }
-      });
+      if (isBillingDesk) {
+        setRows(INITIAL_ROWS);
+        setCustomerName('');
+        setMobileNumber('');
+        if (typeof setAssignedTableId === 'function') setAssignedTableId(null);
+      } else {
+        navigate('/restaurant/display-table', {
+          state: {
+            updatedTable: {
+              id: resolvedId,
+              no: preselectedTableNumber || routedTable?.no || '1',
+              status: 'UNPAID_BILL',
+              color: 'blue',
+              amount: netBill
+            },
+            updatedRows: allFinalItems
+          }
+        });
+      }
     }
   };
 

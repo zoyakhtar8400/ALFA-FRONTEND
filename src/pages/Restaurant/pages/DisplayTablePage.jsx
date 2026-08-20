@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import {
   FaSearch,
   FaExchangeAlt,
@@ -33,7 +33,12 @@ import { useRestaurant } from '../../../context/RestaurantContext';
 const DisplayTablePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { outletId } = useParams();
   const { activeStoreId } = useRestaurant();
+
+  const getBillingPath = () => {
+    return outletId ? `/pos/master/outlet/${outletId}/pos-billing` : '/restaurant/pos-billing';
+  };
 
   // Helper to fetch rich details from backend and print instantly
   const handlePrintPaidTable = async (table) => {
@@ -588,7 +593,7 @@ const DisplayTablePage = () => {
         return;
       }
       setIsBookingMode(false);
-      navigate('/restaurant/pos-billing', {
+      navigate(getBillingPath(), {
         state: {
           table,
           tableId: table.id,
@@ -604,7 +609,7 @@ const DisplayTablePage = () => {
       }
 
       if (table.status === 'Blank') {
-        navigate('/restaurant/pos-billing', {
+        navigate(getBillingPath(), {
           state: {
             table,
             tableId: table.id,
@@ -617,7 +622,7 @@ const DisplayTablePage = () => {
         handlePrintPaidTable(table);
       } else {
         // Direct order edit on clicking any running/occupied table!
-        navigate('/restaurant/pos-billing', {
+        navigate(getBillingPath(), {
           state: {
             table,
             tableId: table.id,
@@ -640,7 +645,7 @@ const DisplayTablePage = () => {
       return;
     }
     const rows = orderItemsMap[table.id] || [];
-    navigate('/restaurant/pos-billing', { state: { table, orderRows: rows, autoSettle: true } });
+    navigate(getBillingPath(), { state: { table, orderRows: rows, autoSettle: true } });
   };
 
   const handleDeleteClick = async (table) => {
@@ -693,7 +698,7 @@ const DisplayTablePage = () => {
       toast(`Table added successfully!`);
       setAddTableModalOpen(false);
       refreshTables();
-      
+
       // Dispatch events to refresh other views if needed
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('tableMasterRefreshed'));
@@ -877,12 +882,13 @@ const DisplayTablePage = () => {
 
     // Group tables by area by sorting them
     return result.sort((a, b) => {
-      let areaA = (a.area || 'Unassigned Area').trim();
-      let areaB = (b.area || 'Unassigned Area').trim();
+      const defaultArea = (dbAreasList && dbAreasList.length > 0) ? dbAreasList[0] : 'MAIN RESTAURANT';
+      let areaA = (a.area || defaultArea).trim();
+      let areaB = (b.area || defaultArea).trim();
 
       if (dbAreasList && dbAreasList.length > 0) {
-        if (!dbAreasList.includes(areaA)) areaA = 'Unassigned Area';
-        if (!dbAreasList.includes(areaB)) areaB = 'Unassigned Area';
+        if (!dbAreasList.includes(areaA)) areaA = defaultArea;
+        if (!dbAreasList.includes(areaB)) areaB = defaultArea;
       }
 
       areaA = areaA.toLowerCase();
@@ -1035,14 +1041,14 @@ const DisplayTablePage = () => {
           </button>
 
           {/* Booking List Button — navigates to full Booking List page */}
-          <button
+          {/* <button
             onClick={() => navigate('/restaurant/booking-list')}
             style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #0e7490', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 120ms' }}
             onMouseEnter={e => e.currentTarget.style.background = '#e0f2fe'}
             onMouseLeave={e => e.currentTarget.style.background = '#fff'}
           >
             <FaClipboardList size={12} /> Booking List
-          </button>
+          </button> */}
 
           {/* Add Table Button */}
           <button
@@ -1063,7 +1069,7 @@ const DisplayTablePage = () => {
                   key={id}
                   onClick={() => {
                     if (id === 'Takeaway' || id === 'Delivery') {
-                      navigate('/restaurant/pos-billing', { state: { serviceType: id, isNewBooking: true, tableNumber: id === 'Takeaway' ? 'Takeaway' : 'Delivery', tableId: id === 'Takeaway' ? 'TK-NEW' : 'DL-NEW' } });
+                      navigate(getBillingPath(), { state: { serviceType: id, isNewBooking: true, tableNumber: id === 'Takeaway' ? 'Takeaway' : 'Delivery', tableId: id === 'Takeaway' ? 'TK-NEW' : 'DL-NEW' } });
                     } else {
                       setService(id);
                     }
@@ -1210,16 +1216,17 @@ const DisplayTablePage = () => {
             const isBlank = table.status === 'Blank';
             const isHighlighted = isBookingMode && isBlank;
             const isFaded = isBookingMode && !isBlank;
-            let currentArea = (table.area || 'Unassigned Area').trim();
+            const defaultArea = (dbAreasList && dbAreasList.length > 0) ? dbAreasList[0] : 'MAIN RESTAURANT';
+            let currentArea = (table.area || defaultArea).trim();
             if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(currentArea)) {
-              currentArea = 'Unassigned Area';
+              currentArea = defaultArea;
             }
 
             let previousArea = null;
             if (idx > 0) {
-              previousArea = (filteredData[idx - 1].area || 'Unassigned Area').trim();
+              previousArea = (filteredData[idx - 1].area || defaultArea).trim();
               if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(previousArea)) {
-                previousArea = 'Unassigned Area';
+                previousArea = defaultArea;
               }
             }
 
@@ -1275,7 +1282,7 @@ const DisplayTablePage = () => {
                       const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [];
                       const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
 
-                      navigate('/restaurant/pos-billing', {
+                      navigate(getBillingPath(), {
                         state: {
                           table,
                           tableId: table.id,
@@ -1564,7 +1571,7 @@ const DisplayTablePage = () => {
                     orderItemsMap[Number(t.no)] ||
                     (t.kots ? t.kots.flatMap(k => k.items || []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [])
                   );
-                  navigate('/restaurant/pos-billing', { state: { table: t, tableId: t.id, tableNumber: t.no, rows: tableRows } });
+                  navigate(getBillingPath(), { state: { table: t, tableId: t.id, tableNumber: t.no, rows: tableRows } });
                 }}
                 className="btn btn-primary"
                 style={{ height: '36px', fontSize: '0.8rem', padding: '0 16px', borderRadius: '6px', cursor: 'pointer' }}

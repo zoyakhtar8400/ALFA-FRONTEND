@@ -1,11 +1,10 @@
-export const printShiftKOT = ({ fromTableLabel, toTableLabel, items = [], time, date, kotNo }) => {
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
-  if (!printWindow) return;
+import { posApi } from '../../../api/posApi';
 
+export const printShiftKOT = async ({ fromTableLabel, toTableLabel, items = [], time, date, kotNo, printerName }, preOpenedWindow = null) => {
   const dateTimeStr = (date && time) ? `${date} ${time}` : new Date().toLocaleString('en-IN', { hour12: false });
   const kotDisplay = kotNo ? `KOT - ${kotNo}` : 'Move KOT';
 
-  printWindow.document.write(`
+  const generateHTML = (isBrowser = false) => `
     <!DOCTYPE html>
     <html>
       <head>
@@ -53,14 +52,38 @@ export const printShiftKOT = ({ fromTableLabel, toTableLabel, items = [], time, 
           </table>
           <div class="divider"></div>
         </div>
+        ${isBrowser ? `
         <script>
-          window.onload = function() {
+          setTimeout(function() {
             window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
+          }, 500);
         </script>
+        ` : ''}
       </body>
     </html>
-  `);
-  printWindow.document.close();
+  `;
+
+  try {
+    const desktopHtml = generateHTML(false);
+    const response = await posApi.sendPrintRequest({
+      id: kotNo || 'shift-kot',
+      type: 'shift',
+      html: desktopHtml,
+      printerName: printerName || ''
+    });
+
+    if (response?.data?.success || response?.success) {
+      if (preOpenedWindow) preOpenedWindow.close();
+      return;
+    }
+  } catch (err) {
+    console.warn('Desktop print bridge unavailable, falling back to browser print', err);
+  }
+
+  // Fallback to Browser Print
+  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(generateHTML(true));
+    printWindow.document.close();
+  }
 };

@@ -1,20 +1,19 @@
-/**
- * Prints a dedicated Kitchen Order Ticket (KOT) for kitchen staff.
- */
-export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff', stationName, printerName, remarks = '', isReprint = false, order_type, takeaway_no, delivery_no }, preOpenedWindow = null) => {
-  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-  if (!printWindow) return;
+import { posApi } from '../../../api/posApi';
 
+/**
+ * Generates the raw HTML payload for the KOT.
+ */
+export const generateKitchenKOTHTML = ({ id, tableId, time, items = [], waiter = 'Staff', stationName, printerName, remarks = '', isReprint = false, order_type, takeaway_no, delivery_no, isBrowser = false }) => {
   const now = new Date();
   const dateTimeStr = time || (now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }));
-  const stationHeader = stationName ? `${stationName.toUpperCase()}` : 'MAIN KITCHEN';
-  const printerSub = printerName ? `Printer: ${printerName}` : '';
+  const displayStation = (stationName && stationName.toLowerCase() !== 'unassigned printer') ? `${stationName.toUpperCase()}` : 'MAIN KITCHEN';
+  const printerSub = (printerName && printerName.toLowerCase() !== 'unassigned printer') ? `Printer: ${printerName}` : '';
 
-  printWindow.document.write(`
+  return `
     <!DOCTYPE html>
     <html>
       <head>
-        <title>KOT Ticket - ${id || 'KOT'}${stationName ? ` [${stationName}]` : ''}</title>
+        <title>KOT Ticket - ${id || 'KOT'}${displayStation ? ` [${displayStation}]` : ''}</title>
         <style>
           @page { margin: 0mm; size: auto; }
           body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0; width: 100%; color: #000000; font-size: 13px; background: #ffffff; }
@@ -41,7 +40,7 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
         <div class="invoice-container">
           <div class="text-center">
           <div class="title">KITCHEN ORDER TICKET</div>
-          <div class="station-banner">${stationHeader}</div>
+          <div class="station-banner">${displayStation}</div>
           ${printerSub ? `<div style="font-size: 11px; color: #333;">${printerSub}</div>` : ''}
         </div>
         <div class="divider"></div>
@@ -78,17 +77,71 @@ export const printKitchenKOT = ({ id, tableId, time, items = [], waiter = 'Staff
         <div class="footer">
           <div class="bold">* ${isReprint ? 'REPRINT - ' : ''}KITCHEN COPY *</div>
         </div>
+        ${isBrowser ? `
         <script>
-          window.onload = function() {
+          setTimeout(function() {
             window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
+            // window.close() is removed to allow "Save as PDF" / Print Preview
+          }, 500);
         </script>
+        ` : ''}
         </div>
       </body>
     </html>
-  `);
-  printWindow.document.close();
+  `;
+};
+
+/**
+ * Prints a dedicated Kitchen Order Ticket (KOT) for kitchen staff.
+ */
+export const printKitchenKOT = async (data, preOpenedWindow = null) => {
+  try {
+    // If no physical printer is assigned, default to browser preview
+    if (!data.printerName || data.printerName.toLowerCase() === 'unassigned printer' || !data.printerIp) {
+      data.isBrowser = true;
+    }
+
+    // If browser mode is explicitly requested, fallback to browser print dialog
+    if (data.isBrowser) {
+      const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: true });
+      const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+      }
+      return true;
+    }
+
+    // Default to the backend print API for physical thermal printers
+    const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: false });
+    
+    const payload = {
+      id: `kot-${data.id || Date.now()}`,
+      type: "print",
+      html: htmlContent,
+      printer: data.printerName,
+      printerIp: data.printerIp
+    };
+
+    const response = await posApi.sendPrintRequest(payload);
+    
+    if (response && response.success) {
+      if (window.showToast) window.showToast('✅ KOT Printed Successfully');
+      if (preOpenedWindow) preOpenedWindow.close();
+      return true;
+    }
+  } catch (err) {
+    console.warn('KOT Print API unavailable, falling back to browser print');
+  }
+  
+  // Fallback to browser print on failure or if success is false
+  const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: true });
+  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }
+  return false;
 };
 
 export const printStationKOT = printKitchenKOT;

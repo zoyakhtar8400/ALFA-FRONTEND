@@ -95,7 +95,7 @@ const POSHeader = ({
           }}>
             {getServiceIcon(serviceType)}
             {serviceType}
-            {assignedTableNo ? (/[a-zA-Z]/.test(String(assignedTableNo)) ? ` · ${assignedTableNo}` : ` · T${String(assignedTableNo).replace(/[^0-9]/g, '').padStart(2, '0')}`) : ''}
+            {assignedTableNo ? ` · ${assignedTableNo}` : ''}
           </span>
 
           <button

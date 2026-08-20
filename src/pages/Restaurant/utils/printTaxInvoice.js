@@ -1,14 +1,9 @@
 import companyProfileService from '../../../services/companyProfileService';
+import { posApi } from '../../../api/posApi';
 
-/**
- * Prints an Official Hotel & Restaurant Tax Invoice / Customer Bill.
- * Strictly Monochrome (Black / Grey / White Paper) — No Background Colors or Colored Borders.
- */
 export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   const invoiceData = data?.invoice || data?.data || data || {};
-  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-  if (!printWindow) return;
-
+  
   let companyProfile = {};
   try {
     const res = await companyProfileService.getProfile();
@@ -19,7 +14,7 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
 
   const now = new Date();
   const dateTimeStr = invoiceData.date_time || invoiceData.time || (now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }));
-  const tableNo = invoiceData.table_number || invoiceData.tableNo || invoiceData.table_id || '1';
+  const tableNo = invoiceData.table_name || invoiceData.tableName || invoiceData.table_number || invoiceData.tableNo || invoiceData.table_id || '1';
   const invNo = invoiceData.invoice_number || invoiceData.bill_number || invoiceData.kotId || `INV-${tableNo}`;
   const customerName = invoiceData.customer_name || invoiceData.customerName || 'Walk-in Guest';
   const waiterName = invoiceData.waiter_name || invoiceData.waiter || 'Staff';
@@ -55,7 +50,7 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   const printGstin = invoiceData.gstin || companyProfile.gstin || '27AAAAA0000A1Z5';
   const printFssai = invoiceData.fssai || companyProfile.fssai || '10020021000123';
 
-  printWindow.document.write(`
+  const generateHTML = (isBrowser = false) => `
     <!DOCTYPE html>
     <html>
       <head>
@@ -179,14 +174,38 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
             <div>HAVE A WONDERFUL DAY!</div>
           </div>
         </div>
+        ${isBrowser ? `
         <script>
-          window.onload = function() {
+          setTimeout(function() {
             window.print();
-            setTimeout(function() { window.close(); }, 500);
-          };
+          }, 500);
         </script>
+        ` : ''}
       </body>
     </html>
-  `);
-  printWindow.document.close();
+  `;
+
+  try {
+    const desktopHtml = generateHTML(false);
+    const response = await posApi.sendPrintRequest({
+      id: invNo,
+      type: 'invoice',
+      html: desktopHtml,
+      printerName: invoiceData.printerName || ''
+    });
+
+    if (response?.data?.success || response?.success) {
+      if (preOpenedWindow) preOpenedWindow.close();
+      return;
+    }
+  } catch (err) {
+    console.warn('Desktop print bridge unavailable, falling back to browser print', err);
+  }
+
+  // Fallback to Browser Print
+  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(generateHTML(true));
+    printWindow.document.close();
+  }
 };

@@ -1,8 +1,3 @@
-// ============================================================
-// ALFA HMS — KOT Engine (PostgreSQL-Driven Station Routing)
-// Groups bill items by Production Category → Printer Master
-// and generates separate KOT payloads per station
-// ============================================================
 
 import { printStationKOT } from '../utils/printInvoice';
 
@@ -55,7 +50,7 @@ export function groupItemsByPrinter(
 
   for (const row of activeRows) {
     const rawCatRef = resolveProductionCategory(row, foodItems);
-    
+
     // 1. Match by kitchen_dept ID or name
     let category = null;
     if (rawCatRef !== null && rawCatRef !== undefined && rawCatRef !== '') {
@@ -190,7 +185,9 @@ export function printKOTPayload(payload) {
     waiter: payload.waiter,
     stationName: payload.stationName,
     printerName: payload.printerName,
-    isReprint: payload.isReprint
+    printerIp: payload.printerIp,
+    isReprint: payload.isReprint,
+    isBrowser: payload.isBrowser
   });
   return true;
 }

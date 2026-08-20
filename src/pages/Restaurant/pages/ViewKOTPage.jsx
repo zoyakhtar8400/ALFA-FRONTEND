@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { LuEye, LuPencil, LuTrash2, LuCheck, LuChefHat, LuPrinter, LuRefreshCw } from 'react-icons/lu';
 
 import PageHeader from '../../../components/common/PageHeader';
@@ -24,15 +24,12 @@ const KITCHEN_STATUSES = ['Sent to Kitchen', 'Cooking', 'Ready', 'Served'];
 
 const formatTableNoDisplay = (tableVal) => {
   if (!tableVal) return 'T--';
-  const str = String(tableVal).trim();
-  if (str.startsWith('TK-') || str.startsWith('DL-') || str.toLowerCase().includes('takeaway') || str.toLowerCase().includes('delivery')) return str;
-  const numMatches = str.match(/\d+/);
-  if (numMatches) return `T${numMatches[0].padStart(2, '0')}`;
-  return str.startsWith('T') ? str : `T${str}`;
+  return String(tableVal).trim();
 };
 
 const ViewKOTPage = () => {
   const navigate = useNavigate();
+  const { outletId } = useParams();
   const { tables, setTables, activeStoreId, setOrderItemsMap, refreshTables } = useRestaurant();
 
   const [selected, setSelected]         = useState(null);
@@ -230,7 +227,8 @@ const ViewKOTPage = () => {
   const handleViewInPOS = (kot) => {
     const kotIdVal = kot.kotId || kot.id;
     const activeItems = (kot.items || []).filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
-    navigate(`/restaurant/pos-billing?kotId=${kotIdVal}`, {
+    const basePath = outletId ? `/pos/master/outlet/${outletId}/pos-billing` : '/restaurant/pos-billing';
+    navigate(`${basePath}?kotId=${kotIdVal}`, {
       state: { kotId: kotIdVal, isKotView: true, kot, rows: activeItems }
     });
   };

@@ -72,6 +72,9 @@ export const posApi = {
   getMenuItems: (params) => apiClient.get('/menu-items', { params }),
   saveMenuItem: (data) => apiClient.post('/menu-items', data),
   deleteMenuItem: (id) => apiClient.delete(`/menu-items/${id}`),
+
+  // Printing API
+  sendPrintRequest: (data) => apiClient.post('/v1/print', data),
 };
 
 export default posApi;

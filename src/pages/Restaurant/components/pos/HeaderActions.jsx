@@ -4,13 +4,7 @@ import posApi from '../../../../api/posApi';
 
 const formatTableNoDisplay = (tableVal) => {
   if (!tableVal) return 'Table';
-  const str = String(tableVal).trim();
-  const numMatches = str.match(/\d+/);
-  if (numMatches) {
-    return `T${numMatches[0].padStart(2, '0')}`;
-  }
-  if (str.startsWith('T')) return str;
-  return `T${str}`;
+  return String(tableVal).trim();
 };
 
 const HeaderActions = ({

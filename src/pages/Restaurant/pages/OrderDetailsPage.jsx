@@ -81,13 +81,23 @@ const OrderDetailsPage = ({ showToast }) => {
     try {
       const res = await orderService.getOrderById(row.id);
       const fetchedOrder = res?.order || res?.data;
+      
+      const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || String(t.id) === String(fetchedOrder?.table_id) || t.no === row.tableNo);
+      const displayTableName = matchingTable 
+        ? (matchingTable.table_name || `T${parseInt(matchingTable.no || matchingTable.table_no || '1', 10)}`)
+        : (row.tableNo || '1');
+
       if (fetchedOrder) {
+        fetchedOrder.table_name = displayTableName;
         printTaxInvoice(fetchedOrder, printWindow);
       } else {
+        row.table_name = displayTableName;
         printTaxInvoice(row, printWindow);
       }
     } catch (err) {
       console.warn('Error fetching detailed invoice data:', err);
+      const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || t.no === row.tableNo);
+      row.table_name = matchingTable ? (matchingTable.table_name || `T${matchingTable.no}`) : row.tableNo;
       printTaxInvoice(row, printWindow);
     }
   };
