@@ -175,7 +175,7 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
                 />
               </div>
 
-              <div className="form-field">
+              {/* <div className="form-field">
                 <label className="form-label">Item Category *</label>
                 <select
                   value={fields.category || 'Veg'}
@@ -187,7 +187,7 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
                   <option value="Non-Veg">Non-Veg</option>
                   <option value="Beverage">Beverage</option>
                 </select>
-              </div>
+              </div> */}
 
               <div className="form-field">
                 <label className="form-label">Tax Category</label>
