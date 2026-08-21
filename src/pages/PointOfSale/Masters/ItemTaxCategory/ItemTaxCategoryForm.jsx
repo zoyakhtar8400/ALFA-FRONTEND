@@ -15,22 +15,37 @@ const ItemTaxCategoryForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit
 
   useEffect(() => {
     if (isOpen) {
-      setFields(isEdit ? {
-        name: '',
-        applicableDate: '',
-        department: '',
-        taxes: [],
-        status: 'Active',
-        ...initialData
-      } : {
-        name: '',
-        applicableDate: new Date().toISOString().split('T')[0],
-        department: '',
-        taxes: [
-          { taxName: '', percentage: '', postAccount: '' }
-        ],
-        status: 'Active'
-      });
+      if (isEdit) {
+        let parsedTaxes = [];
+        if (typeof initialData.taxes === 'string') {
+          try {
+            parsedTaxes = JSON.parse(initialData.taxes);
+          } catch (e) {
+            console.error('Failed to parse taxes', e);
+          }
+        } else if (Array.isArray(initialData.taxes)) {
+          parsedTaxes = initialData.taxes;
+        }
+
+        setFields({
+          name: '',
+          applicableDate: '',
+          department: '',
+          status: 'Active',
+          ...initialData,
+          taxes: parsedTaxes
+        });
+      } else {
+        setFields({
+          name: '',
+          applicableDate: new Date().toISOString().split('T')[0],
+          department: '',
+          taxes: [
+            { taxName: '', percentage: '', postAccount: '' }
+          ],
+          status: 'Active'
+        });
+      }
     }
   }, [isOpen, isEdit, initialData]);
 
