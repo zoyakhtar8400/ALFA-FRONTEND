@@ -66,10 +66,11 @@ export const printShiftKOT = async ({ fromTableLabel, toTableLabel, items = [], 
   try {
     const desktopHtml = generateHTML(false);
     const response = await posApi.sendPrintRequest({
-      id: kotNo || 'shift-kot',
-      type: 'shift',
+      id: 'print-test',
+      type: 'print',
       html: desktopHtml,
-      printerName: printerName || ''
+      printerName: printerName || '',
+      converttoPdf: false
     });
 
     if (response?.data?.success || response?.success) {

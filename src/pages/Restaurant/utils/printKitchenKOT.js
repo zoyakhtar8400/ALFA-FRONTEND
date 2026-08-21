@@ -3,7 +3,7 @@ import { posApi } from '../../../api/posApi';
 /**
  * Generates the raw HTML payload for the KOT.
  */
-export const generateKitchenKOTHTML = ({ id, tableId, time, items = [], waiter = 'Staff', stationName, printerName, remarks = '', isReprint = false, order_type, takeaway_no, delivery_no, isBrowser = false }) => {
+export const generateKitchenKOTHTML = ({ id, tableId, time, items = [], waiter = 'Staff', stationName, printerName, remarks = '', isReprint = false, order_type, takeaway_no, delivery_no, isBrowser = false, store_id, storeId, guests, type }) => {
   const now = new Date();
   const dateTimeStr = time || (now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }));
   const displayStation = (stationName && stationName.toLowerCase() !== 'unassigned printer') ? `${stationName.toUpperCase()}` : 'MAIN KITCHEN';
@@ -13,79 +13,178 @@ export const generateKitchenKOTHTML = ({ id, tableId, time, items = [], waiter =
     <!DOCTYPE html>
     <html>
       <head>
-        <title>KOT Ticket - ${id || 'KOT'}${displayStation ? ` [${displayStation}]` : ''}</title>
+        <title>KOT Ticket - ${id || 'KOT'}</title>
         <style>
-          @page { margin: 0mm; size: auto; }
-          body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0; width: 100%; color: #000000; font-size: 13px; background: #ffffff; }
+          @page {
+            margin: 0mm;
+            size: 80mm auto;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 0;
+            width: 80mm;
+            max-width: 80mm;
+            color: #000000;
+            font-size: 13px;
+            background: #ffffff;
+          }
           .invoice-container {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 2mm 4mm !important;
-            box-sizing: border-box !important;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0;
+            padding: 4mm 4mm;
           }
           .text-center { text-align: center; }
           .bold { font-weight: bold; }
-          .divider { border-top: 1.5px dashed #000000; margin: 6px 0; }
-          .title { font-size: 17px; font-weight: bold; }
-          .station-banner { font-size: 15px; font-weight: 900; background: #000; color: #fff; padding: 4px 6px; margin: 4px 0; letter-spacing: 0.5px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          th { border-bottom: 2px solid #000000; text-align: left; padding: 4px 0; font-size: 13px; color: #000000; }
-          td { padding: 6px 0; vertical-align: top; font-size: 13px; color: #000000; }
-          .qty { font-size: 16px; font-weight: 900; width: 45px; }
-          .footer { border-top: 1.5px dashed #000000; padding-top: 8px; margin-top: 12px; text-align: center; font-size: 11px; }
+          .divider {
+            border: none;
+            border-top: 1px dashed #000000;
+            margin: 6px 0;
+          }
+          .title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 4px;
+          }
+          .subtitle {
+            font-size: 13px;
+            margin-bottom: 6px;
+          }
+          
+          /* Order Info Flex Layout */
+          .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            line-height: 1.6;
+          }
+          .info-label {
+            font-weight: bold;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 4px;
+          }
+          th {
+            border-top: 1px dashed #000000;
+            border-bottom: 1px solid #000000;
+            padding: 4px 0;
+            font-size: 13px;
+            color: #000000;
+            font-weight: bold;
+          }
+          .th-left { text-align: left; }
+          .th-right { text-align: right; }
+          
+          td {
+            padding: 6px 0;
+            vertical-align: top;
+            font-size: 13px;
+            color: #000000;
+          }
+          .qty {
+            font-weight: bold;
+            text-align: right;
+            white-space: nowrap;
+          }
+          .item-name {
+            word-break: break-word;
+          }
+          .item-remark {
+            font-size: 11px;
+            font-style: italic;
+            display: block;
+            margin-top: 2px;
+          }
+          .footer {
+            border-top: 1px dashed #000000;
+            padding-top: 6px;
+            margin-top: 6px;
+            text-align: center;
+            font-size: 11px;
+          }
         </style>
       </head>
       <body>
         <div class="invoice-container">
+
+          <!-- Header -->
           <div class="text-center">
-          <div class="title">KITCHEN ORDER TICKET</div>
-          <div class="station-banner">${displayStation}</div>
-          ${printerSub ? `<div style="font-size: 11px; color: #333;">${printerSub}</div>` : ''}
-        </div>
-        <div class="divider"></div>
-        <div>
-          <div><strong>KOT No:</strong> ${id || 'KOT-101'} ${isReprint ? '<span style="background:#000;color:#fff;padding:1px 4px;font-size:10px;border-radius:2px;">REPRINT</span>' : ''}</div>
-          ${order_type === 'Takeaway' ? `<div><strong>Takeaway No:</strong> ${takeaway_no || tableId}</div>` : order_type === 'Delivery' ? `<div><strong>Delivery No:</strong> ${delivery_no || tableId}</div>` : `<div><strong>Table:</strong> Table ${tableId || '1'}</div>`}
-          <div><strong>Time:</strong> ${dateTimeStr}</div>
-          <div><strong>Server:</strong> ${waiter}</div>
-          ${remarks ? `<div><strong>Remarks:</strong> ${remarks}</div>` : ''}
-        </div>
-        <div class="divider"></div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 45px;">QTY</th>
-              <th>ITEM DESCRIPTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => {
+            <div class="title">KOT RECEIPT</div>
+            <div class="subtitle">Outlet: ${storeId || store_id || 'Restaurant'}</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Order Info -->
+          <div class="info-row">
+            <span class="info-label">Table:</span>
+            <span>${order_type === 'Takeaway' ? 'Takeaway ' + (takeaway_no || tableId) : order_type === 'Delivery' ? 'Delivery ' + (delivery_no || tableId) : 'Table ' + (tableId || '1')}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Steward:</span>
+            <span>${waiter}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Guests:</span>
+            <span>${guests || '1'} pax</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Type:</span>
+            <span>${type || order_type || 'Chargeable'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Time:</span>
+            <span>${dateTimeStr}</span>
+          </div>
+          <div class="info-row" style="display: ${id ? 'flex' : 'none'};">
+            <span class="info-label">KOT#:</span>
+            <span>${id || 'KOT-101'} ${isReprint ? '(REPRINT)' : ''}</span>
+          </div>
+
+          <!-- Items Table -->
+          <table>
+            <thead>
+              <tr>
+                <th class="th-left">Item</th>
+                <th class="th-right" style="width:40px;">Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(item => {
     const displayName = (item.itemName || item.name || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '');
     return `
                 <tr>
-                  <td class="qty">x${item.qty || item.quantity || 1}</td>
                   <td>
-                    <strong>${displayName}</strong>
-                    ${item.remarks || item.remark ? `<br/><span style="font-size: 11px; font-style: italic;">* ${item.remarks || item.remark}</span>` : ''}
+                    <div class="item-name">${displayName}</div>
+                    ${item.remarks || item.remark ? `<div class="item-remark">* ${item.remarks || item.remark}</div>` : ''}
                   </td>
+                  <td class="qty">${item.qty || item.quantity || 1}</td>
                 </tr>
               `;
   }).join('')}
-          </tbody>
-        </table>
-        <div class="footer">
-          <div class="bold">* ${isReprint ? 'REPRINT - ' : ''}KITCHEN COPY *</div>
+            </tbody>
+          </table>
+
+          <!-- Footer -->
+          <div class="footer">
+            <div>AlfaPos Cloud System</div>
+          </div>
+
         </div>
         ${isBrowser ? `
         <script>
           setTimeout(function() {
             window.print();
-            // window.close() is removed to allow "Save as PDF" / Print Preview
           }, 500);
         </script>
         ` : ''}
-        </div>
       </body>
     </html>
   `;
@@ -99,12 +198,13 @@ export const printKitchenKOT = async (data, preOpenedWindow = null) => {
     const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: false });
     
     const payload = {
-      id: `kot-${data.id || Date.now()}`,
+      ...data,
+      id: "print-test",
       type: "print",
       html: htmlContent,
       printer: data.printerName,
       printerIp: data.printerIp,
-      converttoPdf: true
+      converttoPdf: false
     };
 
     const response = await posApi.sendPrintRequest(payload);
@@ -127,3 +227,4 @@ export const printKitchenKOT = async (data, preOpenedWindow = null) => {
 };
 
 export const printStationKOT = printKitchenKOT;
+

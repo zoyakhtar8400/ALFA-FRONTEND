@@ -196,10 +196,11 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   try {
     const desktopHtml = generateHTML(false);
     const response = await posApi.sendPrintRequest({
-      id: invNo,
-      type: 'invoice',
+      id: 'print-test',
+      type: 'print',
       html: desktopHtml,
-      printerName: invoiceData.printerName || ''
+      printerName: invoiceData.printerName || '',
+      converttoPdf: false
     });
 
     if (response?.data?.success || response?.success) {

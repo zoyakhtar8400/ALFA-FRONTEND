@@ -73,49 +73,7 @@ export const posApi = {
   saveMenuItem: (data) => apiClient.post('/menu-items', data),
   deleteMenuItem: (id) => apiClient.delete(`/menu-items/${id}`),
 
-  sendPrintRequest: async (data) => {
-    return new Promise((resolve, reject) => {
-      try {
-        const ws = new WebSocket('ws://localhost:8989');
-
-        ws.onopen = () => {
-          const payload = {
-            ...data,
-            id: 'print-test',
-            type: 'print'
-          };
-          ws.send(JSON.stringify(payload));
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const response = JSON.parse(event.data);
-            resolve(response);
-            ws.close();
-          } catch (e) {
-            resolve({ success: false, error: 'Invalid response from print server' });
-            ws.close();
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error("WebSocket Print Error:", error);
-          resolve({ success: false, error: 'Failed to connect to print server' });
-        };
-
-        // Timeout in case no response
-        setTimeout(() => {
-          if (ws.readyState !== WebSocket.CLOSED) {
-            ws.close();
-            resolve({ success: false, error: 'Print request timed out' });
-          }
-        }, 5000);
-
-      } catch (err) {
-        resolve({ success: false, error: err.message });
-      }
-    });
-  },
+  sendPrintRequest: (data) => apiClient.post('/v1/print/send-print-request', data),
 };
 
 export default posApi;
