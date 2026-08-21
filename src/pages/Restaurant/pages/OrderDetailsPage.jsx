@@ -81,9 +81,9 @@ const OrderDetailsPage = ({ showToast }) => {
     try {
       const res = await orderService.getOrderById(row.id);
       const fetchedOrder = res?.order || res?.data;
-      
+
       const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || String(t.id) === String(fetchedOrder?.table_id) || t.no === row.tableNo);
-      const displayTableName = matchingTable 
+      const displayTableName = matchingTable
         ? (matchingTable.table_name || `T${parseInt(matchingTable.no || matchingTable.table_no || '1', 10)}`)
         : (row.tableNo || '1');
 
@@ -133,12 +133,12 @@ const OrderDetailsPage = ({ showToast }) => {
         </button>
       )
     },
-    { 
-      key: 'tableNo', 
+    {
+      key: 'tableNo',
       label: 'Table No',
       render: (val, row) => {
         const matchingTable = tables.find(t => String(t.id) === String(row.table_id) || t.no === val);
-        const displayTableName = matchingTable 
+        const displayTableName = matchingTable
           ? (matchingTable.table_name || `T${parseInt(matchingTable.no || matchingTable.table_no || '1', 10)}`)
           : val;
         return (
@@ -161,7 +161,7 @@ const OrderDetailsPage = ({ showToast }) => {
     { key: 'amount', label: 'Amount', render: (val) => `₹${Number(val).toFixed(2)}` },
     { key: 'customerName', label: 'Customer Name' },
     { key: 'mobileNo', label: 'Mobile No' },
-    { key: 'payment_status', label: 'Payment Status', renderStatus: true, activeValue: 'Paid' },
+    // { key: 'payment_status', label: 'Payment Status', renderStatus: true, activeValue: 'Paid' },
     { key: 'action', label: 'Action', sortable: false }
   ];
 

@@ -97,7 +97,7 @@ export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = fal
         : `<div>TABLE: ${tableNo} &nbsp;|&nbsp; SERVER: ${waiterName.toUpperCase()}</div>`
     }
             <div>CUSTOMER: ${customerName.toUpperCase()}</div>
-            <div>DATE: ${dateTimeStr} &nbsp;|&nbsp; STATUS: [${(invoiceData.payment_status || 'PAID').toUpperCase()}]</div>
+            <div>DATE: ${dateTimeStr} </div>
           </div>
 
           <table>
@@ -178,7 +178,7 @@ export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = fal
 
 export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   const invoiceData = data?.invoice || data?.data || data || {};
-  
+
   let companyProfile = {};
   try {
     const res = await companyProfileService.getProfile();
