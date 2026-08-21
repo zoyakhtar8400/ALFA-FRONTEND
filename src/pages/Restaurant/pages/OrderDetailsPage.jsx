@@ -72,7 +72,7 @@ const OrderDetailsPage = ({ showToast }) => {
   }, [activeStoreId]);
 
   const handleOpenInvoice = async (row) => {
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const printWindow = null;
     if (printWindow) {
       printWindow.document.write('<html><head><title>Loading...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#ffffff;color:#333;"><div>Generating print layout, please wait...</div></body></html>');
       printWindow.document.close();

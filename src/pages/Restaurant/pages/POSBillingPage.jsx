@@ -1170,7 +1170,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const groups = groupItemsByPrinter(rowsToCut, allMenuItems, dbCategories, dbPrinters);
 
     // Pre-open print windows synchronously to bypass browser popup blockers
-    const printWindows = groups.map(() => window.open('', '_blank', 'width=800,height=600'));
+    const printWindows = groups.map(() => null);
 
     const payloads = groups.map(group =>
       generateKOTPayload({
@@ -1409,7 +1409,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       groups = groupItemsByPrinter(uncutRows, allMenuItems, dbCategories, dbPrinters);
       
       // Pre-open print windows synchronously to bypass browser popup blockers
-      const printWindows = groups.map(() => window.open('', '_blank', 'width=800,height=600'));
+      const printWindows = groups.map(() => null);
 
       const payloads = groups.map(group =>
         generateKOTPayload({ 
@@ -1433,7 +1433,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         const kotResult = await kotService.createKOT({
           kotNo: invoiceNo,
           tableId: Number(targetTableId) || 1,
-          tableNo,
+          tableNo: targetTableNo,
           customerName: customerName || 'Walk-in',
           mobileNo: mobileNumber || '',
           waiter: activeWaiter,
@@ -1492,8 +1492,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
     }
 
-    const updatedTableForNav = isNC ? (resolvedTable || { id: targetTableId, no: tableNo, status: 'Blank', color: 'white' }) : {
-      ...(resolvedTable || { id: targetTableId, no: tableNo }),
+    const updatedTableForNav = isNC ? (resolvedTable || { id: targetTableId, no: targetTableNo, status: 'Blank', color: 'white' }) : {
+      ...(resolvedTable || { id: targetTableId, no: targetTableNo }),
       status: 'KOT_CUT',
       color: 'yellow',
       available_actions: ['print_kot', 'view_kot', 'quick_pay'],
@@ -1513,8 +1513,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
 
   const handleDirectComplete = async () => {
-    // Pre-open print window synchronously to bypass popup blocker
-    const invoicePrintWindow = window.open('', '_blank', 'width=800,height=600');
+    // Open print window first (synchronous action) to avoid popup blocker
+    const invoicePrintWindow = null;
 
     const resolvedId = assignedTableId || routedTable?.id || null;
     const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedId) || String(t.no) === String(resolvedId)) || routedTable;

@@ -16,10 +16,11 @@ import QuickPaymentModal from '../components/QuickPaymentModal';
 import TableMasterForm from '../../PointOfSale/Masters/TableMaster/TableMasterForm';
 import NCReleaseModal from '../components/NCReleaseModal';
 import CancelKOTModal from '../components/CancelKOTModal';
+import InvoicePreviewModal from '../components/InvoicePreviewModal';
 
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
-import { printTaxInvoice, printKitchenKOT } from '../utils/printInvoice';
+import { printTaxInvoice, printKitchenKOT, generateInvoiceHTML } from '../utils/printInvoice';
 import { orderService } from '../../../services/orderService';
 import { tableService } from '../../../services/tableService';
 import { kotService } from '../../../services/kotService';
@@ -40,36 +41,46 @@ const DisplayTablePage = () => {
     return outletId ? `/pos/master/outlet/${outletId}/pos-billing` : '/restaurant/pos-billing';
   };
 
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHtmlContent, setPreviewHtmlContent] = useState('');
+  const [previewInvoiceData, setPreviewInvoiceData] = useState(null);
+
   // Helper to fetch rich details from backend and print instantly
   const handlePrintPaidTable = async (table) => {
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    if (printWindow) {
-      printWindow.document.write('<html><head><title>Loading...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#ffffff;color:#333;"><div>Generating print layout, please wait...</div></body></html>');
-      printWindow.document.close();
-    }
-
     try {
       const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
       const res = await orderService.getOrderById(targetId);
-      const fetchedOrder = res?.order || res?.data;
-      if (fetchedOrder) {
-        printTaxInvoice(fetchedOrder, printWindow);
-      } else {
-        printTaxInvoice({
+      let fetchedOrder = res?.order || res?.data;
+      if (!fetchedOrder) {
+        fetchedOrder = {
           tableNo: table.no,
           kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
-          items: orderItemsMap[table.id] || [],
-          status: table.status
-        }, printWindow);
+          customerName: table.customer_name || 'Walk-in',
+          waiterName: table.waiter_name || 'Staff',
+          subtotal: table.amount,
+          amount: table.amount,
+          items: [],
+          printerName: table.printerName || ''
+        };
       }
+      
+      const { default: companyProfileService } = await import('../../../services/companyProfileService');
+      let companyProfile = {};
+      try {
+        const cpRes = await companyProfileService.getProfile();
+        companyProfile = cpRes?.data || cpRes?.companyProfile || (cpRes && cpRes.id ? cpRes : {});
+      } catch (err) {
+        console.warn('Failed to load company profile for print:', err);
+      }
+
+      const html = generateInvoiceHTML(fetchedOrder, companyProfile, false);
+      setPreviewHtmlContent(html);
+      setPreviewInvoiceData({ ...fetchedOrder, printerName: table.printerName || '' });
+      setPreviewModalOpen(true);
+      
     } catch (err) {
-      console.warn('Error fetching detailed table invoice:', err);
-      printTaxInvoice({
-        tableNo: table.no,
-        kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
-        items: orderItemsMap[table.id] || [],
-        status: table.status
-      }, printWindow);
+      console.warn('Direct print failed', err);
+      if (window.showToast) window.showToast('Failed to generate bill preview');
     }
   };
 
@@ -1400,6 +1411,16 @@ const DisplayTablePage = () => {
         tables={tables}
         onBook={handleBookTable}
         initialDate={selectedDate}
+      />
+
+      <InvoicePreviewModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        htmlContent={previewHtmlContent}
+        onPrint={() => {
+          setPreviewModalOpen(false);
+          printTaxInvoice(previewInvoiceData);
+        }}
       />
 
       <TableMasterForm

@@ -75,15 +75,15 @@ export const printShiftKOT = async ({ fromTableLabel, toTableLabel, items = [], 
     if (response?.data?.success || response?.success) {
       if (preOpenedWindow) preOpenedWindow.close();
       return;
+    } else {
+      if (window.showToast) window.showToast('❌ ' + (response?.error || 'Print job failed'));
+      if (preOpenedWindow) preOpenedWindow.close();
+      return;
     }
   } catch (err) {
-    console.warn('Desktop print bridge unavailable, falling back to browser print', err);
-  }
-
-  // Fallback to Browser Print
-  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-  if (printWindow) {
-    printWindow.document.write(generateHTML(true));
-    printWindow.document.close();
+    console.warn('Print API unavailable:', err);
+    if (window.showToast) window.showToast('❌ Print API unavailable');
+    if (preOpenedWindow) preOpenedWindow.close();
+    return;
   }
 };

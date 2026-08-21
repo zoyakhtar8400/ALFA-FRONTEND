@@ -1,16 +1,7 @@
 import companyProfileService from '../../../services/companyProfileService';
 import { posApi } from '../../../api/posApi';
 
-export const printTaxInvoice = async (data, preOpenedWindow = null) => {
-  const invoiceData = data?.invoice || data?.data || data || {};
-  
-  let companyProfile = {};
-  try {
-    const res = await companyProfileService.getProfile();
-    companyProfile = res?.data || res?.companyProfile || (res && res.id ? res : {});
-  } catch (err) {
-    console.warn('Failed to load company profile for print:', err);
-  }
+export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = false) => {
 
   const now = new Date();
   const dateTimeStr = invoiceData.date_time || invoiceData.time || (now.toLocaleDateString('en-IN') + ' ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }));
@@ -18,7 +9,6 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   const invNo = invoiceData.invoice_number || invoiceData.bill_number || invoiceData.kotId || `INV-${tableNo}`;
   const customerName = invoiceData.customer_name || invoiceData.customerName || 'Walk-in Guest';
   const waiterName = invoiceData.waiter_name || invoiceData.waiter || 'Staff';
-  const paymentMethod = invoiceData.payment_method || invoiceData.paymentMethod || 'Cash';
   const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
 
   let calculatedSubtotal = 0;
@@ -50,7 +40,7 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
   const printGstin = invoiceData.gstin || companyProfile.gstin || '27AAAAA0000A1Z5';
   const printFssai = invoiceData.fssai || companyProfile.fssai || '10020021000123';
 
-  const generateHTML = (isBrowser = false) => `
+  return `
     <!DOCTYPE html>
     <html>
       <head>
@@ -184,6 +174,24 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
       </body>
     </html>
   `;
+};
+
+export const printTaxInvoice = async (data, preOpenedWindow = null) => {
+  const invoiceData = data?.invoice || data?.data || data || {};
+  
+  let companyProfile = {};
+  try {
+    const res = await companyProfileService.getProfile();
+    companyProfile = res?.data || res?.companyProfile || (res && res.id ? res : {});
+  } catch (err) {
+    console.warn('Failed to load company profile for print:', err);
+  }
+
+  const generateHTML = (isBrowser = false) => {
+    return generateInvoiceHTML(invoiceData, companyProfile, isBrowser);
+  };
+
+  const invNo = invoiceData.invoice_number || invoiceData.bill_number || invoiceData.kotId || `INV-${invoiceData.table_name || invoiceData.table_number || invoiceData.tableNo || '1'}`;
 
   try {
     const desktopHtml = generateHTML(false);
@@ -196,16 +204,17 @@ export const printTaxInvoice = async (data, preOpenedWindow = null) => {
 
     if (response?.data?.success || response?.success) {
       if (preOpenedWindow) preOpenedWindow.close();
+      if (window.showToast) window.showToast('✅ Invoice print request sent successfully');
+      return;
+    } else {
+      if (window.showToast) window.showToast('❌ ' + (response?.error || 'Print job failed'));
+      if (preOpenedWindow) preOpenedWindow.close();
       return;
     }
   } catch (err) {
-    console.warn('Desktop print bridge unavailable, falling back to browser print', err);
-  }
-
-  // Fallback to Browser Print
-  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-  if (printWindow) {
-    printWindow.document.write(generateHTML(true));
-    printWindow.document.close();
+    console.warn('Print API unavailable:', err);
+    if (window.showToast) window.showToast('❌ Print API unavailable');
+    if (preOpenedWindow) preOpenedWindow.close();
+    return;
   }
 };

@@ -96,23 +96,6 @@ export const generateKitchenKOTHTML = ({ id, tableId, time, items = [], waiter =
  */
 export const printKitchenKOT = async (data, preOpenedWindow = null) => {
   try {
-    // If no physical printer is assigned, default to browser preview
-    if (!data.printerName || data.printerName.toLowerCase() === 'unassigned printer' || !data.printerIp) {
-      data.isBrowser = true;
-    }
-
-    // If browser mode is explicitly requested, fallback to browser print dialog
-    if (data.isBrowser) {
-      const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: true });
-      const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-      }
-      return true;
-    }
-
-    // Default to the backend print API for physical thermal printers
     const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: false });
     
     const payload = {
@@ -120,28 +103,27 @@ export const printKitchenKOT = async (data, preOpenedWindow = null) => {
       type: "print",
       html: htmlContent,
       printer: data.printerName,
-      printerIp: data.printerIp
+      printerIp: data.printerIp,
+      converttoPdf: true
     };
 
     const response = await posApi.sendPrintRequest(payload);
     
     if (response && response.success) {
-      if (window.showToast) window.showToast('✅ KOT Printed Successfully');
+      if (window.showToast) window.showToast('✅ Print request sent successfully');
       if (preOpenedWindow) preOpenedWindow.close();
       return true;
+    } else {
+      if (window.showToast) window.showToast('❌ ' + (response?.error || 'Print job failed'));
+      if (preOpenedWindow) preOpenedWindow.close();
+      return false;
     }
   } catch (err) {
-    console.warn('KOT Print API unavailable, falling back to browser print');
+    console.warn('Print API unavailable:', err);
+    if (window.showToast) window.showToast('❌ Print API unavailable');
+    if (preOpenedWindow) preOpenedWindow.close();
+    return false;
   }
-  
-  // Fallback to browser print on failure or if success is false
-  const htmlContent = generateKitchenKOTHTML({ ...data, isBrowser: true });
-  const printWindow = preOpenedWindow || window.open('', '_blank', 'width=800,height=600');
-  if (printWindow) {
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-  }
-  return false;
 };
 
 export const printStationKOT = printKitchenKOT;

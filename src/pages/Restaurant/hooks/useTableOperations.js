@@ -524,7 +524,7 @@ export const useTableOperations = (location, navigate) => {
 
     try {
       // Pre-open window synchronously to bypass popup blocker
-      const invoicePrintWindow = window.open('', '_blank', 'width=800,height=600');
+      const invoicePrintWindow = null;
 
       const { orderService } = await import('../../../services/orderService');
 
