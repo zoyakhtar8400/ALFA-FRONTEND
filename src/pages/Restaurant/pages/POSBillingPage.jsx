@@ -98,8 +98,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           shortCode: item.short_code || String(item.item_id || item.id || ''),
           kitchen_dept: item.kitchen_dept || item.kitchen_department_id || null,
           productionCategory: item.kitchen_dept || item.kitchen_department_id || null,
-          category: item['mpos_category.category_name']
-            ? item['mpos_category.category_name'].toUpperCase()
+          category: (item.mpos_category && item.mpos_category.category_name)
+            ? String(item.mpos_category.category_name).toUpperCase()
             : (item.category ? String(item.category).toUpperCase() : (item.category_name ? String(item.category_name).toUpperCase() : 'FOOD')),
           foodType: item.food_type === 2 ? 'Non-Veg' : 'Veg',
           isVeg: item.food_type !== 2,
@@ -690,7 +690,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           break;
         case 'F5':
           e.preventDefault();
-          handlersRef.current.handleConfirmBooking?.();
+          handlersRef.current.handleDirectComplete?.(false);
           break;
         case 'F6':
           e.preventDefault();
@@ -880,6 +880,17 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
     });
     toast(`Added: ${itemName}${variantName ? ` (${variantName})` : ''}`);
+
+    setTimeout(() => {
+      const rowsArr = document.querySelectorAll('[data-col="3"]');
+      if (rowsArr && rowsArr.length > 0) {
+        const target = rowsArr[rowsArr.length - 1];
+        if (target) {
+          target.focus();
+          if (target.select) target.select();
+        }
+      }
+    }, 50);
   };
 
   useEffect(() => {
@@ -1012,6 +1023,14 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const handleGridKeyDown = (e, rowIndex, colIndex) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      // If pressing Enter on Quantity (3), jump back to Search bar for next item!
+      if (colIndex === 3) {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+          searchInputRef.current.select();
+        }
+        return;
+      }
       // Move from Items(1) -> Remark(2) -> Qty(3) -> Price(4)
       if (colIndex < 4) {
         const nextColTarget = document.querySelector(`[data-row="${rowIndex}"][data-col="${colIndex + 1}"]`);
@@ -1303,28 +1322,16 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       openedAt: resolvedTable?.openedAt || Date.now(),
     };
 
-    kotSuccessCallbackRef.current = () => {
-      toast(`KOT ${actualKotNo} created! Table T${resolvedTable?.no || tableNo} ${isNC ? 'saved' : '→ Running'}`);
+    toast(`KOT ${actualKotNo} created! Table T${resolvedTable?.no || tableNo} ${isNC ? 'saved' : '→ Running'}`);
+    
+    if (isBillingDesk) {
+      setRows(INITIAL_ROWS);
+      setCustomerName('');
+      setMobileNumber('');
+      if (typeof setAssignedTableId === 'function') setAssignedTableId(null);
+    } else {
       navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
-    };
-
-    // Automatically print to all accessible kitchen stations
-    groups.forEach((group, idx) => {
-      printKitchenKOT({
-        tableId: String(tableNo),
-        id: actualKotNo,
-        items: group.items,
-        waiter: activeWaiter,
-        stationName: group.printer?.name || group.printerName || group.department,
-        printerName: group.printer?.ip || group.printerIp || '',
-        order_type: serviceType,
-        takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
-        delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null,
-        remarks: remarks || resolvedTable?.remarks || ''
-      }, printWindows[idx]);
-    });
-
-    toast(`KOT ${actualKotNo} printed to ${groups.length} station${groups.length > 1 ? 's' : ''}`);
+    }
   };
 
   const handleConfirmBooking = async () => {
@@ -1332,7 +1339,6 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const targetTable = tablesList.find(t => String(t.id) === String(resolvedTableId) || String(t.no) === String(resolvedTableId)) || routedTable || { id: resolvedTableId, no: String(resolvedTableId) };
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     const finalAmt = activeRows.reduce((sum, r) => sum + (r.qty * (r.unitPrice || r.price || 0)), 0);
-
 
     // 2. Update Table status in PostgreSQL to KOT_CUT / RUNNING (NO BILL GENERATED)
     try {
@@ -1355,11 +1361,19 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
       updatedAt: Date.now()
     };
+    
     toast(`Table T${targetTable?.no || resolvedTableId} saved.`);
-    if (!isBillingDesk) {
+    
+    if (isBillingDesk) {
+      setRows(INITIAL_ROWS);
+      setCustomerName('');
+      setMobileNumber('');
+      if (typeof setAssignedTableId === 'function') setAssignedTableId(null);
+    } else {
       navigate('/restaurant/display-table', { state: { updatedTable: updatedTableConf, updatedRows: activeRows } });
     }
   };
+
 
   const handleSaveAndPrint = async () => {
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
@@ -1512,9 +1526,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   };
 
 
-  const handleDirectComplete = async () => {
+  const handleDirectComplete = async (shouldPrint = true) => {
     // Open print window first (synchronous action) to avoid popup blocker
-    const invoicePrintWindow = null;
+    const invoicePrintWindow = shouldPrint ? null : undefined;
 
     const resolvedId = assignedTableId || routedTable?.id || null;
     const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedId) || String(t.no) === String(resolvedId)) || routedTable;
@@ -1578,32 +1592,35 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
       refreshTables();
       
-      // Auto-print the Tax Invoice / Bill using the pre-opened window
-      import('../utils/printInvoice').then(({ printTaxInvoice }) => {
-        printTaxInvoice({
-          invoice_number: createdOrderId || `INV-${resolvedTableName}`,
-          table_number: resolvedTableName,
-          customer_name: customerName || 'Walk-in',
-          waiter_name: waiter || 'Staff',
-          payment_method: 'Unpaid',
-          items: allFinalItems,
-          subtotal: totalBill,
-          discount: totalDiscountAmt,
-          grand_total: netBill,
-          taxes_breakdown: calculatedTaxBreakdown && calculatedTaxBreakdown.length > 0 ? calculatedTaxBreakdown : [{ name: 'Tax', rate: 5, amount: totalTax }],
-          serviceType: serviceType,
-          takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
-          delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
-        }, invoicePrintWindow);
-      }).catch(e => {
-        console.warn('Failed to load print module:', e);
-        if (invoicePrintWindow) invoicePrintWindow.close();
-      });
-
-      toast(`${serviceType} order settled! Bill printed for Table ${resolvedTableName}.`);
+      if (shouldPrint) {
+        // Auto-print the Tax Invoice / Bill using the pre-opened window
+        import('../utils/printInvoice').then(({ printTaxInvoice }) => {
+          printTaxInvoice({
+            invoice_number: createdOrderId || `INV-${resolvedTableName}`,
+            table_number: resolvedTableName,
+            customer_name: customerName || 'Walk-in',
+            waiter_name: waiter || 'Staff',
+            payment_method: 'Unpaid',
+            items: allFinalItems,
+            subtotal: totalBill,
+            discount: totalDiscountAmt,
+            grand_total: netBill,
+            taxes_breakdown: calculatedTaxBreakdown && calculatedTaxBreakdown.length > 0 ? calculatedTaxBreakdown : [{ name: 'Tax', rate: 5, amount: totalTax }],
+            serviceType: serviceType,
+            takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+            delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
+          }, invoicePrintWindow);
+        }).catch(e => {
+          console.warn('Failed to load print module:', e);
+          if (invoicePrintWindow) invoicePrintWindow.close();
+        });
+        toast(`${serviceType} order settled! Bill printed for Table ${resolvedTableName}.`);
+      } else {
+        toast(`${serviceType} order settled! Bill saved for Table ${resolvedTableName}.`);
+      }
     } catch (err) {
       console.warn('Error settling order in PostgreSQL:', err);
-      if (invoicePrintWindow) invoicePrintWindow.close();
+      if (invoicePrintWindow && shouldPrint) invoicePrintWindow.close();
     } finally {
       setIsSettling(false);
       if (isBillingDesk) {

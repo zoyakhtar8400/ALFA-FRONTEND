@@ -34,6 +34,14 @@ const MenuPanel = ({
           display: flex;
           flex-direction: column;
           padding-top: 12px;
+          overflow-y: auto;
+        }
+        .category-sidebar-desktop::-webkit-scrollbar {
+          width: 4px;
+        }
+        .category-sidebar-desktop::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 4px;
         }
         .category-pills-mobile {
           display: none;
@@ -113,6 +121,14 @@ const MenuPanel = ({
                   e.preventDefault();
                   const firstGridBtn = document.querySelector('.grid-item-btn[data-index="0"]');
                   if (firstGridBtn) firstGridBtn.focus();
+                } else if (e.key === 'ArrowLeft') {
+                  e.preventDefault();
+                  const activeCat = document.querySelector('.category-sidebar-desktop button.active-category');
+                  if (activeCat) activeCat.focus();
+                  else {
+                    const firstCat = document.querySelector('.category-sidebar-desktop button');
+                    if (firstCat) firstCat.focus();
+                  }
                 }
               }}
               style={{ border: 'none', padding: '8px 12px', fontSize: '0.8rem', outline: 'none', width: '160px' }}
@@ -149,14 +165,35 @@ const MenuPanel = ({
       <div className="pos-menu-body">
         {/* Desktop Vertical Category Sidebar */}
         <div className="category-sidebar-desktop">
-          {availableCategories.map(cat => {
+          {availableCategories.map((cat, idx) => {
             const isSelected = category === cat;
             return (
               <button
                 key={cat}
+                className={isSelected ? 'active-category' : ''}
+                data-cat-index={idx}
                 onClick={() => setCategory(cat)}
                 tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCategory(cat); } }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setCategory(cat);
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const nextCat = document.querySelector(`.category-sidebar-desktop button[data-cat-index="${idx + 1}"]`);
+                    if (nextCat) nextCat.focus();
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prevCat = document.querySelector(`.category-sidebar-desktop button[data-cat-index="${idx - 1}"]`);
+                    if (prevCat) prevCat.focus();
+                  } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    if (searchInputRef.current) {
+                      searchInputRef.current.focus();
+                      searchInputRef.current.select();
+                    }
+                  }
+                }}
                 onFocus={e => { if (!isSelected) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0e7490'; } e.currentTarget.style.outline = 'none'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(14,116,144,0.4)'; }}
                 onBlur={e => { if (!isSelected) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } e.currentTarget.style.boxShadow = 'none'; }}
                 style={{

@@ -683,8 +683,8 @@ const BillingPanel = ({
 
         {/* ── Action Buttons ── */}
         <POSActionButtons
-          onSave={handleConfirmBooking}
-          onBilling={handleDirectComplete}
+          onSave={() => handleDirectComplete(false)}
+          onBilling={() => handleDirectComplete(true)}
           onKOT={handleAddKOT}
           onKOTAndPrint={handleSaveAndPrint}
           isNC={!!(ncType && ncType.trim())}

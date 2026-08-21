@@ -110,7 +110,7 @@ const QuickPaymentModal = ({
       if (e.key === 'Escape') {
         e.preventDefault();
         onClose();
-      } else if (e.key === 'F8' || e.key === 'F7' || e.key === 'F9') {
+      } else if (e.key === 'F8' || e.key === 'F7' || e.key === 'F9' || e.key === 'Enter') {
         e.preventDefault();
         handleSave();
       } else if (e.key === 'F4') {
@@ -153,7 +153,7 @@ const QuickPaymentModal = ({
         payment_status: Number(balanceDue) > 0 ? 'Partial' : 'Paid',
         paymentMode: mainMode,
         payments: paymentsArray,
-        items: activeRows,
+        items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
         discount: totalDiscountAmt,
         tax: totalTax,
         cgst: cgstAmt,
@@ -244,7 +244,7 @@ const QuickPaymentModal = ({
         status: 'completed',
         payment_status: 'Paid',
         paymentMode: paymentMode || 'Cash',
-        items: activeRows,
+        items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
         discount: totalDiscountAmt,
         tax: totalTax,
         store_id: activeStoreId

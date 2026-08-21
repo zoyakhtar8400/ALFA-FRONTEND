@@ -1283,6 +1283,9 @@ const DisplayTablePage = () => {
                         }
                         setQuickPaymentTable(table);
                       } else {
+                        // Prevent accidental navigation if a modal is currently open
+                        if (quickPaymentTable || showQuickSwitch || kotCancelTable || ncReleaseTable) return;
+                        
                         setIsKeyboardNav(false);
                         setFocusedTableIndex(idx);
                         handleTableCardClick(table);
