@@ -196,18 +196,19 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
           <div
             className="user-avatar"
             style={{
-              width: '42px',
-              height: '42px',
-              minWidth: '42px',
-              borderRadius: '8px',
+              width: '40px',
+              height: '40px',
+              minWidth: '40px',
+              borderRadius: '50%',
               background: '#ffffff',
-              border: '1.5px solid #cbd5e1',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: '1.5px solid rgba(99, 102, 241, 0.15)',
+              boxShadow: '0 4px 10px rgba(99, 102, 241, 0.05)',
               overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: companyProfile?.logo ? '3px' : '0'
+              padding: companyProfile?.logo ? '2px' : '0',
+              transition: 'border-color 0.2s'
             }}
           >
             {companyProfile?.logo ? (
@@ -223,14 +224,14 @@ const Navbar = ({ toggleSidebar, toggleCollapse, sidebarCollapsed, showToast, on
                 }}
               />
             ) : (
-              <FaUserCircle size={24} style={{ color: '#0f766e' }} />
+              <FaUserCircle size={26} style={{ color: 'var(--primary)' }} />
             )}
           </div>
           <div className="user-info">
-            <span className="user-name" style={{ fontWeight: 800 }}>
+            <span className="user-name" style={{ fontWeight: 800, fontSize: '13.5px', color: '#0f172a' }}>
               {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
             </span>
-             <span className="user-role" style={{ fontSize: '11px', color: activeOutletName ? '#0e7490' : '#64748b', fontWeight: activeOutletName ? '800' : 'normal' }}>
+             <span className="user-role" style={{ fontSize: '11px', color: activeOutletName ? 'var(--primary)' : '#64748b', fontWeight: activeOutletName ? '800' : 'normal' }}>
               {activeOutletName ? `Outlet: ${activeOutletName}` : (companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Profile')}
             </span>
           </div>

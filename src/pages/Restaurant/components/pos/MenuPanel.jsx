@@ -16,7 +16,7 @@ const MenuPanel = ({
   loadingMenu = false
 }) => {
   return (
-    <div className="pos-menu-section" style={{ flex: 1, flexDirection: 'column', height: '100%', background: '#fff', borderRight: '1px solid #cbd5e1' }}>
+    <div className="pos-menu-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#ffffff', borderRight: '1px solid #cbd5e1' }}>
       <style>{`
         @keyframes skeletonShimmer {
           0% { background-position: -200px 0; }
@@ -28,12 +28,13 @@ const MenuPanel = ({
           overflow: hidden;
         }
         .category-sidebar-desktop {
-          width: 180px;
-          background: #fff;
-          border-right: 1px solid #cbd5e1;
+          width: 190px;
+          background: #f8fafc;
+          border-right: 1px solid #e2e8f0;
           display: flex;
           flex-direction: column;
-          padding-top: 12px;
+          padding: 16px 10px;
+          gap: 8px;
           overflow-y: auto;
         }
         .category-sidebar-desktop::-webkit-scrollbar {
@@ -50,7 +51,74 @@ const MenuPanel = ({
           flex: 1;
           padding: 20px;
           overflow-y: auto;
-          background: #fff;
+          background: #ffffff;
+        }
+
+        .category-btn {
+          width: 100%;
+          padding: 14px 16px;
+          text-align: left;
+          font-size: 0.82rem;
+          font-weight: 800;
+          border: none;
+          border-radius: 10px;
+          background: transparent;
+          color: #475569;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-left: 3px solid transparent;
+        }
+        .category-btn:hover {
+          background: #f1f5f9;
+          color: #1e293b;
+        }
+        .category-btn.active-category {
+          background: #ffffff;
+          color: #2563eb;
+          border-left-color: #2563eb;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05), 0 1px 3px rgba(37, 99, 235, 0.02);
+        }
+
+        .grid-item-card {
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          cursor: pointer;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: space-between;
+          min-height: 70px;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+          position: relative;
+          text-align: left;
+        }
+        .grid-item-card.item-veg {
+          border-left: 4px solid #10b981;
+        }
+        .grid-item-card.item-nonveg {
+          border-left: 4px solid #ef4444;
+        }
+        .grid-item-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        .grid-item-card.item-veg:hover {
+          border-color: #10b981;
+          box-shadow: 0 8px 20px -6px rgba(16, 185, 129, 0.15);
+        }
+        .grid-item-card.item-nonveg:hover {
+          border-color: #ef4444;
+          box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.15);
+        }
+        .grid-item-card:focus-visible {
+          outline: 2px solid #2563eb;
+          outline-offset: 2px;
         }
 
         @media (max-width: 767px) {
@@ -66,7 +134,7 @@ const MenuPanel = ({
             white-space: nowrap !important;
             padding: 8px 12px !important;
             gap: 8px !important;
-            background: #f8fafc !important;
+            background: #ffffff !important;
             border-bottom: 1px solid #e2e8f0 !important;
             -webkit-overflow-scrolling: touch !important;
           }
@@ -79,34 +147,49 @@ const MenuPanel = ({
         }
       `}</style>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #cbd5e1', background: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 900, color: isBillingDesk ? '#047857' : '#0e7490', margin: 0, letterSpacing: '0.5px' }}>
-            {isBillingDesk ? 'RESTAURANT BILLING DESK' : 'RESTAURANT POS'}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #cbd5e1', background: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: '900', color: '#1e293b', margin: 0, letterSpacing: '-0.3px' }}>
+            {isBillingDesk ? 'Billing Desk' : 'POS Terminal'}
           </h2>
           <span style={{
-            fontSize: '0.7rem', fontWeight: 800, padding: '3px 8px', borderRadius: '12px',
-            background: isBillingDesk ? '#ecfdf5' : '#ecfeff',
-            color: isBillingDesk ? '#047857' : '#0e7490',
-            border: isBillingDesk ? '1px solid #a7f3d0' : '1px solid #a5f3fc'
+            fontSize: '9px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px',
+            background: isBillingDesk ? '#ecfdf5' : '#eff6ff',
+            color: isBillingDesk ? '#047857' : '#2563eb'
           }}>
-            {isBillingDesk ? 'Cashier & Settlement' : 'Point of Sale'}
+            {isBillingDesk ? 'Settlement' : 'Sales Engine'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+        
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             onClick={onPreviousBookingsClick}
-            style={{ padding: '7px 14px', borderRadius: '6px', border: '1.5px solid #0e7490', background: '#ecfeff', color: '#0e7490', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#0e7490'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ecfeff'; e.currentTarget.style.color = '#0e7490'; }}
+            style={{ 
+              padding: '6px 12px', 
+              borderRadius: '6px', 
+              border: '1px solid #e2e8f0', 
+              background: '#ffffff', 
+              color: '#475569', 
+              fontSize: '0.78rem', 
+              fontWeight: '700', 
+              cursor: 'pointer', 
+              whiteSpace: 'nowrap', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
           >
-            📋 Previous Bookings
+            📋 Bookings
           </button>
-          <div style={{ display: 'flex', border: '1.5px solid #0e7490', borderRadius: '6px', overflow: 'hidden', background: '#fff' }}>
+          
+          <div style={{ display: 'flex', border: '1.5px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', background: '#ffffff', height: '32px', alignItems: 'center' }}>
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="SEARCH / ITEM ID (ENTER TO ADD)"
+              placeholder="Search menu..."
               value={searchItem}
               onChange={e => setSearchItem(e.target.value)}
               onKeyDown={e => {
@@ -119,7 +202,7 @@ const MenuPanel = ({
                   }
                 } else if (e.key === 'ArrowDown') {
                   e.preventDefault();
-                  const firstGridBtn = document.querySelector('.grid-item-btn[data-index="0"]');
+                  const firstGridBtn = document.querySelector('.grid-item-card[data-index="0"]');
                   if (firstGridBtn) firstGridBtn.focus();
                 } else if (e.key === 'ArrowLeft') {
                   e.preventDefault();
@@ -131,10 +214,10 @@ const MenuPanel = ({
                   }
                 }
               }}
-              style={{ border: 'none', padding: '8px 12px', fontSize: '0.8rem', outline: 'none', width: '160px' }}
+              style={{ border: 'none', padding: '6px 10px', fontSize: '0.78rem', outline: 'none', width: '130px', fontWeight: 600 }}
             />
-            <button style={{ border: 'none', background: '#0e7490', color: '#fff', padding: '8px 12px', cursor: 'pointer' }}>
-              <FaSearch size={12} />
+            <button style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '0 10px', height: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <FaSearch size={10} />
             </button>
           </div>
         </div>
@@ -150,8 +233,8 @@ const MenuPanel = ({
               onClick={() => setCategory(cat)}
               style={{
                 padding: '6px 14px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 800,
-                border: isSelected ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
-                background: isSelected ? '#0e7490' : '#ffffff',
+                border: isSelected ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                background: isSelected ? '#2563eb' : '#ffffff',
                 color: isSelected ? '#ffffff' : '#475569',
                 cursor: 'pointer', flexShrink: 0, transition: 'all 0.15s'
               }}
@@ -170,7 +253,7 @@ const MenuPanel = ({
             return (
               <button
                 key={cat}
-                className={isSelected ? 'active-category' : ''}
+                className={`category-btn ${isSelected ? 'active-category' : ''}`}
                 data-cat-index={idx}
                 onClick={() => setCategory(cat)}
                 tabIndex={0}
@@ -194,16 +277,12 @@ const MenuPanel = ({
                     }
                   }
                 }}
-                onFocus={e => { if (!isSelected) { e.currentTarget.style.background = '#e0f2fe'; e.currentTarget.style.color = '#0e7490'; } e.currentTarget.style.outline = 'none'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(14,116,144,0.4)'; }}
-                onBlur={e => { if (!isSelected) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; } e.currentTarget.style.boxShadow = 'none'; }}
-                style={{
-                  width: '100%', padding: '16px 20px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 700, border: 'none',
-                  background: isSelected ? '#f1f5f9' : 'transparent', color: isSelected ? '#0e7490' : '#475569', cursor: 'pointer',
-                  borderLeft: isSelected ? '4px solid #0e7490' : '4px solid transparent',
-                  transition: 'all 150ms ease-in-out'
-                }}
               >
-                {cat}
+                <span>{cat}</span>
+                <span style={{ 
+                  width: '6px', height: '6px', borderRadius: '50%', 
+                  background: isSelected ? '#2563eb' : 'transparent' 
+                }} />
               </button>
             );
           })}
@@ -212,26 +291,26 @@ const MenuPanel = ({
         {/* Food Items Grid (100% width on Mobile) */}
         <div className="items-grid-container">
           {loadingMenu ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
               {Array.from({ length: 12 }).map((_, idx) => (
                 <div key={idx} style={{
-                  padding: '16px 10px', borderRadius: '8px', border: '1px solid #e2e8f0',
-                  background: 'linear-gradient(90deg, #f1f5f9 25%, #cbd5e1 50%, #f1f5f9 75%)',
+                  padding: '16px 10px', borderRadius: '14px', border: '1px solid #e2e8f0',
+                  background: 'linear-gradient(90deg, #f8fafc 25%, #cbd5e1 50%, #f8fafc 75%)',
                   backgroundSize: '200% 100%', animation: 'skeletonShimmer 1.5s infinite',
-                  minHeight: '80px'
+                  minHeight: '70px'
                 }} />
               ))}
             </div>
           ) : filteredGridItems.length === 0 ? (
-            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.9rem', fontWeight: 700 }}>
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: 700 }}>
               No menu items available in this category
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(115px, 1fr))', gap: '12px' }}>
               {filteredGridItems.map((item, idx) => (
                 <button
                   key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx}
-                  className="grid-item-btn"
+                  className={`grid-item-card ${item.isVeg ? 'item-veg' : 'item-nonveg'}`}
                   data-index={idx}
                   onClick={() => handleGridItemClick(item)}
                   onKeyDown={e => {
@@ -257,28 +336,55 @@ const MenuPanel = ({
                       }
                     }
                     if (targetIndex !== idx) {
-                      const targetBtn = document.querySelector(`.grid-item-btn[data-index="${targetIndex}"]`);
+                      const targetBtn = document.querySelector(`.grid-item-card[data-index="${targetIndex}"]`);
                       if (targetBtn) targetBtn.focus();
                     }
                   }}
-                  style={{
-                    padding: '16px 10px', borderRadius: '8px',
-                    border: item.isVeg === false ? '2px solid #ef4444' : '2px solid #16a34a',
-                    background: '#fff', textAlign: 'center', cursor: 'pointer',
-                    fontSize: '0.78rem', fontWeight: 800, color: '#334155',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex',
-                    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    minHeight: '80px', textTransform: 'uppercase', transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
                 >
-                  <span>{item.name}</span>
-                  {item.variants && item.variants.length > 0 && (
-                    <span style={{ fontSize: '0.62rem', color: '#0e7490', marginTop: '4px', fontWeight: 700 }}>
-                      {item.variants.length} Variants Available
+                  {/* Top: Veg / Non Veg FSSAI Symbol & variants status badge */}
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      {/* FSSAI Square Icon */}
+                      <span style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '12px',
+                        height: '12px',
+                        border: `1.5px solid ${item.isVeg ? '#10b981' : '#ef4444'}`,
+                        borderRadius: '2px',
+                        padding: '1px',
+                        flexShrink: 0
+                      }}>
+                        <span style={{
+                          width: '5px',
+                          height: '5px',
+                          borderRadius: '50%',
+                          background: item.isVeg ? '#10b981' : '#ef4444'
+                        }} />
+                      </span>
+                      {item.variants && item.variants.length > 0 && (
+                        <span style={{ fontSize: '7px', background: '#eff6ff', color: '#2563eb', padding: '2px 5px', borderRadius: '4px', fontWeight: 800 }}>
+                          VARIANTS
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#1e293b', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {item.name}
+                    </div>
+                  </div>
+
+                  {/* Bottom: Price indicator */}
+                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#0f172a' }}>
+                      ₹{item.price ? Math.round(item.price) : 0}
                     </span>
-                  )}
+                    {item.variants && item.variants.length > 0 && (
+                      <span style={{ fontSize: '7.5px', color: '#64748b', fontWeight: 700 }}>
+                        {item.variants.length} sizes
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>

@@ -75,6 +75,21 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleStart = () => setLoading(true);
+    const handleEnd = () => setLoading(false);
+
+    window.addEventListener('alfa_ajax_start', handleStart);
+    window.addEventListener('alfa_ajax_end', handleEnd);
+
+    return () => {
+      window.removeEventListener('alfa_ajax_start', handleStart);
+      window.removeEventListener('alfa_ajax_end', handleEnd);
+    };
+  }, []);
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     const timer = setTimeout(() => {
@@ -156,6 +171,21 @@ function App() {
   if (!isAuthenticated) {
     return (
       <div className="login-root-container">
+        <style>{`
+          @keyframes topLoaderBar {
+            0% { width: 0%; left: 0%; }
+            50% { width: 50%; left: 25%; }
+            100% { width: 100%; left: 100%; }
+          }
+        `}</style>
+        {loading && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, height: '3px',
+            background: 'linear-gradient(90deg, #3b82f6, #6366f1, #10b981)',
+            zIndex: 99999, animation: 'topLoaderBar 1.2s ease-in-out infinite',
+            boxShadow: '0 1px 8px rgba(59, 130, 246, 0.5)'
+          }} />
+        )}
         {toast.message && (
           <div 
             className={`fixed bottom-6 right-6 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg z-[9999] transition-all duration-300 ${activeToastTheme.classes}`}
@@ -171,6 +201,21 @@ function App() {
 
   return (
     <div className="app-container">
+      <style>{`
+        @keyframes topLoaderBar {
+          0% { width: 0%; left: 0%; }
+          50% { width: 50%; left: 25%; }
+          100% { width: 100%; left: 100%; }
+        }
+      `}</style>
+      {loading && (
+        <div style={{
+          position: 'fixed', top: 'var(--navbar-height)', left: 0, height: '3px',
+          background: 'linear-gradient(90deg, #3b82f6, #6366f1, #10b981)',
+          zIndex: 99999, animation: 'topLoaderBar 1.2s ease-in-out infinite',
+          boxShadow: '0 1px 8px rgba(59, 130, 246, 0.5)'
+        }} />
+      )}
       {/* Global Enterprise Toast Notification */}
       {toast.message && (
         <div 

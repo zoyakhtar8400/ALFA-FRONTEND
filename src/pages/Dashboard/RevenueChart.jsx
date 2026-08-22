@@ -15,17 +15,22 @@ const RevenueChart = memo(({ data, showToast }) => {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <span style={{ fontSize: '11px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Revenue Trend</span>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#244E5F' }}>₹{total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total} total</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Revenue Trend</span>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+          ₹{total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total} total
+        </span>
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
         <defs>
           <linearGradient id="revBarGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4A9993" />
-            <stop offset="100%" stopColor="#418A8B" />
+            <stop offset="0%" stopColor="#0ea5e9" />
+            <stop offset="100%" stopColor="#6366f1" />
           </linearGradient>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.1" floodColor="#0f172a" />
+          </filter>
         </defs>
 
         {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
@@ -34,7 +39,7 @@ const RevenueChart = memo(({ data, showToast }) => {
           return (
             <g key={i}>
               <line x1={pL} y1={gy} x2={W - pR} y2={gy} stroke="#f1f5f9" strokeWidth="1" />
-              <text x={pL - 6} y={gy + 4} textAnchor="end" style={{ fontSize: '9px', fill: '#64748b', fontWeight: '600' }}>
+              <text x={pL - 10} y={gy + 3} textAnchor="end" style={{ fontSize: '10px', fill: '#94a3b8', fontWeight: '600', fontFamily: 'var(--font-family)' }}>
                 {gv >= 1000 ? `${(gv / 1000).toFixed(0)}k` : gv}
               </text>
             </g>
@@ -42,7 +47,7 @@ const RevenueChart = memo(({ data, showToast }) => {
         })}
 
         {values.map((val, i) => {
-          const bH = Math.max(4, (val / maxVal) * cH);
+          const bH = Math.max(6, (val / maxVal) * cH);
           const x = pL + i * spacing + (spacing - bW) / 2;
           const y = pT + cH - bH;
           const isHov = hovered === i;
@@ -52,19 +57,19 @@ const RevenueChart = memo(({ data, showToast }) => {
               onMouseLeave={() => setHovered(null)}
               onClick={() => showToast?.(`${labels[i]}: ₹${val.toLocaleString('en-IN')}`)}
             >
-              <rect x={x} y={y} width={bW} height={bH} rx="4" fill="url(#revBarGrad)"
-                opacity={hovered !== null && !isHov ? 0.45 : 1}
-                style={{ transition: 'opacity 150ms' }}
+              <rect x={x} y={y} width={bW} height={bH} rx="6" fill="url(#revBarGrad)"
+                opacity={hovered !== null && !isHov ? 0.5 : 1}
+                style={{ transition: 'all 0.2s ease-in-out' }}
               />
               {isHov && (
-                <>
-                  <rect x={x - 12} y={y - 26} width={bW + 24} height="20" rx="4" fill="#244E5F" />
-                  <text x={x + bW / 2} y={y - 12} textAnchor="middle" style={{ fontSize: '10px', fontWeight: '800', fill: '#fff' }}>
+                <g filter="url(#shadow)">
+                  <rect x={x - 20} y={y - 32} width={bW + 40} height="22" rx="6" fill="#0f172a" />
+                  <text x={x + bW / 2} y={y - 18} textAnchor="middle" style={{ fontSize: '11px', fontWeight: '800', fill: '#fff', fontFamily: 'var(--font-family)' }}>
                     ₹{val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
                   </text>
-                </>
+                </g>
               )}
-              <text x={x + bW / 2} y={H - 6} textAnchor="middle" style={{ fontSize: '10px', fontWeight: '700', fill: '#334155' }}>{labels[i]}</text>
+              <text x={x + bW / 2} y={H - 6} textAnchor="middle" style={{ fontSize: '10px', fontWeight: '600', fill: '#64748b', fontFamily: 'var(--font-family)' }}>{labels[i]}</text>
             </g>
           );
         })}

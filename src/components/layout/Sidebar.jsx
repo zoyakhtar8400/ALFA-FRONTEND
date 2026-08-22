@@ -466,7 +466,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       />
 
       <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '16px 20px', gap: '8px', borderBottom: '1px solid #f1f5f9' }}>
+        <div className="sidebar-brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '20px', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
             <img src="/logo/alfa-logo.png" alt="Logo" className="sidebar-logo" />
             <button
@@ -480,7 +480,7 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
             </button>
           </div>
           {!isCollapsed && activeOutletName && (
-            <div style={{ fontSize: '11px', fontWeight: '800', background: '#0e7490', color: '#ffffff', padding: '4px 8px', borderRadius: '4px', width: '100%', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '800', background: '#0e7490', color: '#ffffff', padding: '4px 8px', borderRadius: '6px', width: '100%', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
               Outlet: {activeOutletName}
             </div>
           )}

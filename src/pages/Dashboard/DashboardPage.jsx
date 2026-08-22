@@ -212,19 +212,46 @@ const OutletsPerformanceWidget = ({ summary = [], showToast }) => {
 const Card = memo(({ title, accent = '#418A8B', defaultOpen = true, noPad = false, children }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
+    <div style={{
+      background: '#fff',
+      borderRadius: '16px',
+      border: '1px solid rgba(226, 232, 240, 0.8)',
+      overflow: 'hidden',
+      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
+      minWidth: 0,
+      width: '100%',
+      boxSizing: 'border-box',
+      transition: 'all 0.3s ease'
+    }}
+    onMouseEnter={e => {
+      e.currentTarget.style.boxShadow = '0 10px 20px -8px rgba(36, 78, 95, 0.08)';
+    }}
+    onMouseLeave={e => {
+      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)';
+    }}
+    >
       <button onClick={() => setOpen(o => !o)} style={{
-        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 18px', background: 'none', border: 'none', cursor: 'pointer',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '16px 20px',
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
         borderBottom: open ? '1px solid #f1f5f9' : 'none',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <div style={{ width: '3.5px', height: '20px', borderRadius: '2px', background: accent, flexShrink: 0 }} />
-          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+        transition: 'background 0.2s ease',
+      }}
+      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <div style={{ width: '4px', height: '18px', borderRadius: '4px', background: accent, flexShrink: 0 }} />
+          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.2px' }}>{title}</span>
         </div>
-        <span style={{ color: '#64748b', display: 'flex', flexShrink: 0 }}>{open ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}</span>
+        <span style={{ color: '#94a3b8', display: 'flex', flexShrink: 0 }}>{open ? <LuChevronUp size={16} /> : <LuChevronDown size={16} />}</span>
       </button>
-      {open && <div style={noPad ? {} : { padding: '16px 18px' }}>{children}</div>}
+      {open && <div style={noPad ? {} : { padding: '20px' }}>{children}</div>}
     </div>
   );
 });
@@ -272,15 +299,14 @@ const DINING_TABLES = [
 ];
 
 const TABLE_STATUS_S = {
-  Blank: { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8' },
-  Running: { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e' },
-  Reserved: { color: '#e8590c', bg: '#ffe8cc', border: '#ffd8a8', dot: '#f76707', glow: '0 0 8px rgba(253, 126, 20, 0.4)' },
-  Paid: { color: '#0284c7', bg: '#e0f2fe', border: '#bae6fd', dot: '#0ea5e9' },
-  Cleaning: { color: '#ca8a04', bg: '#fef9c3', border: '#fef08a', dot: '#eab308' },
+  Blank: { color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', dot: '#94a3b8', hoverBorder: '#cbd5e1' },
+  Running: { color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', dot: '#22c55e', glow: '0 4px 12px rgba(34, 197, 94, 0.12)', hoverBorder: '#86efac' },
+  Reserved: { color: '#e8590c', bg: '#fff7ed', border: '#ffedd5', dot: '#f97316', glow: '0 4px 12px rgba(249, 115, 22, 0.12)', hoverBorder: '#fed7aa' },
+  Paid: { color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', dot: '#0ea5e9', glow: '0 4px 12px rgba(14, 165, 233, 0.12)', hoverBorder: '#7dd3fc' },
+  Cleaning: { color: '#ca8a04', bg: '#fefce8', border: '#fef08a', dot: '#eab308', glow: '0 4px 12px rgba(234, 179, 8, 0.12)', hoverBorder: '#fde047' },
 };
 
 const DisplayTableGrid = memo(({ tables = [], showToast }) => {
-  const navigate = typeof window !== 'undefined' ? window.location : null;
   const displayTables = tables && tables.length > 0 ? tables : [];
   
   // Group tables by area
@@ -292,16 +318,19 @@ const DisplayTableGrid = memo(({ tables = [], showToast }) => {
   }, {});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {Object.entries(groupedTables).map(([areaName, areaTables]) => (
         <div key={areaName}>
-          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#418A8B', fontWeight: '800', borderBottom: '2px solid #e2e8f0', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b', fontWeight: '800', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
             {areaName}
           </h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '16px' }}>
             {areaTables.map(table => {
-              const s = TABLE_STATUS_S[table.status] || TABLE_STATUS_S.Blank;
+              const statusName = table.status || 'Blank';
+              const s = TABLE_STATUS_S[statusName] || TABLE_STATUS_S.Blank;
               const hasBill = Number(table.amount || 0) > 0;
+              const capacity = table.capacity || table.seats || 4;
+              
               return (
                 <div
                   key={table.id || table.no}
@@ -309,47 +338,59 @@ const DisplayTableGrid = memo(({ tables = [], showToast }) => {
                     window.location.href = `#/restaurant/pos-billing?table=${table.id || table.no}`;
                     showToast?.(`Opening POS Billing for Table ${table.table_name || 'T' + table.no}`);
                   }}
-                  title={`Table ${table.table_name || 'T' + table.no} — ${table.status || 'Available'} · ${table.capacity || table.seats || 4} Pax · ${table.waiter ? `Waiter: ${table.waiter}` : 'No Waiter'}`}
+                  title={`Table ${table.table_name || 'T' + table.no} — ${table.status || 'Available'} · ${capacity} Pax · ${table.waiter ? `Waiter: ${table.waiter}` : 'No Waiter'}`}
                   style={{
-                    padding: '10px 6px',
-                    borderRadius: '10px',
+                    padding: '16px 12px',
+                    borderRadius: '16px',
                     textAlign: 'center',
-                    border: `1.5px solid ${s.border}`,
+                    border: `1.5px dashed ${s.border}`,
                     background: s.bg,
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    boxShadow: s.glow || '0 1px 3px rgba(0,0,0,0.03)',
+                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: s.glow || '0 1px 3px rgba(0,0,0,0.02)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '3px'
+                    gap: '6px',
+                    position: 'relative'
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.04)';
-                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = s.glow ? `0 8px 20px -4px ${s.dot}33` : '0 8px 16px rgba(0,0,0,0.06)';
+                    e.currentTarget.style.borderStyle = 'solid';
+                    e.currentTarget.style.borderColor = s.hoverBorder;
                   }}
                   onMouseLeave={e => {
                     e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = s.glow || '0 1px 3px rgba(0,0,0,0.03)';
+                    e.currentTarget.style.boxShadow = s.glow || '0 1px 3px rgba(0,0,0,0.02)';
+                    e.currentTarget.style.borderStyle = 'dashed';
+                    e.currentTarget.style.borderColor = s.border;
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 4px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>{table.table_name || `T${table.no}`}</span>
-                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot }} />
+                  {/* Visual Seat Indicators (little dots surrounding the table card) */}
+                  <div style={{ display: 'flex', gap: '3px', position: 'absolute', top: '-4px', justifyContent: 'center', width: '100%' }}>
+                    {Array.from({ length: Math.min(4, capacity) }).map((_, idx) => (
+                      <div key={idx} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#94a3b8' }} />
+                    ))}
                   </div>
 
-                  <span style={{ fontSize: '9px', fontWeight: '700', color: s.color, background: s.bg, padding: '1px 5px', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '4px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>{table.table_name || `T${table.no}`}</span>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: s.dot }} />
+                  </div>
+
+                  <span style={{ fontSize: '9px', fontWeight: '800', color: s.color, background: `${s.dot}10`, padding: '2px 6px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                     {table.status || 'Available'}
                   </span>
 
                   {hasBill ? (
-                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#15803d', marginTop: '2px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '800', color: '#15803d', marginTop: '2px' }}>
                       ₹{Number(table.amount).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                   ) : (
-                    <span style={{ fontSize: '9px', color: '#64748b' }}>
-                      {table.capacity || table.seats || 4} Pax
+                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>
+                      {capacity} Seats
                     </span>
                   )}
                 </div>

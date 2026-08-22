@@ -44,6 +44,8 @@ const DisplayTablePage = () => {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewHtmlContent, setPreviewHtmlContent] = useState('');
   const [previewInvoiceData, setPreviewInvoiceData] = useState(null);
+  const [showDirectPayModal, setShowDirectPayModal] = useState(false);
+  const [directPayTable, setDirectPayTable] = useState(null);
 
   // Helper to fetch rich details from backend and print instantly
   const handlePrintPaidTable = async (table) => {
@@ -436,7 +438,10 @@ const DisplayTablePage = () => {
       if (e.key === 'F10') {
         e.preventDefault();
         const t = focusedTableIndexRef.current >= 0 ? filteredDataRef.current[focusedTableIndexRef.current] : null;
-        if (t && t.status !== 'Blank') handleDownload(t);
+        if (t && t.status !== 'Blank') {
+          setDirectPayTable(t);
+          setShowDirectPayModal(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -631,6 +636,9 @@ const DisplayTablePage = () => {
         });
       } else if (table.status === 'Paid') {
         handlePrintPaidTable(table);
+      } else if (table.status === 'UNPAID_BILL' || table.status === 'UNPAID' || table.color === 'blue') {
+        setDirectPayTable(table);
+        setShowDirectPayModal(true);
       } else {
         // Direct order edit on clicking any running/occupied table!
         navigate(getBillingPath(), {
@@ -947,132 +955,13 @@ const DisplayTablePage = () => {
       )}
 
       {/* 1. Header Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          {/* Status Filter Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status:-</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#1e293b',
-                outline: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'border-color 150ms'
-              }}
-            >
-              {STATUS_FILTERS.map(st => (
-                <option key={st} value={st}>
-                  {st === 'All' ? 'All Statuses' : st}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Area Filter Dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Area:-</span>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                background: '#fff',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#1e293b',
-                outline: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'border-color 150ms'
-              }}
-            >
-              {dynamicAreas.map(ar => (
-                <option key={ar} value={ar}>
-                  {ar === 'All' ? 'All Areas' : ar}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+      {/* 1. LEVEL 1: Title, Search, Date & Core Actions Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '10px 18px', borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Table Operations Center */}
-          <button
-            onClick={() => {
-              const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
-              setFromTableId(String(activeT.id));
-              setToTableId('');
-              setShowQuickSwitch(true);
-            }}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 120ms' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-          >
-            <FaExchangeAlt size={12} /> Move KOT
-          </button>
-
-          {/* Book Table Button */}
-          <button
-            onClick={() => setBookModalOpen(true)}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-              color: '#fff',
-              fontSize: '0.82rem',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 4px 10px rgba(249, 115, 22, 0.3)',
-              transition: 'all 150ms ease-in-out',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 6px 14px rgba(249, 115, 22, 0.45)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = '0 4px 10px rgba(249, 115, 22, 0.3)';
-            }}
-          >
-            <FaCalendarAlt size={12} /> Book Table
-          </button>
-
-          {/* Booking List Button — navigates to full Booking List page */}
-          {/* <button
-            onClick={() => navigate('/restaurant/booking-list')}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #0e7490', background: '#fff', color: '#0e7490', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 120ms' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#e0f2fe'}
-            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-          >
-            <FaClipboardList size={12} /> Booking List
-          </button> */}
-
-          {/* Add Table Button */}
-          <button
-            onClick={handleAddNewTable}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #10b981', background: '#10b981', color: '#fff', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', transition: 'all 120ms' }}
-            onMouseEnter={e => e.currentTarget.style.background = '#059669'}
-            onMouseLeave={e => e.currentTarget.style.background = '#10b981'}
-          >
-            + Add Table
-          </button>
-
+          <h2 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>POS Tables</h2>
+          
           {/* Service switcher tabs */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '10px', border: '1px solid #e2e8f0', gap: '2px' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '8px', border: '1px solid #e2e8f0', gap: '2px' }}>
             {SERVICES.map(({ id, label }) => {
               const isSelected = service === id;
               return (
@@ -1085,7 +974,7 @@ const DisplayTablePage = () => {
                       setService(id);
                     }
                   }}
-                  style={{ padding: '8px 18px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 150ms ease-in-out', background: isSelected ? '#0f172a' : 'transparent', color: isSelected ? '#fff' : '#64748b' }}
+                  style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 150ms ease-in-out', background: isSelected ? 'var(--primary)' : 'transparent', color: isSelected ? '#fff' : '#64748b' }}
                 >
                   {label}
                 </button>
@@ -1093,97 +982,157 @@ const DisplayTablePage = () => {
             })}
           </div>
         </div>
-      </div>
 
-      {/* 2. Quick Filters, Status Filters and Search */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        {/* Search, Date & Quick Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           {/* Search box */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <FaSearch style={{ position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '0.85rem' }} />
+            <FaSearch style={{ position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '0.8rem' }} />
             <input
               type="text"
-              placeholder="Search table/waiter..."
+              placeholder="Search Table..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '200px', padding: '8px 12px 8px 30px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.8rem', outline: 'none', transition: 'border-color 150ms' }}
+              style={{ width: '130px', padding: '6px 12px 6px 28px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.78rem', outline: 'none' }}
             />
           </div>
 
-          {/* Date Filter (right side of search bar) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date:-</span>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                style={{
-                  padding: '7px 10px',
-                  borderRadius: '8px',
-                  border: selectedDate !== todayStr ? '1.5px solid #0e7490' : '1px solid #cbd5e1',
-                  background: selectedDate !== todayStr ? '#f0fdfa' : '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  color: selectedDate !== todayStr ? '#0e7490' : '#1e293b',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-              />
-            </div>
-            {selectedDate !== todayStr && (
-              <button
-                onClick={() => setSelectedDate(todayStr)}
-                title="Reset to today"
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #0e7490',
-                  background: '#0e7490',
-                  color: '#fff',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 120ms'
-                }}
-              >
-                Today
-              </button>
-            )}
-          </div>
+          {/* Date Picker */}
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            style={{
+              padding: '5px 8px',
+              borderRadius: '6px',
+              border: selectedDate !== todayStr ? '1.5px solid var(--primary)' : '1px solid #cbd5e1',
+              background: selectedDate !== todayStr ? 'var(--primary-light)' : '#fff',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: selectedDate !== todayStr ? 'var(--primary)' : '#1e293b',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          />
+
+          <button
+            onClick={() => {
+              const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
+              setFromTableId(String(activeT.id));
+              setToTableId('');
+              setShowQuickSwitch(true);
+            }}
+            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <FaExchangeAlt size={11} color="var(--primary)" /> Move
+          </button>
+
+          <button
+            onClick={() => setBookModalOpen(true)}
+            style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', color: '#fff', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Book
+          </button>
+
+          <button
+            onClick={handleAddNewTable}
+            style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+          >
+            + Add
+          </button>
         </div>
       </div>
 
-      {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '8px 24px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fff', border: '1.5px solid #cbd5e1', display: 'inline-block' }} />
-          Blank Table
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#f5c842', border: '1.5px solid #e6b800', display: 'inline-block' }} />
-          Running Table
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#2563eb', border: '1.5px solid #1d4ed8', display: 'inline-block' }} />
-          Unpaid
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '14px', height: '14px', borderRadius: '3px', background: '#fb923c', border: '1.5px solid #ea7c1e', display: 'inline-block' }} />
-          Reserved
-        </span>
-        <span style={{ marginLeft: 'auto', color: '#94a3b8', fontWeight: 600 }}>
-          {selectedDate !== todayStr ? (
-            <>
-              {dateAdjustedTables.filter(t => t.status === 'Reserved' || t.color === 'orange' || t.order_state === 'RESERVED').length} Reserved &nbsp;·&nbsp; {dateAdjustedTables.filter(t => t.status === 'Blank' || t.status === 'AVAILABLE' || t.color === 'white' || !t.color).length} Blank
-            </>
-          ) : (
-            <>
-              {tables.filter(t => t.color === 'yellow' || t.status === 'Running' || t.status === 'KOT Generated' || t.status === 'KOT_CUT' || t.order_state === 'KOT_CUT').length} Running &nbsp;·&nbsp; {tables.filter(t => t.color === 'red' || t.color === 'blue' || t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.order_state === 'UNPAID_BILL').length} Unpaid &nbsp;·&nbsp; {tables.filter(t => t.color === 'white' || t.status === 'Blank' || t.status === 'AVAILABLE' || t.order_state === 'AVAILABLE' || !t.status).length} Blank
-            </>
-          )}
-        </span>
+      {/* 2. LEVEL 2: Combined Section Filters & Live Status Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '6px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', overflowX: 'auto' }}>
+        {/* Floors/Areas */}
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {dynamicAreas.map(ar => {
+            const isSelected = filter === ar;
+            return (
+              <button
+                key={ar}
+                onClick={() => setFilter(ar)}
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '16px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  border: isSelected ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
+                  background: isSelected ? 'var(--primary-light)' : '#fff',
+                  color: isSelected ? 'var(--primary)' : '#475569',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {ar === 'All' ? 'All Areas' : ar}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Live Status KPI Pills */}
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {STATUS_FILTERS.map(st => {
+            const isSelected = statusFilter === st;
+            let count = 0;
+            if (st === 'All') {
+              count = dateAdjustedTables.length;
+            } else if (st === 'Blank') {
+              count = dateAdjustedTables.filter(t => !t.status || t.status === 'Blank' || t.status === 'AVAILABLE' || t.color === 'white').length;
+            } else if (st === 'Running') {
+              count = dateAdjustedTables.filter(t => {
+                const sUpper = (t.status || '').toUpperCase();
+                const kotCnt = t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0);
+                const hasAct = (Number(t.amount || 0) > 0) || kotCnt > 0;
+                return sUpper !== 'BLANK' && sUpper !== 'AVAILABLE' && sUpper !== 'NC_BLOCKED' && sUpper !== 'RESERVED' && sUpper !== 'PAID' && sUpper !== 'CLEANING' && sUpper !== 'UNPAID' && t.color !== 'blue' && t.color !== 'purple' && hasAct;
+              }).length;
+            } else if (st === 'Unpaid') {
+              count = dateAdjustedTables.filter(t => t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.color === 'blue' || t.color === 'red').length;
+            } else if (st === 'Reserved') {
+              count = dateAdjustedTables.filter(t => t.status === 'Reserved' || t.color === 'orange').length;
+            } else if (st === 'Paid') {
+              count = dateAdjustedTables.filter(t => t.status === 'Paid' || ['PAYMENT_COMPLETED', 'PAID', 'BILL GENERATED'].includes((t.status || '').toUpperCase())).length;
+            } else if (st === 'Cleaning') {
+              count = dateAdjustedTables.filter(t => t.status === 'Cleaning' || (t.status || '').toUpperCase() === 'CLEANING').length;
+            } else if (st === 'NC Blocked') {
+              count = dateAdjustedTables.filter(t => (t.status || '').toUpperCase() === 'NC_BLOCKED' || t.color === 'purple').length;
+            }
+
+            let dotColor = '#94a3b8';
+            if (st === 'Running') dotColor = '#f59e0b';
+            if (st === 'Unpaid') dotColor = '#2563eb';
+            if (st === 'Reserved') dotColor = '#f97316';
+            if (st === 'Paid') dotColor = '#10b981';
+            if (st === 'NC Blocked') dotColor = '#8b5cf6';
+
+            return (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 8px',
+                  borderRadius: '5px',
+                  border: isSelected ? '1px solid #cbd5e1' : '1px solid transparent',
+                  background: isSelected ? '#fff' : 'transparent',
+                  color: isSelected ? '#0f172a' : '#64748b',
+                  fontSize: '0.76rem',
+                  fontWeight: isSelected ? 800 : 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor }} />
+                <span>{st === 'All' ? 'All' : st}</span>
+                <span style={{ fontSize: '0.7rem', color: isSelected ? 'var(--primary)' : '#64748b', padding: '0 4px', fontWeight: 800 }}>
+                  ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 3. Main Tables grid */}
@@ -1216,10 +1165,10 @@ const DisplayTablePage = () => {
       ) : (
         <div className="pos-table-grid" style={{
           flex: 1,
-          padding: '20px 20px 36px',
+          padding: '12px 16px 24px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-          gap: '20px 10px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(125px, 1fr))',
+          gap: '16px 12px',
           alignContent: 'start',
           overflowY: 'auto',
         }}>
@@ -1431,6 +1380,18 @@ const DisplayTablePage = () => {
         onClose={() => setAddTableModalOpen(false)}
         onSave={handleSaveTableFromMaster}
         isEdit={false}
+      />
+
+      <QuickPaymentModal
+        isOpen={showDirectPayModal}
+        onClose={() => setShowDirectPayModal(false)}
+        table={directPayTable || {}}
+        items={orderItemsMap[directPayTable?.id] || orderItemsMap[directPayTable?.no] || []}
+        onTableUpdated={() => {
+           setShowDirectPayModal(false);
+           refreshTables();
+        }}
+        showToast={toast}
       />
 
       {/* Select Table First Dialog */}

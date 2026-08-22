@@ -5,6 +5,7 @@ const POSActionButtons = ({
   onBilling,
   onKOT,
   onKOTAndPrint,
+  onPay,
   isNC = false,
   isViewMode = false,
   isBillingDesk = false
@@ -14,50 +15,119 @@ const POSActionButtons = ({
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: showAll ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
+      gridTemplateColumns: showAll ? 'repeat(5, 1fr)' : 'repeat(3, 1fr)',
       gap: '8px',
-      padding: '8px 12px',
-      background: '#f8fafc',
-      borderTop: '1px solid #e2e8f0'
+      padding: '12px 16px',
+      background: '#ffffff',
+      borderTop: '1px solid #cbd5e1'
     }}>
+      <style>{`
+        .pos-action-btn {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          height: 46px;
+          border-radius: 10px;
+          border: none;
+          font-weight: 800;
+          font-size: 0.76rem;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          color: #ffffff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+        .pos-action-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        .pos-action-btn:active {
+          transform: translateY(0);
+        }
+        .pos-action-btn:disabled {
+          background: #f1f5f9 !important;
+          color: #94a3b8 !important;
+          cursor: not-allowed !important;
+          box-shadow: none !important;
+          transform: none !important;
+        }
+
+        .btn-save {
+          background: #475569;
+        }
+        .btn-save:hover {
+          background: #334155;
+        }
+
+        .btn-print-bill {
+          background: #d97706;
+          box-shadow: 0 2px 6px rgba(217, 119, 6, 0.15);
+        }
+        .btn-print-bill:hover {
+          background: #b45309;
+          box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+        }
+
+        .btn-kot {
+          background: #4f46e5;
+          box-shadow: 0 2px 6px rgba(79, 70, 229, 0.15);
+        }
+        .btn-kot:hover {
+          background: #4338ca;
+          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+        }
+
+        .btn-kot-print {
+          background: #6366f1;
+          box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
+        }
+        .btn-kot-print:hover {
+          background: #4f46e5;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-payment {
+          background: #10b981;
+          box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+        }
+        .btn-payment:hover {
+          background: #059669;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-hotkey-label {
+          font-size: 8.5px;
+          opacity: 0.85;
+          margin-top: 2px;
+          font-weight: 700;
+          background: rgba(255, 255, 255, 0.18);
+          padding: 1px 5px;
+          border-radius: 4px;
+        }
+      `}</style>
+
       {(showAll || isViewMode) && (
         <>
           <button
             type="button"
             disabled={isNC}
             onClick={onSave}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 12px', height: '36px', borderRadius: '6px',
-              background: isNC ? '#e2e8f0' : '#991b1b',
-              color: isNC ? '#94a3b8' : '#ffffff',
-              fontWeight: 800, fontSize: '0.75rem', border: 'none',
-              cursor: isNC ? 'not-allowed' : 'pointer', transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { if (!isNC) e.currentTarget.style.background = '#7f1d1d'; }}
-            onMouseLeave={e => { if (!isNC) e.currentTarget.style.background = '#991b1b'; }}
+            className="pos-action-btn btn-save"
           >
-            <span>Save</span>
-            <span style={{ background: isNC ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', color: isNC ? '#94a3b8' : '#ffffff' }}>F5</span>
+            <span>Save Draft</span>
+            <span className="btn-hotkey-label">F5</span>
           </button>
 
           <button
             type="button"
             disabled={isNC}
             onClick={onBilling}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 12px', height: '36px', borderRadius: '6px',
-              background: isNC ? '#e2e8f0' : '#047857',
-              color: isNC ? '#94a3b8' : '#ffffff',
-              fontWeight: 800, fontSize: '0.75rem', border: 'none',
-              cursor: isNC ? 'not-allowed' : 'pointer', transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => { if (!isNC) e.currentTarget.style.background = '#065f46'; }}
-            onMouseLeave={e => { if (!isNC) e.currentTarget.style.background = '#047857'; }}
+            className="pos-action-btn btn-print-bill"
           >
-            <span>Save & Print</span>
-            <span style={{ background: isNC ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', color: isNC ? '#94a3b8' : '#ffffff' }}>F7</span>
+            <span>Print Bill</span>
+            <span className="btn-hotkey-label">F9</span>
           </button>
         </>
       )}
@@ -67,33 +137,32 @@ const POSActionButtons = ({
           <button
             type="button"
             onClick={onKOT}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 12px', height: '36px', borderRadius: '6px', background: '#1e293b', color: '#ffffff',
-              fontWeight: 800, fontSize: '0.75rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#0f172a'}
-            onMouseLeave={e => e.currentTarget.style.background = '#1e293b'}
+            className="pos-action-btn btn-kot"
           >
             <span>KOT</span>
-            <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px' }}>F8</span>
+            <span className="btn-hotkey-label">F8</span>
           </button>
 
           <button
             type="button"
             onClick={onKOTAndPrint}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 12px', height: '36px', borderRadius: '6px', background: '#1e293b', color: '#ffffff',
-              fontWeight: 800, fontSize: '0.75rem', border: 'none', cursor: 'pointer', transition: 'all 0.15s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#0f172a'}
-            onMouseLeave={e => e.currentTarget.style.background = '#1e293b'}
+            className="pos-action-btn btn-kot-print"
           >
             <span>KOT & Print</span>
-            <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px' }}>F9</span>
+            <span className="btn-hotkey-label">F9</span>
           </button>
         </>
+      )}
+
+      {isBillingDesk && (
+        <button
+          type="button"
+          onClick={onPay}
+          className="pos-action-btn btn-payment"
+        >
+          <span>Payment</span>
+          <span className="btn-hotkey-label">F10</span>
+        </button>
       )}
     </div>
   );

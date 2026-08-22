@@ -24,50 +24,97 @@ const SummaryCards = memo(({ rooms = [], tables = [], stats, showToast }) => {
   const totalTablesDisplay = stats?.totalTablesCount !== undefined ? stats.totalTablesCount : (tables.length || 12);
 
   const cards = [
-    { label: "Active Dining Tables", value: `${activeTablesDisplay}/${totalTablesDisplay}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#0e7490', sub: 'running tables' },
-    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTablesDisplay} active orders`, up: true, icon: LuTrendingUp, accent: '#16a34a', sub: 'live orders' },
-    { label: "Menu Catalog Items",   value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#d97706', sub: 'live active items' },
-    { label: "Recorded Orders",      value: `${(stats?.totalOrdersCount || 0) + activeTablesDisplay}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#418A8B', sub: 'total bills' },
-    { label: "Cash Collection",      value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#15803d', sub: 'cash drawer' },
-    { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#0d9488', sub: 'UPI payments' },
+    { label: "Active Dining Tables", value: `${activeTablesDisplay}/${totalTablesDisplay}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#6366f1', sub: 'running tables' },
+    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTablesDisplay} active orders`, up: true, icon: LuTrendingUp, accent: '#10b981', sub: 'live orders' },
+    { label: "Menu Catalog Items",   value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#8b5cf6', sub: 'live active items' },
+    { label: "Recorded Orders",      value: `${(stats?.totalOrdersCount || 0) + activeTablesDisplay}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#f43f5e', sub: 'total bills' },
+    { label: "Cash Collection",      value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#f59e0b', sub: 'cash drawer' },
+    { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#06b6d4', sub: 'UPI payments' },
     // Room stats — disabled (uncomment to re-enable)
     // { label: "Available Rooms",  value: String(clean),    trend: `${rooms.length} total rooms`, up: true, icon: LuBed,   accent: '#0369a1', sub: 'clean rooms' },
     // { label: "Occupied Rooms",   value: String(occupied), trend: rooms.length ? `${((occupied/rooms.length)*100).toFixed(0)}% occ.` : '0%', up: occupied > 0, icon: LuUsers, accent: '#7c3aed', sub: 'in-house guests' },
   ];
 
   return (
-    <div className="dash-summary-cards">
+    <div className="dash-summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '24px' }}>
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
           <div key={i}
             onClick={() => showToast?.(`${c.label}: ${c.value}`)}
             style={{
-              background: '#fff', borderRadius: '12px',
-              border: '1px solid #e2e8f0', borderTop: `3px solid ${c.accent}`,
-              padding: '14px 16px', cursor: 'pointer',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'all 200ms',
-              display: 'flex', flexDirection: 'column', gap: '8px',
-              minWidth: 0, width: '100%', boxSizing: 'border-box',
+              background: '#ffffff',
+              backgroundImage: `radial-gradient(circle at 100% 0%, ${c.accent}15 0%, transparent 50%), radial-gradient(circle, rgba(15, 23, 42, 0.02) 1px, transparent 1px)`,
+              backgroundSize: '100% 100%, 14px 14px',
+              borderRadius: '16px',
+              border: '1px solid rgba(226, 232, 240, 0.8)',
+              padding: '20px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              minWidth: 0,
+              width: '100%',
+              boxSizing: 'border-box',
+              position: 'relative',
+              overflow: 'hidden'
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.08)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-5px)';
+              e.currentTarget.style.boxShadow = `0 12px 20px -8px ${c.accent}33, 0 4px 12px -5px ${c.accent}22`;
+              e.currentTarget.style.borderColor = c.accent;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)';
+              e.currentTarget.style.borderColor = 'rgba(226, 232, 240, 0.8)';
+            }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.3, wordBreak: 'break-word' }}>
+            {/* Top border accent line with a subtle fade-out gradient */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: `linear-gradient(90deg, ${c.accent} 0%, ${c.accent}55 100%)` }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.6px', lineHeight: 1.3 }}>
                 {c.label}
               </span>
-              <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={16} color={c.accent} />
+              <div style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                background: `linear-gradient(135deg, ${c.accent}18 0%, ${c.accent}08 100%)`,
+                border: `1px solid ${c.accent}25`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Icon size={18} color={c.accent} />
               </div>
             </div>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: '#0f172a', lineHeight: 1.1 }}>{c.value}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', flexWrap: 'wrap' }}>
-              <span style={{ color: c.up ? '#15803d' : '#dc2626', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '13px' }}>
-                {c.up ? <LuArrowUpRight size={14} /> : <LuArrowDownRight size={14} />}
+            
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.75px', lineHeight: 1.1 }}>{c.value}</div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '500', flexWrap: 'wrap', borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '4px', position: 'relative', zIndex: 2 }}>
+              <span style={{
+                color: c.up ? '#10b981' : '#f43f5e',
+                background: c.up ? '#ecfdf5' : '#fff1f2',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                fontWeight: '700',
+                fontSize: '11px',
+                border: `1px solid ${c.up ? '#a7f3d0' : '#fecdd3'}`
+              }}>
+                {c.up ? <LuArrowUpRight size={12} /> : <LuArrowDownRight size={12} />}
                 {c.trend}
               </span>
-              <span style={{ color: '#64748b', fontSize: '12px' }}>{c.sub}</span>
+              <span style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>{c.sub}</span>
             </div>
           </div>
         );

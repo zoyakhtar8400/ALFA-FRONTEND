@@ -372,211 +372,155 @@ const BillingPanel = ({
         </div>
       )}
 
-      {/* Scrollable Middle Cart & Payment Options Area */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Scrollable Middle Cart Area */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', background: '#ffffff' }}>
         {/* Interactive billing item rows ledger */}
-        <div style={{ padding: '8px', flex: '1 0 auto', minHeight: '180px', overflowX: 'hidden', overflowY: 'visible', maxWidth: '100%' }}>
-        <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#0e7490', color: '#ffffff' }}>
-              <th style={{ padding: '8px 2px', textAlign: 'center', width: '28px', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800 }}></th>
-              <th style={{ padding: '8px 6px', textAlign: 'left', width: '38%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Items</th>
-              <th style={{ padding: '8px 6px', textAlign: 'left', width: '22%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Remark</th>
-              <th style={{ padding: '8px 2px', textAlign: 'center', width: '12%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</th>
-              <th style={{ padding: '8px 6px', textAlign: 'left', width: '28%', color: '#ffffff', background: '#0e7490', fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Rate (Amount)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan="5" style={{ padding: '36px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: 600 }}>
-                  <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>🛒</div>
-                  <div>No Active Order</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>Search or select menu items above to start billing</div>
-                </td>
-              </tr>
-            ) : (
-              rows.map((row, index) => {
-              const matchItem = allMenuItems.find(f =>
-                (f.id && row.itemId && String(f.id) === String(row.itemId)) ||
-                (f.name && (row.itemName || row.name || row.title) && String(f.name).toLowerCase() === String(row.itemName || row.name || row.title).toLowerCase())
-              );
-              return (
-                <tr
-                  key={row.lineId || index}
-                  style={{ borderBottom: '1px solid #e2e8f0', background: '#fff', transition: 'background-color 0.15s ease' }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
-                >
-                  <td style={{ padding: '4px 2px', textAlign: 'center' }}>
-                    <button
-                      type="button"
-                      data-row={index}
-                      data-col={0}
-                      onKeyDown={e => handleGridKeyDown(e, index, 0)}
-                      onClick={() => handleRemoveRow(index)}
-                      style={{
-                        background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer',
-                        padding: '4px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = '#fee2e2';
-                        e.currentTarget.style.color = '#ef4444';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.color = '#94a3b8';
-                      }}
-                    >
-                      <FaTimes size={12} />
-                    </button>
-                  </td>
-                  <td style={{ padding: '4px 2px' }}>
-                    {(() => {
-                      const rawName = row.itemName || row.name || row.title || row.item_name || '';
-                      let selectedVal = '';
-                      if (rawName) {
-                        const exactMatch = allMenuItems.find(i => i.name === rawName);
-                        if (exactMatch) {
-                          selectedVal = exactMatch.name;
-                        } else {
-                          const ciMatch = allMenuItems.find(i => (i.name || '').toLowerCase() === rawName.toLowerCase());
-                          selectedVal = ciMatch ? ciMatch.name : rawName;
-                        }
-                      }
-                      const hasSelectedInOptions = allMenuItems.some(i => i.name === selectedVal);
+        <div style={{ padding: '12px 16px', flex: '1 0 auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Order Cart ({rows.filter(r => r.name || r.itemName).length} items)
+            </span>
+            {rows.length > 0 && (
+              <button 
+                type="button" 
+                onClick={() => setRows([])}
+                style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}
+              >
+                Clear Cart
+              </button>
+            )}
+          </div>
 
-                      return (
-                        <select
-                          data-row={index}
-                          data-col={1}
-                          onKeyDown={e => handleGridKeyDown(e, index, 1)}
-                          value={selectedVal}
-                          onChange={e => updateRowField(index, 'itemName', e.target.value)}
-                          style={{
-                            width: '100%', boxSizing: 'border-box', padding: '5px 4px', borderRadius: '5px',
-                            border: '1px solid #cbd5e1', fontSize: '0.74rem', fontWeight: 600, outline: 'none',
-                            transition: 'border-color 0.15s ease'
-                          }}
-                          onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
-                          onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                        >
-                          <option value="">SELECT ITEM...</option>
-                          {selectedVal && !hasSelectedInOptions && (
-                            <option value={selectedVal}>{selectedVal}</option>
-                          )}
-                          {allMenuItems.filter(item => item.active !== 'No').map((item, idx) => (
-                            <option key={item.id ? `${item.id}-${item.name}-${idx}` : item.name || idx} value={item.name}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </select>
-                      );
-                    })()}
-
-                    {matchItem?.variants && matchItem.variants.length > 0 && (
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '2px', fontSize: '0.65rem', flexWrap: 'wrap' }}>
-                        {matchItem.variants.map(variant => (
-                          <label key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer', fontWeight: '700' }}>
-                            <input
-                              type="radio"
-                              name={`variant-${index}-${row.lineId || index}`}
-                              checked={row.variantId === variant.id}
-                              onChange={() => handleVariantChange(index, variant.id)}
-                            /> {variant.name}
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '4px 2px' }}>
-                    <input
-                      type="text"
-                      data-row={index}
-                      data-col={2}
-                      onKeyDown={e => handleGridKeyDown(e, index, 2)}
-                      value={row.remark || ''}
-                      onChange={e => updateRowField(index, 'remark', e.target.value)}
-                      placeholder="REMARKS"
-                      style={{
-                        width: '100%', boxSizing: 'border-box', padding: '5px 6px', borderRadius: '5px',
-                        border: '1px solid #cbd5e1', fontSize: '0.74rem', outline: 'none',
-                        transition: 'border-color 0.15s ease'
-                      }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                    />
-                  </td>
-                  <td style={{ padding: '4px 2px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                      <button
-                        type="button"
-                        onClick={() => updateRowField(index, 'qty', Math.max(1, (row.qty || 1) - 1))}
-                        style={{
-                          background: '#e2e8f0', border: 'none', borderRadius: '4px', width: '22px', height: '22px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', color: '#334155', flexShrink: 0
-                        }}
-                      >-</button>
-                      <input
-                        type="number"
-                        min="1"
-                        data-row={index}
-                        data-col={3}
-                        onKeyDown={e => handleGridKeyDown(e, index, 3)}
-                        value={row.qty}
-                        onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
-                        style={{
-                          width: '35px', boxSizing: 'border-box', padding: '3px 2px', borderRadius: '4px',
-                          border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center', outline: 'none',
-                          transition: 'border-color 0.15s ease'
-                        }}
-                        onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
-                        onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updateRowField(index, 'qty', (row.qty || 1) + 1)}
-                        style={{
-                          background: '#0e7490', border: 'none', borderRadius: '4px', width: '22px', height: '22px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', color: '#ffffff', flexShrink: 0
-                        }}
-                      >+</button>
-                    </div>
-                  </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '8px', minHeight: '34px' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      data-row={index}
-                      data-col={4}
-                      onKeyDown={e => handleGridKeyDown(e, index, 4)}
-                      value={row.unitPrice || row.price || 0}
-                      onChange={e => updateRowField(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      disabled={!row.itemId || (row.is_open_item !== 1 && row.is_open_item !== true)}
-                      style={{
-                        width: '65px', boxSizing: 'border-box', padding: '4px 2px', borderRadius: '4px',
-                        border: '1px solid #cbd5e1', fontSize: '0.74rem', textAlign: 'center', outline: 'none',
-                        transition: 'border-color 0.15s ease',
-                        backgroundColor: (!row.itemId || (row.is_open_item !== 1 && row.is_open_item !== true)) ? '#f1f5f9' : '#ffffff',
-                        cursor: (!row.itemId || (row.is_open_item !== 1 && row.is_open_item !== true)) ? 'not-allowed' : 'text'
-                      }}
-                      onFocus={e => e.currentTarget.style.borderColor = '#0e7490'}
-                      onBlur={e => e.currentTarget.style.borderColor = '#cbd5e1'}
-                    />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                      ({(row.qty * (row.unitPrice || row.price || 0)).toFixed(2)})
-                    </span>
-                  </td>
+          {rows.length === 0 ? (
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #e2e8f0' }}>
+              <div style={{ fontSize: '1.6rem', marginBottom: '8px' }}>🛒</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#334155' }}>Your cart is empty</div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px' }}>Select items from the menu to start order</div>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f1f5f9', background: '#f8fafc' }}>
+                  <th style={{ padding: '10px 8px', color: '#64748b', fontWeight: '800', width: '38%' }}>Item</th>
+                  <th style={{ padding: '10px 8px', color: '#64748b', fontWeight: '800', width: '22%' }}>Note</th>
+                  <th style={{ padding: '10px 8px', color: '#64748b', fontWeight: '800', width: '20%', textAlign: 'center' }}>Qty</th>
+                  <th style={{ padding: '10px 8px', color: '#64748b', fontWeight: '800', width: '15%', textAlign: 'right' }}>Amount</th>
+                  <th style={{ padding: '10px 8px', color: '#64748b', fontWeight: '800', width: '5%', textAlign: 'center' }}></th>
                 </tr>
-              );
-            }))}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => {
+                  const matchItem = allMenuItems.find(f =>
+                    (f.id && row.itemId && String(f.id) === String(row.itemId)) ||
+                    (f.name && (row.itemName || row.name || row.title) && String(f.name).toLowerCase() === String(row.itemName || row.name || row.title).toLowerCase())
+                  );
+                  return (
+                    <tr key={row.lineId || index} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {/* Column 1: Item Name & Veg Dot & Variant */}
+                      <td style={{ padding: '10px 8px' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          <span style={{ 
+                            width: '6px', height: '6px', borderRadius: '50%', 
+                            background: matchItem?.isVeg ? '#10b981' : '#ef4444',
+                            flexShrink: 0
+                          }} />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '800', color: '#1e293b', fontSize: '0.8rem' }}>
+                              {row.itemName || row.name}
+                            </span>
+                            {row.variantName && (
+                              <span style={{ fontSize: '9.5px', color: '#2563eb', fontWeight: '700', marginTop: '1px' }}>
+                                {row.variantName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Column 2: Remarks Input */}
+                      <td style={{ padding: '10px 8px' }}>
+                        <input
+                          type="text"
+                          value={row.remark || ''}
+                          onChange={e => updateRowField(index, 'remark', e.target.value)}
+                          placeholder="Note..."
+                          style={{
+                            width: '100%', padding: '4px 6px', borderRadius: '5px', border: '1px solid #e2e8f0',
+                            fontSize: '0.74rem', outline: 'none', fontWeight: 600, color: '#475569',
+                            background: '#f8fafc'
+                          }}
+                          onFocus={e => e.currentTarget.style.borderColor = '#2563eb'}
+                          onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                        />
+                      </td>
+
+                      {/* Column 3: Qty Input */}
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                        <input
+                          type="number"
+                          min="1"
+                          data-row={index}
+                          data-col={3}
+                          value={row.qty}
+                          onChange={e => updateRowField(index, 'qty', parseInt(e.target.value) || 1)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (searchInputRef && searchInputRef.current) {
+                                searchInputRef.current.focus();
+                                searchInputRef.current.select();
+                              }
+                            } else {
+                              handleGridKeyDown(e, index, 3);
+                            }
+                          }}
+                          style={{
+                            width: '45px', padding: '4px 6px', borderRadius: '6px', border: '1px solid #e2e8f0',
+                            fontSize: '0.8rem', outline: 'none', fontWeight: 800, textAlign: 'center',
+                            background: '#f8fafc',
+                            transition: 'all 0.15s ease'
+                          }}
+                          onFocus={e => {
+                            e.currentTarget.style.borderColor = '#2563eb';
+                            e.currentTarget.style.background = '#ffffff';
+                            e.currentTarget.select?.();
+                          }}
+                          onBlur={e => {
+                            e.currentTarget.style.borderColor = '#e2e8f0';
+                            e.currentTarget.style.background = '#f8fafc';
+                          }}
+                        />
+                      </td>
+
+                      {/* Column 4: Amount */}
+                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: '800', color: '#0f172a' }}>
+                        ₹{Math.round(row.qty * (row.unitPrice || row.price || 0))}
+                      </td>
+
+                      {/* Column 5: Actions */}
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRow(index)}
+                          style={{
+                            background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer',
+                            padding: '4px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                        >
+                          <FaTimes size={11} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
-    </div>
 
       {/* ── ALWAYS FIXED PINNED BOTTOM DOCK (Payment Options, Discounts, Split Bill, Total Amount, Action Buttons F5-F10) ── */}
       <div style={{
@@ -687,6 +631,7 @@ const BillingPanel = ({
           onBilling={() => handleDirectComplete(true)}
           onKOT={handleAddKOT}
           onKOTAndPrint={handleSaveAndPrint}
+          onPay={() => setShowQuickPaymentModal(true)}
           isNC={!!(ncType && ncType.trim())}
           isViewMode={isViewMode}
           isBillingDesk={isBillingDesk}

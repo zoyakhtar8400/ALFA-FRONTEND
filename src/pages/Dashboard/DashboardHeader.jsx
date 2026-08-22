@@ -27,26 +27,26 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
 
   return (
     <div style={{ marginBottom: '24px', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
         <div>
-          <h1 style={{ fontSize: '28px', fontWeight: '800', color: '#244E5F', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '30px', fontWeight: '800', color: '#244E5F', margin: 0, letterSpacing: '-0.75px', fontFamily: 'var(--font-family)' }}>
             Hotel Dashboard
           </h1>
-          <p style={{ fontSize: '14px', color: '#475569', margin: '4px 0 0', fontWeight: '500' }}>{today}</p>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{today}</p>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap', maxWidth: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', maxWidth: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', maxWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', maxWidth: '100%' }}>
             {activeTab === 'overview' && (
-              <div style={{ display: 'flex', gap: '2px', background: '#f1f5f9', borderRadius: '8px', padding: '3px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '4px', flexWrap: 'wrap' }}>
                 {TIMEFRAMES.map(t => (
                   <button key={t} onClick={() => setTimeframe(t.toLowerCase())}
                     style={{
-                      border: 'none', padding: '6px 12px', borderRadius: '6px',
-                      fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: 'all 150ms',
+                      border: 'none', padding: '6px 14px', borderRadius: '7px',
+                      fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', transition: 'all 200ms ease',
                       background: timeframe === t.toLowerCase() ? '#fff' : 'transparent',
-                      color: timeframe === t.toLowerCase() ? '#244E5F' : '#475569',
-                      boxShadow: timeframe === t.toLowerCase() ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                      color: timeframe === t.toLowerCase() ? '#244E5F' : '#64748b',
+                      boxShadow: timeframe === t.toLowerCase() ? '0 4px 10px rgba(36, 78, 95, 0.05), 0 1px 3px rgba(36, 78, 95, 0.03)' : 'none',
                     }}
                   >{t}</button>
                 ))}
@@ -101,11 +101,15 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
           alignItems: 'center', 
           flexWrap: 'nowrap', 
           overflowX: 'auto', 
-          gap: '4px', 
-          borderBottom: '2px solid #f1f5f9', 
+          gap: '6px', 
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          padding: '6px',
+          borderRadius: '12px',
           width: '100%', 
           boxSizing: 'border-box',
           scrollbarWidth: 'none',
+          marginBottom: '24px'
         }}
         className="no-scrollbar"
       >
@@ -115,19 +119,26 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer',
-                fontSize: '13px', fontWeight: active ? '700' : '600',
-                color: active ? '#418A8B' : '#475569',
-                borderBottom: `2px solid ${active ? '#418A8B' : 'transparent'}`,
-                marginBottom: '-2px', transition: 'all 150ms',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                border: 'none',
+                background: active ? '#fff' : 'transparent',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: active ? '700' : '600',
+                color: active ? '#418A8B' : '#64748b',
+                boxShadow: active ? '0 4px 12px rgba(36, 78, 95, 0.06), 0 1px 3px rgba(36, 78, 95, 0.04)' : 'none',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
               }}
               onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#418A8B'; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#475569'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#64748b'; }}
             >
-              <Icon size={14} />{tab.label}
+              <Icon size={15} style={{ color: active ? '#418A8B' : '#94a3b8' }} />{tab.label}
             </button>
           );
         })}

@@ -32,41 +32,6 @@ const QuickPaymentModal = ({
   const [tipAmount, setTipAmount] = useState('');
   const [taxLines, setTaxLines] = useState([]); // [{name, rate, amount}]
 
-  // Load ALL active taxes from backend Tax master on open
-  useEffect(() => {
-    if (!isOpen) return;
-    posApi.getItemTaxCategories().then(res => {
-      const taxes = Array.isArray(res?.data) ? res.data : [];
-      setTaxLines(taxes.map(t => ({
-        name: t.name || 'Tax',
-        rate: Number(t.percentage || 0)
-      })));
-    }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
-
-    paymentModeService.getPaymentModes().then(res => {
-      let list = Array.isArray(res) ? res : (res?.data || res?.paymentModes || res?.payment_modes || []);
-      const activeList = list
-        .filter(p => p.active !== 'No' && p.isActive !== false)
-        .map(p => ({
-            id: p.name || p.payment_mode_name,
-            name: p.name || p.payment_mode_name,
-            label: p.name || p.payment_mode_name,
-            type: p.type || 'CASH'
-        }));
-      setDbPaymentModes(activeList.length > 0 ? activeList : [{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }]);
-    }).catch(() => {
-      setDbPaymentModes([{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }]);
-    });
-  }, [isOpen]);
-
-  const toast = (msg, type = 'success') => {
-    if (typeof showToast === 'function') {
-      showToast(msg);
-    } else if (window.showToast) {
-      window.showToast(msg, type);
-    }
-  };
-
   // Calculate bill amounts
   const activeRows = useMemo(() => {
     return Array.isArray(items) && items.length > 0 ? items : (table?.items || []);
@@ -99,6 +64,46 @@ const QuickPaymentModal = ({
   const balanceDue = Math.max(0, netBill - totalPaid).toFixed(2);
   const dueCredit = Math.max(0, totalPaid - netBill).toFixed(2);
   const cashReturn = totalPaid > netBill ? dueCredit : '0.00';
+
+  const toast = (msg, type = 'success') => {
+    if (typeof showToast === 'function') {
+      showToast(msg);
+    } else if (window.showToast) {
+      window.showToast(msg, type);
+    }
+  };
+
+  // Load ALL active taxes from backend Tax master on open
+  useEffect(() => {
+    if (!isOpen) return;
+    posApi.getItemTaxCategories().then(res => {
+      const taxes = Array.isArray(res?.data) ? res.data : [];
+      setTaxLines(taxes.map(t => ({
+        name: t.name || 'Tax',
+        rate: Number(t.percentage || 0)
+      })));
+    }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
+
+    paymentModeService.getPaymentModes().then(res => {
+      let list = Array.isArray(res) ? res : (res?.data || res?.paymentModes || res?.payment_modes || []);
+      const activeList = list
+        .filter(p => p.active !== 'No' && p.isActive !== false)
+        .map(p => ({
+            id: p.name || p.payment_mode_name,
+            name: p.name || p.payment_mode_name,
+            label: p.name || p.payment_mode_name,
+            type: p.type || 'CASH'
+        }));
+      const finalModes = activeList.length > 0 ? activeList : [{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }];
+      setDbPaymentModes(finalModes);
+      if (finalModes.length > 0) {
+        setPaymentAmounts({ [finalModes[0].id]: netBill });
+      }
+    }).catch(() => {
+      setDbPaymentModes([{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }]);
+      setPaymentAmounts({ 'Cash': netBill });
+    });
+  }, [isOpen, netBill]);
 
 
 

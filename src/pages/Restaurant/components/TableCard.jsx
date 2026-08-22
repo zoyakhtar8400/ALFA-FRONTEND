@@ -2,17 +2,18 @@ import React from 'react';
 import { FaPrint, FaEye, FaWallet, FaRupeeSign } from 'react-icons/fa';
 
 const COLOR_MAP = {
-  white: { bg: '#ffffff', text: '#6b7280', border: '1px dashed #d1d5db' },
-  yellow: { bg: '#f5c842', text: '#1e293b', border: '1px solid #d4a800' }, // Running Table (Yellow)
-  orange: { bg: '#f97316', text: '#ffffff', border: '1px solid #ea580c' }, // Reserved Table (Orange)
-  // green: { bg: '#22c55e', text: '#ffffff', border: '1px solid #16a34a' },   // Paid / Cleaning (Green)
-  blue: { bg: '#2563eb', text: '#ffffff', border: '1px solid #1d4ed8' },   // Unpaid Bill (Blue)
-  red: { bg: '#ef4444', text: '#ffffff', border: '1px solid #b91c1c' },    // Error / Override (Red)
-  // purple: { bg: '#c084fc', text: '#1e293b', border: '1px solid #a855f7' }  // NC / Blocked Table (Purple)
+  white: { bg: '#ffffff', text: '#475569', border: '1.5px solid #cbd5e1', dot: '#94a3b8' },
+  yellow: { bg: '#f59e0b', text: '#ffffff', border: '1.5px solid #d97706', dot: '#ffffff', glow: '0 4px 12px rgba(245, 158, 11, 0.2)' },  // Running / Occupied (Orange-Yellow)
+  blue: { bg: '#2563eb', text: '#ffffff', border: '1.5px solid #1d4ed8', dot: '#ffffff', glow: '0 4px 12px rgba(37, 99, 235, 0.2)' },     // Unpaid (Blue)
+  orange: { bg: '#f97316', text: '#ffffff', border: '1.5px solid #ea580c', dot: '#ffffff', glow: '0 4px 12px rgba(249, 115, 22, 0.2)' },   // Reserved (Orange)
+  purple: { bg: '#8b5cf6', text: '#ffffff', border: '1.5px solid #6d28d9', dot: '#ffffff', glow: '0 4px 12px rgba(139, 92, 246, 0.2)' },   // NC Blocked (Purple)
+  green: { bg: '#10b981', text: '#ffffff', border: '1.5px solid #047857', dot: '#ffffff', glow: '0 4px 12px rgba(16, 185, 129, 0.2)' },    // Paid (Green)
+  gray: { bg: '#94a3b8', text: '#ffffff', border: '1.5px solid #64748b', dot: '#ffffff', glow: '0 4px 12px rgba(148, 163, 184, 0.2)' }     // Cleaning (Gray)
 };
+
 const AREA_BORDER_COLORS = [
-  '#ef4444', // Red
-  '#3b82f6', // Blue
+  '#6366f1', // Indigo
+  '#0ea5e9', // Sky
   '#10b981', // Emerald
   '#f59e0b', // Amber
   '#8b5cf6', // Violet
@@ -24,7 +25,7 @@ const AREA_BORDER_COLORS = [
 ];
 
 const getAreaBorder = (areaStr) => {
-  if (!areaStr || areaStr === 'Unassigned Area') return '#d1d5db';
+  if (!areaStr || areaStr === 'Unassigned Area') return '#e2e8f0';
   let hash = 0;
   for (let i = 0; i < areaStr.length; i++) {
     hash = areaStr.charCodeAt(i) + ((hash << 5) - hash);
@@ -39,36 +40,36 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
   const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
   const isNCBlocked = !isBlank && (statusUpper === 'NC_BLOCKED' || table.color === 'purple');
   const isReserved = !isBlank && !isNCBlocked && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
-  const isPaidOrCleaning = !isBlank && !isReserved && !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
-  const isUnpaidBill = !isBlank && !isReserved && !isPaidOrCleaning && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
+  const isCleaning = !isBlank && !isReserved && !isNCBlocked && ['CLEANING', 'CLEANUP_RUNNING'].includes(statusUpper);
+  const isPaid = !isBlank && !isReserved && !isNCBlocked && !isCleaning && ['PAYMENT_COMPLETED', 'PAID', 'BILL GENERATED'].includes(statusUpper);
+  const isUnpaidBill = !isBlank && !isReserved && !isPaid && !isCleaning && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
   const kotCount = table.kotCount || (Array.isArray(table.kots) ? table.kots.length : 0);
   const hasActualItems = (Number(table.amount || 0) > 0) || kotCount > 0 || (Array.isArray(table.items) && table.items.length > 0);
 
   // STRICT RULE: Only consider it running if it ACTUALLY has items/amount/KOTs. 
   // Ignore phantom 'RUNNING'/'OCCUPIED' statuses from backend for empty tables.
-  const isRunning = !isBlank && !isReserved && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked && (hasActualItems);
+  const isRunning = !isBlank && !isReserved && !isPaid && !isCleaning && !isUnpaidBill && !isNCBlocked && (hasActualItems);
 
   const colorKey = isNCBlocked
     ? 'purple'
-    : isPaidOrCleaning
-      ? 'green'
-      : isReserved
-        ? 'orange'
-        : isUnpaidBill
-          ? 'blue'
-          : isRunning
-            ? 'yellow'
-            : 'white';
+    : isCleaning
+      ? 'gray'
+      : isPaid
+        ? 'green'
+        : isReserved
+          ? 'orange'
+          : isUnpaidBill
+            ? 'blue'
+            : isRunning
+              ? 'yellow'
+              : 'white';
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
   // If it doesn't have actual items and isn't reserved/blocked/paid, it's available (blank).
-  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaidOrCleaning && !isUnpaidBill && !isNCBlocked);
-  const isPaymentCompleted = isPaidOrCleaning;
+  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaid && !isCleaning && !isUnpaidBill && !isNCBlocked);
+  const isPaymentCompleted = isPaid || isCleaning;
 
   // Action icons:
-  // Green table (Paid) -> ['print_kot']
-  // Yellow/Red table (Running / KOT Cut / Unpaid) -> ['print_kot', 'view_kot'] (two icons)
-  // White/Reserved table -> []
   const actions = isNCBlocked
     ? []
     : isUnpaidBill ? ['quick_pay'] : (Array.isArray(table.available_actions) && table.available_actions.length > 0 && hasActualItems)
@@ -99,26 +100,31 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
       style={{
         background: cfg.bg,
         color: cfg.text,
-        border: isSelected ? '2px solid #0e7490' : cfg.border,
-        borderRadius: '6px',
+        border: isSelected ? '2.5px solid var(--primary)' : cfg.border,
+        borderRadius: '12px',
         cursor: 'pointer',
         display: 'flex',
         flexDirection: 'column',
-
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '105px',
+        justifyContent: 'space-between',
+        padding: '8px 10px',
+        height: '75px',
         position: 'relative',
-        textAlign: 'center',
         outline: 'none',
         userSelect: 'none',
-        boxShadow: isAvailable ? 'none' : '0 1px 4px rgba(0,0,0,0.12)',
-        transition: 'transform 100ms ease, box-shadow 100ms ease',
-        overflow: 'visible',
+        boxShadow: cfg.glow || '0 1px 3px rgba(0,0,0,0.02)',
+        transition: 'all 0.2s ease-in-out',
+        overflow: 'hidden'
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(0,0,0,0.18)'; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = isAvailable ? 'none' : '0 1px 4px rgba(0,0,0,0.12)'; }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.boxShadow = cfg.glow ? `0 6px 16px -4px ${cfg.dot}55` : '0 6px 12px rgba(0,0,0,0.05)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = '';
+        e.currentTarget.style.boxShadow = cfg.glow || '0 1px 3px rgba(0,0,0,0.02)';
+      }}
     >
+      {/* Reset button (visible when occupied) */}
       {!isAvailable && (
         <button
           onClick={(e) => {
@@ -130,112 +136,87 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
             position: 'absolute',
             top: '4px',
             right: '4px',
-            background: '#fee2e2',
-            border: '1px solid #fecaca',
-            color: '#ef4444',
+            background: 'rgba(255,255,255,0.25)',
+            border: 'none',
+            color: '#fff',
             borderRadius: '50%',
-            width: '20px',
-            height: '20px',
+            width: '15px',
+            height: '15px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
             zIndex: 10,
-            transition: 'background 0.1s, transform 0.1s',
             padding: 0
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = '#fca5a5';
-            e.currentTarget.style.transform = 'scale(1.1)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = '#fee2e2';
-            e.currentTarget.style.transform = 'none';
-          }}
         >
-          <svg stroke="currentColor" fill="none" strokeWidth="2.5" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="11" width="11" xmlns="http://www.w3.org/2000/svg">
+          <svg stroke="currentColor" fill="none" strokeWidth="3" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round" height="8" width="8" xmlns="http://www.w3.org/2000/svg">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       )}
-      {/* ── Timer badge (backend calculated remaining_seconds) ── */}
-      {timerText && (
-        <div style={{
-          position: 'absolute',
-          top: '-9px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: '#15803d',
-          color: '#fff',
-          fontSize: '0.65rem',
-          fontWeight: 800,
-          lineHeight: 1,
-          padding: '3px 8px',
-          borderRadius: '10px',
-          whiteSpace: 'nowrap',
-          zIndex: 5,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
-        }}>
-          {timerText}
-        </div>
-      )}
 
-      {/* ── Table number ── */}
-      <div style={{ fontSize: '1.1rem', fontWeight: 800, lineHeight: 1 }}>
-        {(() => {
-          if (table.table_name && table.table_name.trim() !== '') return table.table_name;
-          const noStr = String(table.no || table.table_no || '1').trim();
-          if (noStr.startsWith('TK-') || noStr.startsWith('DL-')) return noStr;
-          return `T${parseInt(noStr, 10) || noStr}`;
-        })()}
+      {/* Row 1: Table Number & Pax Capacity */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {(() => {
+            if (table.table_name && table.table_name.trim() !== '') return table.table_name;
+            const noStr = String(table.no || table.table_no || '1').trim();
+            if (noStr.startsWith('TK-') || noStr.startsWith('DL-')) return noStr;
+            return `T${parseInt(noStr, 10) || noStr}`;
+          })()}
+        </div>
       </div>
 
-      {/* ── Status label removed per user request ── */}
-
-      {/* ── Amount (for running / unpaid tables) ── */}
-      {!isAvailable && !isPaymentCompleted && !isReserved && table.amount > 0 && (
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, marginTop: '3px', lineHeight: 1 }}>
-          ₹{table.amount.toLocaleString('en-IN')}
-        </div>
-      )}
-
-      {/* ── Backend Driven Action Icons ── */}
-      {showActions && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: '-11px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: '4px',
-            background: '#fff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '6px',
-            padding: '5px 8px',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-            zIndex: 5,
-          }}
-        >
-          {actions.includes('print_kot') && (
-            <Btn title="Print Bill" onClick={onSave} color="#374151">
-              <FaPrint size={15} />
-            </Btn>
+      {/* Row 2: Status / Waiter / Amount & Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+        <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
+          {!isAvailable && table.amount > 0 ? (
+            <div style={{ fontSize: '0.85rem', fontWeight: '900', lineHeight: 1.1 }}>
+              ₹{Math.round(table.amount)}
+            </div>
+          ) : (
+            <div style={{ fontSize: '10px', fontWeight: '700', opacity: 0.85, lineHeight: 1.1 }}>
+              {isAvailable ? 'Vacant' : (isReserved ? 'Booked' : (isNCBlocked ? 'NC Block' : 'Active'))}
+            </div>
           )}
-          {actions.includes('view_kot') && (
-            <Btn title="View POS Billing" onClick={onView} color="#374151">
-              <FaEye size={15} />
-            </Btn>
-          )}
-          {actions.includes('quick_pay') && (
-            <Btn title="Quick Payment" onClick={(e) => onClick?.(e, 'quick_pay')} color="#16a34a">
-              <FaRupeeSign size={15} />
-            </Btn>
+          
+          {table.waiter && !isAvailable && (
+            <div style={{ fontSize: '8px', fontWeight: '600', opacity: 0.9, marginTop: '2px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '65px' }}>
+              {table.waiter.split(' ')[0]}
+            </div>
           )}
         </div>
-      )}
+
+        {/* Inline Actions */}
+        {showActions && (
+          <div style={{ 
+            display: 'flex', 
+            gap: '3px', 
+            background: isAvailable ? '#f1f5f9' : 'rgba(255,255,255,0.2)', 
+            padding: '2px 4px', 
+            borderRadius: '5px',
+            alignItems: 'center' 
+          }}>
+            {actions.includes('quick_pay') && (
+              <Btn title="Quick Pay" onClick={(e) => onClick?.(e, 'quick_pay')} color={isAvailable ? '#16a34a' : '#ffffff'}>
+                <FaRupeeSign size={10} />
+              </Btn>
+            )}
+            {actions.includes('print_kot') && (
+              <Btn title="Print Bill" onClick={onSave} color={isAvailable ? '#475569' : '#ffffff'}>
+                <FaPrint size={10} />
+              </Btn>
+            )}
+            {actions.includes('view_kot') && (
+              <Btn title="Open POS" onClick={onView} color={isAvailable ? '#475569' : '#ffffff'}>
+                <FaEye size={10} />
+              </Btn>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
@@ -246,14 +227,19 @@ const Btn = ({ children, color, title, onClick }) => (
   <button
     title={title}
     onClick={e => { e.stopPropagation(); onClick?.(e); }}
-    onMouseEnter={e => { e.currentTarget.style.color = '#0e7490'; }}
-    onMouseLeave={e => { e.currentTarget.style.color = '#374151'; }}
     style={{
-      background: 'none', border: 'none',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', color, padding: '1px',
-      transition: 'color 100ms ease',
+      background: 'none', 
+      border: 'none',
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      cursor: 'pointer', 
+      color, 
+      padding: '2px',
+      transition: 'opacity 120ms ease',
     }}
+    onMouseEnter={e => { e.currentTarget.style.opacity = '0.7'; }}
+    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
   >
     {children}
   </button>

@@ -549,6 +549,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedTableId, targetKotId, location.state]);
 
+  // Automatically trigger payment modal if redirected with autoSettle state flag
+  useEffect(() => {
+    if (location.state?.autoSettle) {
+      setShowQuickPaymentModal(true);
+    }
+  }, [location.state]);
 
   // Sync changes in rows to orderItemsMap in context & sessionStorage.
   // Skip in KOT view mode — we must never write single-KOT items into the table-level cache.
@@ -688,29 +694,30 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           e.preventDefault();
           focusCartTable();
           break;
-        case 'F5':
-          e.preventDefault();
-          handlersRef.current.handleDirectComplete?.(false);
-          break;
-        case 'F6':
-          e.preventDefault();
-          handlersRef.current.handleSaveAndPrint?.();
-          break;
-        case 'F7':
-          e.preventDefault();
-          handlersRef.current.handleDirectComplete?.();
-          break;
         case 'F8':
           e.preventDefault();
           handlersRef.current.handleAddKOT?.();
           break;
         case 'F9':
           e.preventDefault();
-          handlersRef.current.handleAddKOT?.();
+          handlersRef.current.handleSaveAndPrint?.();
           break;
         case 'F10':
           e.preventDefault();
-          handlersRef.current.handleConfirmBooking?.();
+          if (isBillingDesk) {
+            setShowQuickPaymentModal(true);
+          }
+          break;
+        case 'Delete':
+          if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            setRows(prev => {
+              if (prev.length === 0) return prev;
+              const nextRows = prev.slice(0, -1);
+              toast('Last item removed (Cancelled)');
+              return nextRows;
+            });
+          }
           break;
         case '+':
           if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
@@ -812,6 +819,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const lineId = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 5));
     const itemName = foodItem.name || foodItem.title || 'Item';
 
+    let targetIdx = 0;
+
     setRows(prev => {
       const emptyIndex = prev.findIndex(r => !r.itemName && !r.name);
       const existingIndex = prev.findIndex(r => {
@@ -822,6 +831,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       });
 
       if (existingIndex !== -1) {
+        targetIdx = existingIndex;
         return prev.map((r, i) => {
           if (i === existingIndex) {
             const nextQty = (r.qty || 1) + 1;
@@ -831,6 +841,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           return r;
         });
       } else if (emptyIndex !== -1) {
+        targetIdx = emptyIndex;
         return prev.map((r, i) => {
           if (i === emptyIndex) {
             return {
@@ -856,6 +867,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           return r;
         });
       } else {
+        targetIdx = prev.length;
         return [
           ...prev,
           {
@@ -882,15 +894,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     toast(`Added: ${itemName}${variantName ? ` (${variantName})` : ''}`);
 
     setTimeout(() => {
-      const rowsArr = document.querySelectorAll('[data-col="3"]');
-      if (rowsArr && rowsArr.length > 0) {
-        const target = rowsArr[rowsArr.length - 1];
-        if (target) {
-          target.focus();
-          if (target.select) target.select();
-        }
+      const targetInput = document.querySelector(`[data-row="${targetIdx}"][data-col="3"]`);
+      if (targetInput) {
+        targetInput.focus();
+        if (targetInput.select) targetInput.select();
       }
-    }, 50);
+    }, 80);
   };
 
   useEffect(() => {
