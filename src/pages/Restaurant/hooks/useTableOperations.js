@@ -535,7 +535,7 @@ export const useTableOperations = (location, navigate) => {
         subtotal: subtotal,
         tax: gst,
         discount: discount,
-        amount: grandTotal,
+        total_amount: grandTotal,
         items: orderItemsMap[srcId] || [],
         paymentMethod: paymentMethod,
         store_id: activeStoreId

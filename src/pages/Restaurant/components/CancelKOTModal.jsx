@@ -20,7 +20,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       
       if (tableId && !initialKots) {
         setFetching(true);
-        kotService.getKOTList({ tableId, active: '1' })
+        kotService.getKOTList({ tableId, table_id: tableId, active: '1' })
           .then(res => {
             const fetchedKots = res?.kots || res?.data || [];
             // Ensure each KOT has items
@@ -37,7 +37,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
     }
   }, [isOpen, initialKots, tableId]);
 
-  if (!isOpen) return null;
+  const hasSelection = Object.values(selectedItems).some(items => Array.isArray(items) && items.length > 0);
 
   const handleToggleItem = (kotId, itemId) => {
     setSelectedItems(prev => {
@@ -67,7 +67,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       return;
     }
 
-    const kotsToProcess = Object.keys(selectedItems).filter(kotId => selectedItems[kotId].length > 0);
+    const kotsToProcess = Object.keys(selectedItems).filter(kotId => (selectedItems[kotId] || []).length > 0);
     
     if (kotsToProcess.length === 0) {
       setError('Please select at least one item or KOT to cancel.');
@@ -81,8 +81,8 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
         const itemIds = selectedItems[kotId];
         const kot = kots.find(k => String(k.kot_id) === String(kotId) || String(k.id) === String(kotId) || String(k.kotId) === String(kotId));
         
-        const allItems = kot.items || kot.sync_kot_item_list || [];
-        const activeItemCount = allItems.filter(i => i.status !== 5).length;
+        const allItems = kot?.items || kot?.sync_kot_item_list || [];
+        const activeItemCount = allItems.filter(i => String(i.status) !== '5').length;
         const isFullCancel = itemIds.length === activeItemCount;
 
         await kotService.deleteKOT(kotId, {
@@ -92,8 +92,8 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       }
 
       window.showToast?.('Successfully cancelled selected items/KOTs', 'success');
-      onCancelSuccess();
-      onClose();
+      onCancelSuccess?.();
+      onClose?.();
     } catch (err) {
       console.error('Error cancelling KOT:', err);
       setError('Failed to cancel KOTs. Please try again.');
@@ -102,8 +102,29 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
     }
   };
 
-  // Determine if at least one item is selected
-  const hasSelection = Object.values(selectedItems).some(items => items.length > 0);
+  const submitRef = React.useRef({ handleSubmit, onClose, loading, hasSelection });
+  useEffect(() => {
+    submitRef.current = { handleSubmit, onClose, loading, hasSelection };
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        submitRef.current.onClose?.();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!submitRef.current.loading && submitRef.current.hasSelection) {
+          submitRef.current.handleSubmit?.();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <CommonModal
@@ -133,8 +154,15 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
               <div key={kotId} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                 {/* KOT Header */}
                 <div 
-                  style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #e2e8f0' }}
+                  tabIndex={0}
+                  style={{ background: '#f8fafc', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderBottom: '1px solid #e2e8f0', outline: 'none' }}
                   onClick={() => handleToggleWholeKot(kotId, allItemIds)}
+                  onKeyDown={e => {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                      e.preventDefault();
+                      handleToggleWholeKot(kotId, allItemIds);
+                    }
+                  }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <input 
@@ -167,7 +195,14 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
                     return (
                     <div 
                       key={itemKey}
+                      tabIndex={0}
                       onClick={() => handleToggleItem(kotId, itemKey)}
+                      onKeyDown={e => {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          handleToggleItem(kotId, itemKey);
+                        }
+                      }}
                       style={{ 
                         padding: '8px 14px', 
                         display: 'flex', 
@@ -175,7 +210,8 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
                         gap: '12px',
                         cursor: 'pointer',
                         background: selectedItemIds.includes(itemKey) ? '#fef2f2' : 'transparent',
-                        borderBottom: '1px solid #f1f5f9'
+                        borderBottom: '1px solid #f1f5f9',
+                        outline: 'none'
                       }}
                     >
                       <input 
@@ -216,6 +252,12 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
               setReason(e.target.value);
               if (e.target.value.trim()) setError('');
             }}
+            onKeyDown={e => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
             style={{
               padding: '10px 12px',
               borderRadius: '8px',
@@ -252,7 +294,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
               cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
-            Close
+            Close (Esc)
           </button>
           <button
             type="button"
@@ -272,7 +314,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
               gap: '6px'
             }}
           >
-            {loading ? 'Processing...' : <><LuX size={16} /> Confirm Cancellation</>}
+            {loading ? 'Processing...' : <><LuX size={16} /> Confirm Cancellation (Ctrl+↵)</>}
           </button>
         </div>
       </div>

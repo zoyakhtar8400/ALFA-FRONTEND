@@ -384,8 +384,16 @@ const BillingPanel = ({
             {rows.length > 0 && (
               <button 
                 type="button" 
-                onClick={() => setRows([])}
+                onClick={() => {
+                  if (setIsClearModalOpen) {
+                    setIsClearModalOpen(true);
+                  } else {
+                    setRows([]);
+                    if (toast) toast('Draft cart cleared.');
+                  }
+                }}
                 style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}
+                title="Discard Draft Cart (Alt+D)"
               >
                 Clear Cart
               </button>
@@ -503,6 +511,8 @@ const BillingPanel = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveRow(index)}
+                          title="Remove / Cancel Item (Alt+X / Delete)"
+                          aria-label="Remove item"
                           style={{
                             background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer',
                             padding: '4px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'

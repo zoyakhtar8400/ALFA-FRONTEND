@@ -15,7 +15,7 @@ const POSActionButtons = ({
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: showAll ? 'repeat(5, 1fr)' : 'repeat(3, 1fr)',
+      gridTemplateColumns: showAll ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
       gap: '8px',
       padding: '12px 16px',
       background: '#ffffff',
@@ -38,6 +38,7 @@ const POSActionButtons = ({
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
           text-transform: uppercase;
           letter-spacing: 0.3px;
+          user-select: none;
         }
         .pos-action-btn:hover {
           transform: translateY(-1px);
@@ -88,15 +89,6 @@ const POSActionButtons = ({
           box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
         }
 
-        .btn-payment {
-          background: #10b981;
-          box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
-        }
-        .btn-payment:hover {
-          background: #059669;
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-        }
-
         .btn-hotkey-label {
           font-size: 8.5px;
           opacity: 0.85;
@@ -108,60 +100,61 @@ const POSActionButtons = ({
         }
       `}</style>
 
+      {/* 1. Save Draft Button */}
       {(showAll || isViewMode) && (
-        <>
-          <button
-            type="button"
-            disabled={isNC}
-            onClick={onSave}
-            className="pos-action-btn btn-save"
-          >
-            <span>Save Draft</span>
-            <span className="btn-hotkey-label">F5</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={isNC}
-            onClick={onBilling}
-            className="pos-action-btn btn-print-bill"
-          >
-            <span>Print Bill</span>
-            <span className="btn-hotkey-label">F9</span>
-          </button>
-        </>
-      )}
-
-      {(showAll || !isViewMode) && (
-        <>
-          <button
-            type="button"
-            onClick={onKOT}
-            className="pos-action-btn btn-kot"
-          >
-            <span>KOT</span>
-            <span className="btn-hotkey-label">F8</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onKOTAndPrint}
-            className="pos-action-btn btn-kot-print"
-          >
-            <span>KOT & Print</span>
-            <span className="btn-hotkey-label">F9</span>
-          </button>
-        </>
-      )}
-
-      {isBillingDesk && (
         <button
           type="button"
-          onClick={onPay}
-          className="pos-action-btn btn-payment"
+          disabled={isNC}
+          onClick={onSave}
+          className="pos-action-btn btn-save"
+          title="Save Draft (F5)"
+          aria-keyshortcuts="F5"
         >
-          <span>Payment</span>
-          <span className="btn-hotkey-label">F10</span>
+          <span>Save Draft</span>
+          <span className="btn-hotkey-label">F5</span>
+        </button>
+      )}
+
+      {/* 2. Print Bill / Customer Invoice */}
+      {(showAll || isViewMode) && (
+        <button
+          type="button"
+          disabled={isNC}
+          onClick={onBilling}
+          className="pos-action-btn btn-print-bill"
+          title="Print Bill / Save & Print (F9, Enter, or Ctrl+Enter)"
+          aria-keyshortcuts="F9 Enter"
+        >
+          <span>Print Bill</span>
+          <span className="btn-hotkey-label">F9 / ↵</span>
+        </button>
+      )}
+
+      {/* 3. KOT (Send uncut items to kitchen) */}
+      {(showAll || !isViewMode) && (
+        <button
+          type="button"
+          onClick={onKOT}
+          className="pos-action-btn btn-kot"
+          title="KOT (F8)"
+          aria-keyshortcuts="F8"
+        >
+          <span>KOT</span>
+          <span className="btn-hotkey-label">F8</span>
+        </button>
+      )}
+
+      {/* 4. KOT & Print (Send & Print Kitchen KOT) */}
+      {(showAll || !isViewMode) && (
+        <button
+          type="button"
+          onClick={onKOTAndPrint}
+          className="pos-action-btn btn-kot-print"
+          title="KOT & Print (F7)"
+          aria-keyshortcuts="F7"
+        >
+          <span>KOT & Print</span>
+          <span className="btn-hotkey-label">F7</span>
         </button>
       )}
     </div>

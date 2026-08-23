@@ -32,6 +32,9 @@ export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = fal
       invoiceData.taxes_breakdown.forEach(t => grandTotal += Number(t.amount || 0));
     }
   }
+  
+  // Ensure the printed invoice always shows a rounded integer amount
+  grandTotal = Math.round(grandTotal);
 
   const printLogo = invoiceData.logo || companyProfile.logo;
   const printCompanyName = invoiceData.company_name || invoiceData.companyName || companyProfile.company_name || companyProfile.name || invoiceData.restaurant_name || 'ALFA Restaurant';
@@ -113,7 +116,7 @@ export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = fal
               ${items.length === 0 ? `
                 <tr><td colspan="4" style="text-align:center; font-weight:bold;">No Items Registered</td></tr>
               ` : items.map(item => {
-      const name = ((item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : '')).toUpperCase();
+      const name = ((item.name || item.itemName || '') + (item.variantName || item.variant ? ` (${item.variantName || item.variant})` : ''));
       const qty = item.qty || item.quantity || 1;
       const rate = item.unitPrice || item.price || item.rate || 0;
       const amt = item.amount || item.total || (qty * rate);

@@ -1,7 +1,25 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FaExclamationTriangle } from 'react-icons/fa';
 
 const ClearConfirmModal = ({ isOpen, onClose, onConfirm }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose?.();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        onConfirm?.();
+        onClose?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, onConfirm]);
+
   if (!isOpen) return null;
 
   return (
@@ -30,8 +48,8 @@ const ClearConfirmModal = ({ isOpen, onClose, onConfirm }) => {
         </p>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-          <button onClick={onClose} className="btn-secondary" style={{ padding: '8px 16px', borderRadius: '6px' }}>
-            No, Keep Draft
+          <button onClick={onClose} className="btn-secondary" style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>
+            No, Keep Draft (Esc)
           </button>
           <button
             onClick={() => {
@@ -43,7 +61,7 @@ const ClearConfirmModal = ({ isOpen, onClose, onConfirm }) => {
               border: 'none', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer'
             }}
           >
-            Yes, Discard
+            Yes, Discard (↵)
           </button>
         </div>
       </div>

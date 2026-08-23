@@ -19,6 +19,30 @@ import { printTaxInvoice, printKitchenKOT } from '../utils/printInvoice';
 import QuickPaymentModal from '../components/QuickPaymentModal';
 import posApi from '../../../api/posApi';
 
+const aggregateItems = (items) => {
+  if (!items || !Array.isArray(items)) return [];
+  const map = new Map();
+  items.forEach(item => {
+    const name = (item.name || item.itemName || item.item_name || '').trim().toLowerCase();
+    const variant = (item.variantName || item.alternative_title || '').trim().toLowerCase();
+    const price = Number(item.price || item.rate || item.unitPrice || 0);
+    const key = `${name}-${variant}-${price}`;
+    if (map.has(key)) {
+      const existing = map.get(key);
+      const addedQty = Number(item.qty || item.quantity || 1);
+      existing.qty = Number(existing.qty || existing.quantity || 1) + addedQty;
+      existing.quantity = existing.qty;
+      existing.printedQty = existing.qty;
+      existing.total = existing.qty * Number(existing.price || existing.rate || existing.unitPrice || 0);
+      existing.amount = existing.total;
+    } else {
+      const qty = Number(item.qty || item.quantity || 1);
+      map.set(key, { ...item, qty, quantity: qty, printedQty: qty });
+    }
+  });
+  return Array.from(map.values());
+};
+
 const INITIAL_ROWS = [];
 
 const POSBillingPage = ({ isBillingDesk = false }) => {
@@ -305,7 +329,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       rate: uPrice,
       total: Number(item.total || item.amount || (qVal * uPrice)),
       remark: item.remark || item.remarks || item.item_note || '',
-      isCut: item.isCut !== undefined ? item.isCut : true
+      isCut: item.isCut !== undefined ? item.isCut : true,
+      printedQty: Number(item.printedQty !== undefined ? item.printedQty : (item.isCut ? qVal : 0))
     };
   }, []);
 
@@ -313,7 +338,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const initialFallbackRows = () => {
     if (location.state && location.state.hasOwnProperty('rows')) {
       if (Array.isArray(location.state.rows) && location.state.rows.length > 0) {
-        return location.state.rows.map((r, i) => mapItemToRow(r, i));
+        return aggregateItems(location.state.rows).map((r, i) => mapItemToRow(r, i));
       }
       return [{ lineId: `empty-row-0`, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }];
     }
@@ -324,15 +349,15 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((r, i) => mapItemToRow(r, i));
+            return aggregateItems(parsed).map((r, i) => mapItemToRow(r, i));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     if (initTblId && orderItemsMap) {
       const cached = orderItemsMap[initTblId] || orderItemsMap[String(initTblId)] || orderItemsMap[`T${initTblId}`];
       if (Array.isArray(cached) && cached.length > 0) {
-        return cached.map((r, i) => mapItemToRow(r, i));
+        return aggregateItems(cached).map((r, i) => mapItemToRow(r, i));
       }
     }
     return INITIAL_ROWS;
@@ -356,7 +381,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     try {
       sessionStorage.removeItem('alfa_selected_pos_table');
       sessionStorage.removeItem('alfa_selected_order');
-    } catch (e) {}
+    } catch (e) { }
   }, [activeStoreId]);
 
   const [kotViewData, setKotViewData] = useState(null);
@@ -428,7 +453,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       if (location.state && location.state.hasOwnProperty('rows')) {
         const stateRows = location.state.rows;
         if (Array.isArray(stateRows) && stateRows.length > 0) {
-          setRows(stateRows.map((r, i) => mapItemToRow(r, i)));
+          setRows(aggregateItems(stateRows).map((r, i) => mapItemToRow(r, i)));
         } else {
           setRows([{ lineId: `empty-row-0`, itemId: '', itemName: '', name: '', variantId: '', variantName: '', variant: '', remark: '', qty: 1, unitPrice: 0, price: 0, rate: 0, total: 0 }]);
         }
@@ -441,7 +466,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       // Check if orderItemsMap has rows for this table
       const cachedRows = orderItemsMap[activeTableId] || (currentTable?.no ? orderItemsMap[currentTable.no] : null) || (currentTable?.id ? orderItemsMap[currentTable.id] : null) || (currentTable?.no ? orderItemsMap[`T${currentTable.no}`] : null);
       if (Array.isArray(cachedRows) && cachedRows.length > 0) {
-        setRows(cachedRows.map((r, i) => mapItemToRow(r, i)));
+        setRows(aggregateItems(cachedRows).map((r, i) => mapItemToRow(r, i)));
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.mobile || currentTable?.phone) setMobileNumber(currentTable.mobile || currentTable.phone);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
@@ -450,9 +475,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
       // Check if table object from tablesList already has active KOTs
       if (currentTable && Array.isArray(currentTable.kots) && currentTable.kots.length > 0) {
-        const rawTableKotItems = currentTable.kots
+        const rawTableKotItems = aggregateItems(currentTable.kots
           .flatMap(k => Array.isArray(k.items) ? k.items : [])
-          .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
+          .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted'));
         if (rawTableKotItems.length > 0) {
           setRows(rawTableKotItems.map((r, i) => mapItemToRow(r, i)));
           if (currentTable.customer) setCustomerName(currentTable.customer);
@@ -478,39 +503,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : k.extra_details;
             return !(extra?.isNC || k.isNC || k.ncType);
           });
-          const rawKotItems = nonNcKots
+          const rawKotItems = aggregateItems(nonNcKots
             .flatMap(k => k.items || [])
-            .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
+            .filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted'));
           if (rawKotItems.length > 0) {
-            const mappedRows = [];
-            rawKotItems.forEach((item, idx) => {
-              const itemKey = `${item.itemId || item.id || item.itemName || item.name}-${item.variantId || item.variantName || ''}`;
-              const existingIndex = mappedRows.findIndex(r => r.itemKey === itemKey);
-              if (existingIndex !== -1) {
-                mappedRows[existingIndex].qty = Math.max(mappedRows[existingIndex].qty, Number(item.qty || 1));
-                mappedRows[existingIndex].total = mappedRows[existingIndex].qty * mappedRows[existingIndex].unitPrice;
-              } else {
-                const uPrice = Number(item.unitPrice || item.price || item.rate || 0);
-                const qVal = Number(item.qty || item.quantity || 1);
-                mappedRows.push({
-                  itemKey,
-                  lineId: item.lineId || `kot-item-${idx}`,
-                  itemId: item.itemId || item.id || idx,
-                  itemName: item.itemName || item.name || '',
-                  name: item.itemName || item.name || '',
-                  variantId: item.variantId || '',
-                  variantName: item.variantName || '',
-                  qty: qVal,
-                  unitPrice: uPrice,
-                  price: uPrice,
-                  rate: uPrice,
-                  total: Number(item.total || (qVal * uPrice)),
-                  remark: item.remark || '',
-                  isCut: true
-                });
-              }
-            });
-            setRows(mappedRows);
+            setRows(rawKotItems.map((r, i) => mapItemToRow(r, i)));
             if (kotList[0]?.customer_mobile) setMobileNumber(kotList[0].customer_mobile);
             if (kotList[0]?.customer_name) setCustomerName(kotList[0].customer_name);
             if (kotList[0]?.waiter) setWaiter(kotList[0].waiter);
@@ -527,7 +524,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setRows(parsed.map((r, i) => mapItemToRow(r, i)));
+            setRows(aggregateItems(parsed).map((r, i) => mapItemToRow(r, i)));
             if (currentTable?.customer) setCustomerName(currentTable.customer);
             if (currentTable?.mobile || currentTable?.phone || currentTable?.customer_phone) setMobileNumber(currentTable.mobile || currentTable.phone || currentTable.customer_phone);
             if (currentTable?.waiter) setWaiter(currentTable.waiter);
@@ -535,7 +532,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             return;
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       // Only if all sources returned no items, set empty rows
       setRows([]);
@@ -571,9 +568,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             ...(routedTable?.no ? { [routedTable.no]: activeRows } : {})
           }));
         }
-        try { sessionStorage.setItem(`alfa_draft_rows_${tableKey}`, JSON.stringify(activeRows)); } catch(e) {}
+        try { sessionStorage.setItem(`alfa_draft_rows_${tableKey}`, JSON.stringify(activeRows)); } catch (e) { }
       } else {
-        try { sessionStorage.removeItem(`alfa_draft_rows_${tableKey}`); } catch(e) {}
+        try { sessionStorage.removeItem(`alfa_draft_rows_${tableKey}`); } catch (e) { }
       }
     }
   }, [rows, assignedTableId, restoredTableId, routedTable, setOrderItemsMap, targetKotId]);
@@ -585,7 +582,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       handleConfirmBooking,
       handleSaveAndPrint,
       handleDirectComplete,
-      handleAddKOT
+      handleAddKOT,
+      setShowQuickPaymentModal,
+      isBillingDesk
     };
   });
 
@@ -682,6 +681,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         return;
       }
 
+      // Ctrl+Enter / Meta+Enter from anywhere triggers Print Bill / Save & Print
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handlersRef.current.handleDirectComplete?.(true);
+        return;
+      }
+
       switch (e.key) {
         case 'Escape':
           e.preventDefault();
@@ -690,22 +696,37 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             searchInputRef.current.select();
           }
           break;
+        case 'Enter':
+          if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'BUTTON') {
+            e.preventDefault();
+            handlersRef.current.handleDirectComplete?.(true);
+          }
+          break;
         case 'F3':
           e.preventDefault();
           focusCartTable();
+          break;
+        case 'F5':
+          e.preventDefault();
+          handlersRef.current.handleDirectComplete?.(false);
+          break;
+        case 'F6':
+        case 'F9':
+          e.preventDefault();
+          handlersRef.current.handleDirectComplete?.(true);
+          break;
+        case 'F7':
+          e.preventDefault();
+          handlersRef.current.handleSaveAndPrint?.();
           break;
         case 'F8':
           e.preventDefault();
           handlersRef.current.handleAddKOT?.();
           break;
-        case 'F9':
-          e.preventDefault();
-          handlersRef.current.handleSaveAndPrint?.();
-          break;
         case 'F10':
           e.preventDefault();
-          if (isBillingDesk) {
-            setShowQuickPaymentModal(true);
+          if (handlersRef.current.isBillingDesk || handlersRef.current.setShowQuickPaymentModal) {
+            handlersRef.current.setShowQuickPaymentModal?.(true);
           }
           break;
         case 'Delete':
@@ -825,7 +846,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       const emptyIndex = prev.findIndex(r => !r.itemName && !r.name);
       const existingIndex = prev.findIndex(r => {
         const sameId = foodItem.id && r.itemId && String(r.itemId) === String(foodItem.id);
-        const sameName = (r.itemName || r.name || '').toLowerCase() === itemName.toLowerCase();
+        const sameName = (r.itemName || r.name || '').trim().toLowerCase() === itemName.trim().toLowerCase();
         const sameVariant = String(r.variantId || '') === String(variantId || '') || String(r.variantName || r.variant || '') === String(variantName || '');
         return (sameId || sameName) && sameVariant;
       });
@@ -836,7 +857,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           if (i === existingIndex) {
             const nextQty = (r.qty || 1) + 1;
             const unitPrice = r.unitPrice || price;
-            return { ...r, qty: nextQty, total: nextQty * unitPrice };
+            return { ...r, qty: nextQty, total: nextQty * unitPrice, isCut: nextQty <= (r.printedQty || 0) };
           }
           return r;
         });
@@ -1192,10 +1213,20 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedTableId) || String(t.no) === String(resolvedTableId)) || routedTable || { id: resolvedTableId, no: String(resolvedTableId) };
     const tableNo = String(resolvedTable?.no || resolvedTableId || '01').replace(/[^0-9]/g, '') || String(resolvedTableId);
 
-    const uncutRows = activeRows.filter(r => !r.isCut);
-    const rowsToCut = uncutRows.length > 0 ? uncutRows : activeRows;
+    const uncutRows = activeRows.filter(r => (r.qty > (r.printedQty || 0)) || !r.isCut);
+    if (uncutRows.length === 0) {
+      toast('No new items to KOT!');
+      return;
+    }
+    const rowsToCut = uncutRows;
 
-    const groups = groupItemsByPrinter(rowsToCut, allMenuItems, dbCategories, dbPrinters);
+    // Build the delta rows for KOT printing and saving
+    const deltaRowsToCut = rowsToCut.map(r => {
+      const deltaQty = r.qty - (r.printedQty || 0);
+      return { ...r, qty: deltaQty, total: deltaQty * (r.unitPrice || r.price || 0) };
+    }).filter(r => r.qty > 0);
+
+    const groups = groupItemsByPrinter(deltaRowsToCut, allMenuItems, dbCategories, dbPrinters);
 
     // Pre-open print windows synchronously to bypass browser popup blockers
     const printWindows = groups.map(() => null);
@@ -1246,12 +1277,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     let actualKotNo = newKotNo;
 
     try {
-      const itemsForApi = rowsToCut.map(r => ({
+      const itemsForApi = deltaRowsToCut.map(r => ({
         itemId: r.id || r.itemId || r.item_id || 1,
         itemName: r.name || r.itemName || r.title || 'Item',
-        qty: Number(r.qty || r.quantity || 1),
+        qty: Number(r.qty || 1),
         unitPrice: Number(r.unitPrice || r.price || r.rate || 0),
-        total: Number(r.qty || 1) * Number(r.unitPrice || r.price || 0)
+        total: Number(r.total || (r.qty * (r.unitPrice || r.price || 0)))
       }));
 
       const kotResult = await kotService.createKOT({
@@ -1304,8 +1335,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         }
       }
 
-      // Mark active rows as cut in local state
-      setRows(prev => prev.map(r => ({ ...r, isCut: true })));
+      // Mark active rows as cut and update printedQty
+      setRows(prev => prev.map(r => ({ ...r, isCut: true, printedQty: r.qty })));
       if (typeof refreshTables === 'function') refreshTables();
     } catch (err) {
       console.warn('Error calling KOT API:', err);
@@ -1332,7 +1363,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     };
 
     toast(`KOT ${actualKotNo} created! Table T${resolvedTable?.no || tableNo} ${isNC ? 'saved' : '→ Running'}`);
-    
+
     if (isBillingDesk) {
       setRows(INITIAL_ROWS);
       setCustomerName('');
@@ -1370,9 +1401,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
       updatedAt: Date.now()
     };
-    
+
     toast(`Table T${targetTable?.no || resolvedTableId} saved.`);
-    
+
     if (isBillingDesk) {
       setRows(INITIAL_ROWS);
       setCustomerName('');
@@ -1414,66 +1445,65 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }));
     }
 
-    // Cut uncut rows to kitchen (only if there are uncut rows)
+    // Cut uncut rows to kitchen (or re-print KOT for all active items if already cut)
     const uncutRows = activeRows.filter(r => !r.isCut);
-    if (uncutRows.length === 0) {
-      toast('No new items to KOT. Add new items first.');
-      return;
-    }
+    const rowsToCutAndPrint = uncutRows.length > 0 ? uncutRows : activeRows;
 
     const invoiceNo = `KOT-new`;
     let printedKotNo = invoiceNo;
     let groups = [];
 
-    if (uncutRows.length > 0) {
+    if (rowsToCutAndPrint.length > 0) {
       setGeneratedKotNo(invoiceNo);
       setKotCreated(true);
 
-      groups = groupItemsByPrinter(uncutRows, allMenuItems, dbCategories, dbPrinters);
-      
+      groups = groupItemsByPrinter(rowsToCutAndPrint, allMenuItems, dbCategories, dbPrinters);
+
       // Pre-open print windows synchronously to bypass browser popup blockers
       const printWindows = groups.map(() => null);
 
       const payloads = groups.map(group =>
-        generateKOTPayload({ 
-          tableNo: resolvedTableName, tableId: targetTableId, kotNo: invoiceNo, group, 
+        generateKOTPayload({
+          tableNo: resolvedTableName, tableId: targetTableId, kotNo: invoiceNo, group,
           customerName: customerName || 'Walk-in', waiter: activeWaiter, captain,
-          remarks: remarks || resolvedTable?.remarks || '' 
+          remarks: remarks || resolvedTable?.remarks || ''
         })
       );
       setKotGroups(groups);
       setKotPayloads(payloads);
 
       try {
-        const itemsForApi = uncutRows.map(r => ({
-          itemId: r.id || r.itemId || r.item_id || 1,
-          itemName: r.name || r.itemName || r.title || 'Item',
-          qty: Number(r.qty || r.quantity || 1),
-          unitPrice: Number(r.unitPrice || r.price || r.rate || 0),
-          total: Number(r.qty || 1) * Number(r.unitPrice || r.price || 0)
-        }));
+        if (uncutRows.length > 0) {
+          const itemsForApi = uncutRows.map(r => ({
+            itemId: r.id || r.itemId || r.item_id || 1,
+            itemName: r.name || r.itemName || r.title || 'Item',
+            qty: Number(r.qty || r.quantity || 1),
+            unitPrice: Number(r.unitPrice || r.price || r.rate || 0),
+            total: Number(r.qty || 1) * Number(r.unitPrice || r.price || 0)
+          }));
 
-        const kotResult = await kotService.createKOT({
-          kotNo: invoiceNo,
-          tableId: Number(targetTableId) || 1,
-          tableNo: targetTableNo,
-          customerName: customerName || 'Walk-in',
-          mobileNo: mobileNumber || '',
-          waiter: activeWaiter,
-          items: itemsForApi,
-          isNewSession,
-          ncType: ncType || '',
-          isNC,
-          store_id: activeStoreId,
-          order_type: serviceType,
-          takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
-          delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
-        });
-        const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
-        if (serverKotNo) {
-          const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
-          printedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
-          setGeneratedKotNo(printedKotNo);
+          const kotResult = await kotService.createKOT({
+            kotNo: invoiceNo,
+            tableId: Number(resolvedTable?.id) || 1,
+            tableNo: resolvedTableName,
+            customerName: customerName || 'Walk-in',
+            mobileNo: mobileNumber || '',
+            waiter: activeWaiter,
+            items: itemsForApi,
+            isNewSession,
+            ncType: ncType || '',
+            isNC,
+            store_id: activeStoreId,
+            order_type: serviceType,
+            takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
+            delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
+          });
+          const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
+          if (serverKotNo) {
+            const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
+            printedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+            setGeneratedKotNo(printedKotNo);
+          }
         }
 
         setRows(prev => prev.map(r => ({ ...r, isCut: true })));
@@ -1528,14 +1558,28 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
     const allAggregatedRows = [...existingRows, ...activeRows.map(r => ({ ...r, isCut: true }))];
     toast(isNC ? `NC KOT printed for Table ${resolvedTableName}.` : `KOTs printed to ${groups.length} station(s) for Table ${resolvedTableName}.`);
-    
+
     if (!isBillingDesk) {
       navigate('/restaurant/display-table', { state: { updatedTable: updatedTableForNav, updatedRows: allAggregatedRows } });
     }
   };
 
 
+  const isBillingSubmittingRef = React.useRef(false);
+
   const handleDirectComplete = async (shouldPrint = true) => {
+    if (isBillingSubmittingRef.current) return;
+
+    const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
+    const allFinalItems = [...existingRows, ...activeRows];
+
+    if (allFinalItems.length === 0) {
+      toast('Please add at least one item before billing.');
+      return;
+    }
+
+    isBillingSubmittingRef.current = true;
+
     // Open print window first (synchronous action) to avoid popup blocker
     const invoicePrintWindow = shouldPrint ? null : undefined;
 
@@ -1543,24 +1587,33 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const resolvedTable = tablesList.find(t => String(t.id) === String(resolvedId) || String(t.no) === String(resolvedId)) || routedTable;
     const resolvedTableName = resolvedTable?.table_name || resolvedTable?.no || preselectedTableNumber || routedTable?.no || '1';
 
-    const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
-    const allFinalItems = [...existingRows, ...activeRows];
-    
-    // Ensure allFinalItems has valid items
+    const finalAmt = allFinalItems.reduce((sum, r) => sum + (Number(r.qty || 1) * Number(r.unitPrice || r.price || 0)), 0);
+    const subtotalAmt = calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt;
+    const discountAmt = totalDiscountAmt || 0;
+    const taxAmt = totalTax || 0;
+    const netAmt = netBill > 0 ? netBill : Math.max(0, subtotalAmt - discountAmt + taxAmt);
+    const taxBreakdown = Array.isArray(calculatedTaxBreakdown) && calculatedTaxBreakdown.length > 0
+      ? calculatedTaxBreakdown
+      : (taxLines && taxLines.length > 0 ? taxLines.map(t => ({ name: t.name, rate: t.rate, amount: (subtotalAmt - discountAmt) * (t.rate / 100) })) : [{ name: 'Tax', rate: 5, amount: taxAmt }]);
+
     const cleanMobile = (mobileNumber && mobileNumber !== '—') ? mobileNumber : '';
     setIsSettling(true);
 
     try {
       const orderRes = await orderService.createOrder({
-        tableId: resolvedId || 1,
-        tableNo: resolvedTableName,
+        tableId: Number(resolvedTable?.id) || 1,
+        tableNo: String(resolvedTableName),
         customerName: customerName || 'Walk-in',
         mobileNo: cleanMobile,
         waiter: waiter || 'Staff',
         status: 'unpaid',
         items: allFinalItems,
-        discount: totalDiscountAmt,
-        tax: (totalBill - totalDiscountAmt) * 0.05,
+        discount: discountAmt,
+        tax: taxAmt,
+        taxes: taxAmt,
+        grand_total: netAmt,
+        total_amount: netAmt,
+        taxes_breakdown: taxBreakdown,
         store_id: activeStoreId,
         order_type: serviceType,
         takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
@@ -1568,16 +1621,16 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       });
 
       const createdOrderId = orderRes?.order?.order_id || orderRes?.data?.order_id || orderRes?.order?.id || orderRes?.data?.id;
-      
+
       if (resolvedId) {
         try {
           await tableService.patchTableStatus(resolvedId, {
             status: 'UNPAID_BILL',
-            amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
-            discount_amount: calculatedDiscount,
-            tax_amount: calculatedTax,
-            total_amount: calculatedNetBill,
-            taxes_breakdown: calculatedTaxBreakdown,
+            amount: subtotalAmt,
+            discount_amount: discountAmt,
+            tax_amount: taxAmt,
+            total_amount: netAmt,
+            taxes_breakdown: taxBreakdown,
             customer: customerName || 'Walk-in',
             waiter: waiter || 'Staff'
           });
@@ -1592,7 +1645,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               ...t,
               status: 'UNPAID_BILL',
               color: 'blue',
-              amount: netBill,
+              amount: netAmt,
               updatedAt: Date.now()
             };
           }
@@ -1600,7 +1653,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         }));
       }
       refreshTables();
-      
+
       if (shouldPrint) {
         // Auto-print the Tax Invoice / Bill using the pre-opened window
         import('../utils/printInvoice').then(({ printTaxInvoice }) => {
@@ -1611,10 +1664,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             waiter_name: waiter || 'Staff',
             payment_method: 'Unpaid',
             items: allFinalItems,
-            subtotal: totalBill,
-            discount: totalDiscountAmt,
-            grand_total: netBill,
-            taxes_breakdown: calculatedTaxBreakdown && calculatedTaxBreakdown.length > 0 ? calculatedTaxBreakdown : [{ name: 'Tax', rate: 5, amount: totalTax }],
+            subtotal: subtotalAmt,
+            discount: discountAmt,
+            grand_total: netAmt,
+            taxes_breakdown: taxBreakdown && taxBreakdown.length > 0 ? taxBreakdown : [{ name: 'Tax', rate: 5, amount: taxAmt }],
             serviceType: serviceType,
             takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
             delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
@@ -1630,8 +1683,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     } catch (err) {
       console.warn('Error settling order in PostgreSQL:', err);
       if (invoicePrintWindow && shouldPrint) invoicePrintWindow.close();
+      toast(`Failed to complete billing: ${err.message || 'Error occurred'}`);
     } finally {
       setIsSettling(false);
+      setTimeout(() => {
+        isBillingSubmittingRef.current = false;
+      }, 500);
       if (isBillingDesk) {
         setRows(INITIAL_ROWS);
         setCustomerName('');
@@ -1645,7 +1702,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
               no: preselectedTableNumber || routedTable?.no || '1',
               status: 'UNPAID_BILL',
               color: 'blue',
-              amount: netBill
+              amount: netAmt
             },
             updatedRows: allFinalItems
           }
@@ -1765,15 +1822,23 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         toast={toast}
         isViewMode={isViewMode}
       />
-      
+
       <QuickPaymentModal
         isOpen={showQuickPaymentModal}
         onClose={() => setShowQuickPaymentModal(false)}
-        table={tablesList?.find(t => String(t.id) === String(assignedTableId)) || routedTable || { id: assignedTableId, no: assignedTableId || '1', customer: customerName, waiter: waiter, mobile: mobileNumber }}
+        table={{
+          ...(tablesList?.find(t => String(t.id) === String(assignedTableId)) || routedTable || { id: assignedTableId, no: assignedTableId || '1', customer: customerName, waiter: waiter, mobile: mobileNumber }),
+          total_amount: netBill,
+          tax_amount: totalTax,
+          discount_amount: totalDiscountAmt
+        }}
         items={rows}
+        providedNetBill={netBill}
+        providedTaxAmt={totalTax}
+        providedDiscountAmt={totalDiscountAmt}
         onTableUpdated={() => {
-           if (typeof refreshTables === 'function') refreshTables();
-           navigate('/restaurant/display-table');
+          if (typeof refreshTables === 'function') refreshTables();
+          navigate('/restaurant/display-table');
         }}
         showToast={toast}
       />

@@ -34,7 +34,7 @@ const getAreaBorder = (areaStr) => {
   return AREA_BORDER_COLORS[index];
 };
 
-const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSelected }) => {
+const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSelected, globalTaxRate = 0 }) => {
   // Determine color theme strictly and instantly from backend/frontend status attributes
   const statusUpper = (table.status || table.order_state || '').toUpperCase();
   const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
@@ -91,6 +91,11 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
 
   const timerText = null;
   const showActions = actions.length > 0;
+
+  // Calculate tax-included amount if total_amount is missing
+  const calculatedTaxAmt = Number(table.amount || 0) * (globalTaxRate / 100);
+  const fallbackTotalAmt = Number(table.amount || 0) + calculatedTaxAmt;
+  const displayAmount = table.total_amount || table.totalAmount || table.net_amount || fallbackTotalAmt;
 
   return (
     <div
@@ -172,16 +177,16 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
       {/* Row 2: Status / Waiter / Amount & Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
         <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-          {!isAvailable && table.amount > 0 ? (
+          {!isAvailable && (table.amount > 0 || table.total_amount > 0 || table.totalAmount > 0 || table.net_amount > 0) ? (
             <div style={{ fontSize: '0.85rem', fontWeight: '900', lineHeight: 1.1 }}>
-              ₹{Math.round(table.amount)}
+              ₹{Math.round(displayAmount || 0)}
             </div>
           ) : (
             <div style={{ fontSize: '10px', fontWeight: '700', opacity: 0.85, lineHeight: 1.1 }}>
               {isAvailable ? 'Vacant' : (isReserved ? 'Booked' : (isNCBlocked ? 'NC Block' : 'Active'))}
             </div>
           )}
-          
+
           {table.waiter && !isAvailable && (
             <div style={{ fontSize: '8px', fontWeight: '600', opacity: 0.9, marginTop: '2px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '65px' }}>
               {table.waiter.split(' ')[0]}
@@ -191,13 +196,13 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
 
         {/* Inline Actions */}
         {showActions && (
-          <div style={{ 
-            display: 'flex', 
-            gap: '3px', 
-            background: isAvailable ? '#f1f5f9' : 'rgba(255,255,255,0.2)', 
-            padding: '2px 4px', 
+          <div style={{
+            display: 'flex',
+            gap: '3px',
+            background: isAvailable ? '#f1f5f9' : 'rgba(255,255,255,0.2)',
+            padding: '2px 4px',
             borderRadius: '5px',
-            alignItems: 'center' 
+            alignItems: 'center'
           }}>
             {actions.includes('quick_pay') && (
               <Btn title="Quick Pay" onClick={(e) => onClick?.(e, 'quick_pay')} color={isAvailable ? '#16a34a' : '#ffffff'}>
@@ -228,13 +233,13 @@ const Btn = ({ children, color, title, onClick }) => (
     title={title}
     onClick={e => { e.stopPropagation(); onClick?.(e); }}
     style={{
-      background: 'none', 
+      background: 'none',
       border: 'none',
-      display: 'flex', 
-      alignItems: 'center', 
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'center',
-      cursor: 'pointer', 
-      color, 
+      cursor: 'pointer',
+      color,
       padding: '2px',
       transition: 'opacity 120ms ease',
     }}

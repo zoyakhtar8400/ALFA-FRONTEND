@@ -20,7 +20,10 @@ const QuickPaymentModal = ({
   table,
   items = [],
   onTableUpdated,
-  showToast
+  showToast,
+  providedNetBill,
+  providedTaxAmt,
+  providedDiscountAmt
 }) => {
   const navigate = useNavigate();
   const { setTables, activeStoreId } = useRestaurant();
@@ -48,14 +51,35 @@ const QuickPaymentModal = ({
   const subTotal = rawSubTotal > 0 ? rawSubTotal : Number(table?.amount || 0);
   const rawTotal = subTotal;
 
-  const totalDiscountAmt = Number(table?.discount_amount || table?.discountAmount || 0);
-
-  const totalTax = Number(table?.tax_amount || table?.taxAmount || table?.tax || 0);
-  const cgstAmt = Math.round(totalTax / 2);
-  const sgstAmt = Math.round(totalTax / 2);
-  
+  const totalDiscountAmt = providedDiscountAmt !== undefined ? Number(providedDiscountAmt) : Number(table?.discount_amount || table?.discountAmount || 0);
   const taxableAmount = Math.max(0, subTotal - totalDiscountAmt);
-  const netBill = Number(table?.total_amount || table?.totalAmount || table?.net_amount || Math.round(taxableAmount + totalTax));
+
+  const calculatedLocalTax = useMemo(() => {
+    return taxLines.reduce((sum, t) => {
+      const rate = Number(t.rate || 0);
+      return sum + (taxableAmount * rate / 100);
+    }, 0);
+  }, [taxLines, taxableAmount]);
+
+  const totalTax = providedTaxAmt !== undefined 
+    ? Number(providedTaxAmt) 
+    : (Number(table?.tax_amount || table?.taxAmount || table?.tax || 0) || calculatedLocalTax);
+    
+  const cgstAmt = Number((totalTax / 2).toFixed(2));
+  const sgstAmt = Number((totalTax / 2).toFixed(2));
+  
+  const fallbackNet = Math.round(taxableAmount + totalTax);
+  
+  // Prioritize exact provided net bill. 
+  // If not provided, prioritize live items calculation (fallbackNet) over stale database amounts (table.total_amount).
+  let netBill = 0;
+  if (providedNetBill !== undefined) {
+    netBill = Number(providedNetBill);
+  } else if (fallbackNet > 0) {
+    netBill = fallbackNet;
+  } else {
+    netBill = Number(table?.total_amount || table?.totalAmount || table?.net_amount || 0);
+  }
 
   const totalPaid = useMemo(() => {
     return Object.values(paymentAmounts).reduce((sum, val) => sum + (Number(val) || 0), 0);
@@ -163,6 +187,8 @@ const QuickPaymentModal = ({
         tax: totalTax,
         cgst: cgstAmt,
         sgst: sgstAmt,
+        grand_total: netBill,
+        total_amount: netBill,
         store_id: activeStoreId
       }).catch(err => {
         console.warn('Order creation warning in quick pay:', err);
@@ -252,6 +278,8 @@ const QuickPaymentModal = ({
         items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
         discount: totalDiscountAmt,
         tax: totalTax,
+        grand_total: netBill,
+        total_amount: netBill,
         store_id: activeStoreId
       }).catch(err => {
         console.warn('Order creation warning in quick pay:', err);

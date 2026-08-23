@@ -31,6 +31,28 @@ import { restaurantApi } from '../../../api/restaurantApi';
 import posApi from '../../../api/posApi';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
+const aggregateItems = (items) => {
+  if (!items || !Array.isArray(items)) return [];
+  const map = new Map();
+  items.forEach(item => {
+    const name = (item.name || item.itemName || item.item_name || '').trim().toLowerCase();
+    const variant = (item.variantName || item.alternative_title || '').trim().toLowerCase();
+    const price = Number(item.price || item.rate || item.unitPrice || 0);
+    const key = `${name}-${variant}-${price}`;
+    if (map.has(key)) {
+      const existing = map.get(key);
+      const addedQty = Number(item.qty || item.quantity || 1);
+      existing.qty = Number(existing.qty || existing.quantity || 1) + addedQty;
+      existing.quantity = existing.qty;
+      existing.total = existing.qty * Number(existing.price || existing.rate || existing.unitPrice || 0);
+      existing.amount = existing.total;
+    } else {
+      map.set(key, { ...item, qty: Number(item.qty || item.quantity || 1), quantity: Number(item.qty || item.quantity || 1) });
+    }
+  });
+  return Array.from(map.values());
+};
+
 const DisplayTablePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,6 +86,21 @@ const DisplayTablePage = () => {
           items: [],
           printerName: table.printerName || ''
         };
+      }
+
+      const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
+      const localItems = aggregateItems(
+        (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
+        (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
+        (orderItemsMap[String(table.no)] && orderItemsMap[String(table.no)].length > 0 ? orderItemsMap[String(table.no)] : null) ||
+        (orderItemsMap[`T${table.no}`] && orderItemsMap[`T${table.no}`].length > 0 ? orderItemsMap[`T${table.no}`] : null) ||
+        (table.table_prefix && orderItemsMap[`${table.table_prefix}${table.no}`] && orderItemsMap[`${table.table_prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.table_prefix}${table.no}`] : null) ||
+        (table.prefix && orderItemsMap[`${table.prefix}${table.no}`] && orderItemsMap[`${table.prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.prefix}${table.no}`] : null) ||
+        (kotItemsFromTable.length > 0 ? kotItemsFromTable : [])
+      );
+
+      if (localItems && localItems.length > 0) {
+        fetchedOrder.items = localItems;
       }
       
       const { default: companyProfileService } = await import('../../../services/companyProfileService');
@@ -167,6 +204,16 @@ const DisplayTablePage = () => {
   const [kotCancelReason, setKotCancelReason] = useState('');
   const [kotCancelError, setKotCancelError] = useState('');
   const [ncReleaseTable, setNcReleaseTable] = useState(null);
+  const [globalTaxRate, setGlobalTaxRate] = useState(0);
+
+  useEffect(() => {
+    posApi.getItemTaxCategories().then(res => {
+      const taxes = Array.isArray(res?.data) ? res.data : [];
+      let rate = 0;
+      taxes.forEach(t => rate += Number(t.percentage || 0));
+      setGlobalTaxRate(rate);
+    }).catch(() => setGlobalTaxRate(0));
+  }, []);
 
   // Load real outlets directly from Outlet Master (/stores) & Department API
   useEffect(() => {
@@ -586,12 +633,14 @@ const DisplayTablePage = () => {
       return;
     }
 
-    const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [];
+    const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
     const tableRows = isBlankTable ? [] : (
       (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
       (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
       (orderItemsMap[String(table.no)] && orderItemsMap[String(table.no)].length > 0 ? orderItemsMap[String(table.no)] : null) ||
       (orderItemsMap[`T${table.no}`] && orderItemsMap[`T${table.no}`].length > 0 ? orderItemsMap[`T${table.no}`] : null) ||
+      (table.table_prefix && orderItemsMap[`${table.table_prefix}${table.no}`] && orderItemsMap[`${table.table_prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.table_prefix}${table.no}`] : null) ||
+      (table.prefix && orderItemsMap[`${table.prefix}${table.no}`] && orderItemsMap[`${table.prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.prefix}${table.no}`] : null) ||
       (kotItemsFromTable.length > 0 ? kotItemsFromTable : [])
     );
     try {
@@ -1221,6 +1270,7 @@ const DisplayTablePage = () => {
                 }}>
                   <TableCard
                     table={table}
+                    globalTaxRate={globalTaxRate}
                     isSelected={isKeyboardNav && focusedTableIndex === idx}
                     onClick={(e, actionType) => {
                       if (actionType === 'quick_pay') {
@@ -1242,7 +1292,7 @@ const DisplayTablePage = () => {
                     }}
                     onView={(e) => {
                       e?.stopPropagation?.();
-                      const kotItemsFromTable = Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : [];
+                      const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
                       const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
 
                       navigate(getBillingPath(), {
@@ -1340,6 +1390,7 @@ const DisplayTablePage = () => {
         isOpen={!!kotCancelTable}
         onClose={() => setKotCancelTable(null)}
         tableId={kotCancelTable?.id}
+        kots={kotCancelTable?.kots || []}
         onCancelSuccess={() => {
           setKotCancelTable(null);
           refreshTables();
@@ -1491,28 +1542,40 @@ const DisplayTablePage = () => {
               <div>
                 <h4 style={{ margin: '0 0 8px', fontSize: '0.82rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase' }}>Current Order</h4>
                 <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#f8fafc' }}>
-                  {(orderItemsMap[previewTable.id] || []).length > 0 ? (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                      <thead>
-                        <tr style={{ background: '#cbd5e1', borderBottom: '1px solid #e2e8f0' }}>
-                          <th style={{ padding: '6px 12px', textAlign: 'left' }}>Item Name</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'center', width: '60px' }}>Qty</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', width: '90px' }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(orderItemsMap[previewTable.id] || []).map((it, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '6px 12px' }}>{it.name}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'center' }}>{it.qty}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right' }}>₹{(it.qty * (it.rate || it.unitPrice || 0)).toLocaleString('en-IN')}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No items in current order.</div>
-                  )}
+                  {(() => {
+                    const mappedItems = aggregateItems(
+                      (orderItemsMap[previewTable.id] && orderItemsMap[previewTable.id].length > 0 ? orderItemsMap[previewTable.id] : null) ||
+                      (orderItemsMap[previewTable.no] && orderItemsMap[previewTable.no].length > 0 ? orderItemsMap[previewTable.no] : null) ||
+                      (orderItemsMap[String(previewTable.no)] && orderItemsMap[String(previewTable.no)].length > 0 ? orderItemsMap[String(previewTable.no)] : null) ||
+                      (orderItemsMap[`T${previewTable.no}`] && orderItemsMap[`T${previewTable.no}`].length > 0 ? orderItemsMap[`T${previewTable.no}`] : null) ||
+                      (previewTable.table_prefix && orderItemsMap[`${previewTable.table_prefix}${previewTable.no}`] && orderItemsMap[`${previewTable.table_prefix}${previewTable.no}`].length > 0 ? orderItemsMap[`${previewTable.table_prefix}${previewTable.no}`] : null) ||
+                      (previewTable.prefix && orderItemsMap[`${previewTable.prefix}${previewTable.no}`] && orderItemsMap[`${previewTable.prefix}${previewTable.no}`].length > 0 ? orderItemsMap[`${previewTable.prefix}${previewTable.no}`] : null) ||
+                      []
+                    );
+                    if (mappedItems.length > 0) {
+                      return (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                          <thead>
+                            <tr style={{ background: '#cbd5e1', borderBottom: '1px solid #e2e8f0' }}>
+                              <th style={{ padding: '6px 12px', textAlign: 'left' }}>Item Name</th>
+                              <th style={{ padding: '6px 12px', textAlign: 'center', width: '60px' }}>Qty</th>
+                              <th style={{ padding: '6px 12px', textAlign: 'right', width: '90px' }}>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {mappedItems.map((it, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                <td style={{ padding: '6px 12px' }}>{it.name}</td>
+                                <td style={{ padding: '6px 12px', textAlign: 'center' }}>{it.qty}</td>
+                                <td style={{ padding: '6px 12px', textAlign: 'right' }}>₹{(it.qty * (it.rate || it.unitPrice || 0)).toLocaleString('en-IN')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    }
+                    return <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>No items in current order.</div>;
+                  })()}
                 </div>
               </div>
 
