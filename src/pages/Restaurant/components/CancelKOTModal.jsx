@@ -17,14 +17,21 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       setSelectedItems({});
       setReason('');
       setError('');
-      
+      const filterNC = (kotList) => {
+        return (Array.isArray(kotList) ? kotList : []).filter(kot => {
+          const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+          const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').toUpperCase().includes('NC') || String(kot.id || '').toUpperCase().includes('NC');
+          return !isNC;
+        });
+      };
+
       if (tableId && !initialKots) {
         setFetching(true);
         kotService.getKOTList({ tableId, table_id: tableId, active: '1' })
           .then(res => {
             const fetchedKots = res?.kots || res?.data || [];
             // Ensure each KOT has items
-            setKots(Array.isArray(fetchedKots) ? fetchedKots : []);
+            setKots(filterNC(fetchedKots));
           })
           .catch(err => {
             console.error('Error fetching KOTs for cancellation:', err);
@@ -32,7 +39,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
           })
           .finally(() => setFetching(false));
       } else {
-        setKots(initialKots || []);
+        setKots(filterNC(initialKots));
       }
     }
   }, [isOpen, initialKots, tableId]);

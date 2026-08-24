@@ -6,11 +6,12 @@ const MoveKOTTab = ({
   tables,
   selectedTransferKots,
   setSelectedTransferKots,
+  selectedTransferItems = {},
+  setSelectedTransferItems,
   handleCancelKOT,
   handleCreateKOT,
 }) => {
   const [mode, setMode] = useState('table'); // 'table' | 'item'
-  const [selectedItems, setSelectedItems] = useState({});
 
   if (!fromTableId) return (
     <div style={{ color: '#64748b', fontSize: '0.85rem', padding: '12px 0' }}>
@@ -21,7 +22,7 @@ const MoveKOTTab = ({
   const srcTable = tables.find(t => String(t.id) === fromTableId);
   const kots = (srcTable?.kots || []).filter(kot => {
     const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
-    const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
+    const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').toUpperCase().includes('NC') || String(kot.id || '').toUpperCase().includes('NC');
     return !isNC;
   });
 
@@ -31,10 +32,10 @@ const MoveKOTTab = ({
   );
 
   const toggleItem = (key) => {
-    setSelectedItems(prev => ({ ...prev, [key]: !prev[key] }));
+    setSelectedTransferItems(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const selectedItemCount = Object.values(selectedItems).filter(Boolean).length;
+  const selectedItemCount = Object.values(selectedTransferItems).filter(Boolean).length;
   const selectedKotCount = Object.values(selectedTransferKots).filter(Boolean).length;
 
   const toTableLabel = toTableId
@@ -52,7 +53,7 @@ const MoveKOTTab = ({
         ].map(m => (
           <button
             key={m.id}
-            onClick={() => { setMode(m.id); setSelectedItems({}); setSelectedTransferKots({}); }}
+            onClick={() => { setMode(m.id); setSelectedTransferItems && setSelectedTransferItems({}); setSelectedTransferKots({}); }}
             style={{
               flex: 1, padding: '7px 10px', borderRadius: '6px', border: 'none',
               fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer',
@@ -132,16 +133,16 @@ const MoveKOTTab = ({
               <div key={it.itemKey} style={{
                 flexShrink: 0,
                 display: 'flex', alignItems: 'center', gap: '10px',
-                background: selectedItems[it.itemKey] ? '#f0f9ff' : '#f8fafc',
+                background: selectedTransferItems[it.itemKey] ? '#f0f9ff' : '#f8fafc',
                 padding: '9px 12px', borderRadius: '8px',
-                border: selectedItems[it.itemKey] ? '1.5px solid #0e7490' : '1px solid #e2e8f0',
+                border: selectedTransferItems[it.itemKey] ? '1.5px solid #0e7490' : '1px solid #e2e8f0',
                 cursor: 'pointer', transition: 'all 120ms',
               }}
                 onClick={() => toggleItem(it.itemKey)}
               >
                 <input
                   type="checkbox"
-                  checked={!!selectedItems[it.itemKey]}
+                  checked={!!selectedTransferItems[it.itemKey]}
                   onChange={() => { }}
                   style={{ accentColor: '#0e7490', cursor: 'pointer' }}
                 />

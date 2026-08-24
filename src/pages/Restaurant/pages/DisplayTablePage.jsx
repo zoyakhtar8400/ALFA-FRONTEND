@@ -1100,6 +1100,8 @@ const DisplayTablePage = () => {
               const activeT = tables.find(t => t.status !== 'Blank') || tables[0];
               setFromTableId(String(activeT.id));
               setToTableId('');
+              setSelectedTransferKots({});
+              setSelectedTransferItems({});
               setShowQuickSwitch(true);
             }}
             style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}

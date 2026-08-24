@@ -98,6 +98,7 @@ const TableOperationsModal = (props) => {
                             setSelectedWaiter(t.waiter || '');
                             setSelectedCaptain(t.captain || '');
                             setSelectedTransferKots({});
+                            if (props.setSelectedTransferItems) props.setSelectedTransferItems({});
                           } else {
                             setToTableId(String(t.id));
                           }
@@ -137,6 +138,7 @@ const TableOperationsModal = (props) => {
                 onChange={e => {
                   setFromTableId(e.target.value);
                   setSelectedTransferKots({});
+                  if (props.setSelectedTransferItems) props.setSelectedTransferItems({});
                   const tObj = tables.find(t => String(t.id) === e.target.value);
                   if (tObj) { setSelectedGuests(tObj.seats || 4); setSelectedWaiter(tObj.waiter || ''); setSelectedCaptain(tObj.captain || ''); }
                 }}
@@ -210,6 +212,8 @@ const TableOperationsModal = (props) => {
             tables={tables}
             selectedTransferKots={selectedTransferKots}
             setSelectedTransferKots={setSelectedTransferKots}
+            selectedTransferItems={props.selectedTransferItems}
+            setSelectedTransferItems={props.setSelectedTransferItems}
             handleCancelKOT={handleCancelKOT}
             handleCreateKOT={handleCreateKOT}
           />

@@ -9,7 +9,7 @@ export const useTableOperations = (location, navigate) => {
 
   // Modal open states
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
-  const [modalTab, setModalTab] = useState('Move'); // Move, MoveKOT, MoveItems, Split, status, settle
+  const [modalTab, setModalTab] = useState('MoveKOT'); // Move, MoveKOT, MoveItems, Split, status, settle
   const [transferOp, setTransferOp] = useState('Move'); // Move, Merge
   const [fromTableId, setFromTableId] = useState('');
   const [toTableId, setToTableId] = useState('');
@@ -662,9 +662,19 @@ export const useTableOperations = (location, navigate) => {
           printItems = srcTable?.kots?.filter(k => selectedKots.includes(k.id)).flatMap(k => k.items || []) || [];
           printKotNo = selectedKots.join(', ');
         } else if (selectedItemKeys.length > 0) {
-          await kotService.moveItems({ fromTableId: srcId, toTableId: dstId, items: selectedTransferItems });
+          const moveItemsList = srcTable?.kots?.flatMap(k => (k.items || []).map((it, idx) => ({ ...it, itemKey: `${k.id}-${idx}` })))?.filter(it => selectedTransferItems[it.itemKey]) || [];
+          
+          const payloadItems = {};
+          moveItemsList.forEach(it => {
+            const key = it.id || it.item_id || it.name || it.itemName;
+            if (key) {
+              payloadItems[key] = Number(it.qty || it.quantity || 1);
+            }
+          });
+
+          await kotService.moveItems({ fromTableId: srcId, toTableId: dstId, items: payloadItems });
           toast(`Moved selected items to target table.`);
-          printItems = srcTable?.kots?.flatMap(k => (k.items || []).map((it, idx) => ({ ...it, itemKey: `${k.id}-${idx}` })))?.filter(it => selectedTransferItems[it.itemKey]) || [];
+          printItems = moveItemsList;
         } else {
           await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
           toast(`Moved order to target table.`);
