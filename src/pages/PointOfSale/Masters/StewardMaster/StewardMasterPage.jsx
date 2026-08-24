@@ -26,6 +26,9 @@ const StewardMasterPage = ({ showToast }) => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    outletFilter,
+    setOutletFilter,
+    outletsList,
     modal,
     setModal,
     deleteModal,
@@ -38,6 +41,32 @@ const StewardMasterPage = ({ showToast }) => {
     handleSave,
     handleDelete
   } = useStewardMaster(toastTrigger);
+
+  const columns = [
+    { key: 'name', label: 'Steward Name', sortable: true },
+    {
+      key: 'store_id',
+      label: 'Outlet',
+      sortable: true,
+      render: (val) => {
+        const cleanVal = String(val || '').trim();
+        const o = (outletsList || []).find(store => 
+          String(store.store_id || '') === cleanVal || 
+          String(store.id || '') === cleanVal || 
+          `STORE_${store.id}` === cleanVal ||
+          String(store.code || '') === cleanVal
+        );
+        if (o) return o.store_name || o.name || o.outlet_name || 'Main Restaurant';
+        if (cleanVal === 'STORE_1' || cleanVal === '1' || !cleanVal) {
+          const firstOutlet = outletsList && outletsList[0];
+          return firstOutlet?.store_name || firstOutlet?.name || 'Main Restaurant';
+        }
+        return cleanVal;
+      }
+    },
+    { key: 'active', label: 'Active', sortable: true, renderStatus: true },
+    { key: 'action', label: 'Action', sortable: false }
+  ];
 
   // If loading initially, show LoadingState with standard page header layout
   if (loading) {
@@ -58,6 +87,9 @@ const StewardMasterPage = ({ showToast }) => {
         title="Steward Master"
         columns={columns}
         data={data}
+        outletFilter={outletFilter}
+        setOutletFilter={setOutletFilter}
+        outletsList={outletsList}
         actions={[
           { label: 'Edit', onClick: openEdit },
           { label: 'Delete', isDanger: true, onClick: openDelete }

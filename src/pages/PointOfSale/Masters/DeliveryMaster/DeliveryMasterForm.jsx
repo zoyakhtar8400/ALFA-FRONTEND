@@ -2,19 +2,31 @@ import React, { useState, useEffect } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import posApi from '../../../../api/posApi';
 
 const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
-  const [fields, setFields] = useState({ partner: 'Direct Delivery', name: '', phone: '', status: 'Active' });
+  const [fields, setFields] = useState({ partner: 'Direct Delivery', name: '', phone: '', store_id: 'STORE_1', status: 'Active' });
+  const [outlets, setOutlets] = useState([]);
 
   useEffect(() => {
+    posApi.getOutlets().then(res => {
+      const list = res?.data || res?.stores || [];
+      setOutlets(list);
+    }).catch(err => console.warn('Failed to fetch outlets in DeliveryMasterForm', err));
+  }, []);
+
+  useEffect(() => {
+    const activeOutlet = localStorage.getItem('activeOutletId') || 'STORE_1';
     if (isOpen) {
       setFields(isEdit ? {
         partner: 'Direct Delivery',
+        store_id: activeOutlet,
         ...initialData
       } : {
         partner: 'Direct Delivery',
         name: '',
         phone: '',
+        store_id: activeOutlet,
         status: 'Active'
       });
     }
@@ -77,6 +89,23 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
             </div>
 
             <div className="form-field">
+              <label className="form-label">Outlet *</label>
+              <select
+                value={fields.store_id}
+                onChange={(e) => setFields(p => ({ ...p, store_id: e.target.value }))}
+                className="form-select"
+                required
+              >
+                {outlets.length === 0 && <option value="STORE_1">Main Restaurant</option>}
+                {outlets.map(o => (
+                  <option key={o.store_id || o.id} value={o.store_id || o.id}>
+                    {o.store_name || o.name || `Outlet ${o.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-field">
               <label className="form-label">Status</label>
               <select
                 value={fields.status || 'Active'}
@@ -102,3 +131,4 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
 };
 
 export default DeliveryMasterForm;
+export { DeliveryMasterForm };

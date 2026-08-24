@@ -90,7 +90,14 @@ export function groupItemsByPrinter(
     let errorMessage = null;
 
     if (printer) {
-      groupKey = `printer_${printer.id}`;
+      const pPurpose = String(printer.printer_type || printer.type || '').toUpperCase();
+      if (pPurpose === 'BILL') {
+        groupKey = `invalid_purpose_${printer.id}`;
+        hasError = true;
+        errorMessage = `Selected printer "${printer.title || printer.device_name || printer.printer_name}" is not configured as a KOT printer.`;
+      } else {
+        groupKey = `printer_${printer.id}`;
+      }
     } else if (pId && !printer) {
       groupKey = `missing_printer_${pId}`;
       hasError = true;
@@ -108,8 +115,8 @@ export function groupItemsByPrinter(
     if (!groupMap[groupKey]) {
       groupMap[groupKey] = {
         key: groupKey,
-        printer: printer || { id: groupKey, printer_name: 'Unassigned Printer', printer_ip: 'N/A', printer_type: 1 },
-        printerName: printer ? printer.printer_name : 'Unassigned Printer',
+        printer: printer || { id: groupKey, printer_name: 'Unassigned Printer', printer_ip: 'N/A', printer_type: 'KOT' },
+        printerName: printer ? (printer.printer_name || printer.title || printer.device_name) : 'Unassigned Printer',
         productionCategory: category || { id: null, name: categoryName, department_name: categoryName },
         stationName: categoryName,
         items: [],
@@ -127,12 +134,16 @@ export function groupItemsByPrinter(
 /**
  * Generate a structured KOT payload for a single station printer group.
  */
-export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain, remarks, isReprint = false }) {
+export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerName, waiter, captain, remarks, guests, pax, paxCount, isReprint = false, isRunningKOT = false }) {
   const stationName = group.productionCategory?.name || group.stationName || 'Kitchen Station';
-  const printerName = group.printer?.printer_name || group.printerName || 'KOT Printer';
-  const printerIp = group.printer?.printer_ip || '';
+  const printerName = group.printer?.printer_name || group.printer?.title || group.printerName || 'KOT Printer';
+  const printerIp = group.printer?.printer_ip || group.printer?.device_address || '';
+  const printerId = group.printer?.id;
+  const storeId = group.printer?.store_id || 'STORE_1';
+  const resolvedGuests = Number(guests || pax || paxCount || 1);
 
   return {
+    job_type: 'KOT',
     kotNo: kotNo || 'KOT-1',
     tableNo: String(tableNo || '1'),
     tableId: tableId || 1,
@@ -140,12 +151,19 @@ export function generateKOTPayload({ tableNo, tableId, kotNo, group, customerNam
     waiter: waiter || 'Staff',
     captain: captain || '',
     remarks: remarks || '',
+    guests: resolvedGuests,
+    pax: resolvedGuests,
     stationName,
     printerName,
     printerIp,
+    printerId,
+    printer_id: printerId,
+    printer_type: 'KOT',
+    store_id: storeId,
     printer: group.printer,
     productionCategory: group.productionCategory,
     isReprint: !!isReprint,
+    isRunningKOT: !!isRunningKOT,
     hasError: !!group.hasError,
     errorMessage: group.errorMessage || null,
     items: group.items.map(r => ({
@@ -178,15 +196,21 @@ export function printKOTPayload(payload) {
   }
 
   printStationKOT({
+    job_type: 'KOT',
     id: payload.kotNo,
     tableId: payload.tableNo,
     time: payload.timestamp,
     items: payload.items,
     waiter: payload.waiter,
     stationName: payload.stationName,
+    printerId: payload.printerId || payload.printer_id,
+    printer_id: payload.printerId || payload.printer_id,
     printerName: payload.printerName,
     printerIp: payload.printerIp,
+    printer_type: 'KOT',
+    store_id: payload.store_id || 'STORE_1',
     isReprint: payload.isReprint,
+    isRunningKOT: payload.isRunningKOT,
     isBrowser: payload.isBrowser
   });
   return true;

@@ -57,6 +57,9 @@ export const RestaurantProvider = ({ children }) => {
       .then(res => {
         const outlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
         setAllOutlets(outlets);
+        try {
+          localStorage.setItem('alfa_outlets', JSON.stringify(outlets));
+        } catch (e) {}
       })
       .catch(err => console.warn('Failed to preload/refresh outlets:', err.message));
   }, []);
@@ -90,18 +93,18 @@ export const RestaurantProvider = ({ children }) => {
     const statusUpper = String(rawStatus).toUpperCase();
     const isNCBlocked = statusUpper === 'NC_BLOCKED' || t.color === 'purple' || extra.status === 'NC_BLOCKED' || extra.color === 'purple';
     const isReserved = !isNCBlocked && (statusUpper === 'RESERVED' || rawStatus === 'Reserved');
-    const isPaid = !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING', 'BILL GENERATED'].includes(statusUpper);
+    const isPaid = !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING'].includes(statusUpper);
     const isUnpaid = !isNCBlocked && !isReserved && !isPaid && (['UNPAID_BILL', 'UNPAID'].includes(statusUpper) || t.color === 'blue' || t.color === 'red' || extra.color === 'blue' || extra.color === 'red' || extra.status === 'UNPAID_BILL');
     const isRunning = !isNCBlocked && !isReserved && !isPaid && !isUnpaid && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(t.amount || 0) > 0));
 
-    const color = isNCBlocked ? 'purple' : isPaid ? 'green' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
-    const normalizedStatus = isNCBlocked ? 'NC_BLOCKED' : isReserved ? 'Reserved' : isPaid ? 'Paid' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
+    // When a table is paid, it immediately becomes Blank (white) with no 60s green delay
+    const color = isNCBlocked ? 'purple' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
+    const normalizedStatus = isNCBlocked ? 'NC_BLOCKED' : isReserved ? 'Reserved' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
 
-    const isPaymentCompleted = color === 'green';
     const isAvailable = color === 'white';
     const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0
       ? t.available_actions
-      : (isPaymentCompleted ? ['print_kot'] : (color === 'yellow' || color === 'blue' || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
+      : (color === 'yellow' || color === 'blue' || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : [];
 
     const prefix = t.prefix || extra.prefix || '';
     const tableNoStr = String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '') || String(t.id);
@@ -116,24 +119,27 @@ export const RestaurantProvider = ({ children }) => {
       seats: Number(t.seats || t.max_person) || 4,
       status: normalizedStatus,
       raw_status: rawStatus,
-      current_order_id: t.current_order_id || 0,
-      payment_status: t.payment_status || (isPaymentCompleted ? 'PAID' : 'UNPAID'),
-      kot_status: t.kot_status || (color === 'yellow' ? 'CUT' : 'NONE'),
-      payment_completed_at: t.payment_completed_at || (t.extra_details && t.extra_details.payment_completed_at) || null,
-      cleanup_after_seconds: t.cleanup_after_seconds || 60,
-      remaining_seconds: t.remaining_seconds !== undefined ? t.remaining_seconds : 60,
+      current_order_id: isAvailable ? 0 : (t.current_order_id || 0),
+      payment_status: isAvailable ? 'AVAILABLE' : (t.payment_status || 'UNPAID'),
+      kot_status: isAvailable ? 'NONE' : (t.kot_status || (color === 'yellow' ? 'CUT' : 'NONE')),
+      payment_completed_at: null,
+      cleanup_after_seconds: 0,
+      remaining_seconds: 0,
       color: color,
       available_actions: actions,
-      amount: Number(t.amount || 0),
-      waiter: t.waiter || null,
-      customer: t.customer || 'Walk-in',
+      amount: isAvailable ? 0 : Number(t.amount || 0),
+      waiter: isAvailable ? null : (t.waiter || null),
+      customer: isAvailable ? 'Walk-in' : (t.customer || 'Walk-in'),
+      pax: isAvailable ? null : (t.pax || t.guests || t.paxCount || extra.pax || extra.guests || null),
+      guests: isAvailable ? null : (t.guests || t.pax || t.paxCount || extra.guests || extra.pax || null),
+      paxCount: isAvailable ? null : (t.paxCount || t.pax || t.guests || extra.pax || extra.guests || null),
       area: t.area || (t.extra_details && (t.extra_details.area || t.extra_details.floor)) || t.floor || (t.extra_details && t.extra_details.floor) || t.area_name || t.floor_name || 'Main Area',
       floor: t.area || (t.extra_details && (t.extra_details.area || t.extra_details.floor)) || t.floor || (t.extra_details && t.extra_details.floor) || t.area_name || t.floor_name || 'Main Area',
       section: t.section || (t.extra_details && t.extra_details.section) || t.department || 'Restaurant',
       department: t.department || (t.extra_details && (t.extra_details.department || t.extra_details.section)) || 'Restaurant',
       store_id: t.store_id || (t.extra_details && t.extra_details.store_id) || 'STORE_1',
-      kots: Array.isArray(t.kots) ? t.kots : [],
-      kotCount: Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0))
+      kots: isAvailable ? [] : (Array.isArray(t.kots) ? t.kots : []),
+      kotCount: isAvailable ? 0 : Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0))
     };
   }
 
@@ -186,46 +192,6 @@ export const RestaurantProvider = ({ children }) => {
   // Fetch tables on mount and whenever activeStoreId / refreshTables changes
   useEffect(() => {
     refreshTables().then(() => setTablesLoaded(true));
-  }, [refreshTables]);
-
-  // Live countdown ticker & Auto-reset Cleaning / Paid tables to Blank when timer hits 0 (60s)
-  useEffect(() => {
-    const id = setInterval(() => {
-      const now = Date.now();
-      setTables(prev => {
-        let hasChanges = false;
-        const nextTables = prev.map(t => {
-          const isGreen = t.status === 'PAYMENT_COMPLETED' || t.status === 'CLEANUP_RUNNING' || t.status === 'Cleaning' || t.status === 'Paid' || t.status === 'Bill Generated';
-          if (isGreen) {
-            const startTime = t.payment_completed_at || t.cleanedAt || t.paidAt || t.updatedAt || now;
-            const elapsedSec = Math.floor((now - startTime) / 1000);
-            const totalCleanupSec = t.cleanup_after_seconds || 60;
-            const remSec = Math.max(0, totalCleanupSec - elapsedSec);
-
-            if (remSec <= 0) {
-              hasChanges = true;
-              tableService.patchTableStatus(t.id, {
-                status: 'Blank',
-                amount: 0,
-                waiter: null,
-                customer: 'Walk-in'
-              }).then(() => refreshTables()).catch(err => console.warn('Error resetting table status in DB:', err));
-
-              return { ...t, status: 'Blank', color: 'white', remaining_seconds: 0, amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, paidAt: null, cleanedAt: null, payment_completed_at: null, isHold: false, kots: [], kotCount: 0 };
-            }
-
-            if (t.remaining_seconds !== remSec) {
-              hasChanges = true;
-              return { ...t, remaining_seconds: remSec };
-            }
-          }
-          return t;
-        });
-
-        return hasChanges ? nextTables : prev;
-      });
-    }, 1000);
-    return () => clearInterval(id);
   }, [refreshTables]);
 
   // Sync state changes to localStorage
@@ -304,10 +270,13 @@ export const RestaurantProvider = ({ children }) => {
 
       // Update local storage so session stays aligned
       try {
+        localStorage.setItem('activeOutletId', storeIdStr);
+        localStorage.setItem('active_outlet_name', matched.name || matched.store_name || '');
         const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
         user.store_id = storeIdStr;
         localStorage.setItem('alfa_user', JSON.stringify(user));
         localStorage.setItem('user', JSON.stringify(user));
+        window.dispatchEvent(new CustomEvent('outletChanged', { detail: { storeId: storeIdStr, outletId, outletName: matched.name || matched.store_name } }));
       } catch (e) { }
 
       // Trigger table refresh for this specific store_id

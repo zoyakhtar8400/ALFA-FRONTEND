@@ -26,13 +26,13 @@ const F = ({ label, type = 'text', placeholder, required, disabled, children, va
 
 const ExpenseEntryForm = ({ mode, initialData, onSave, onCancel, existingRecords = [] }) => {
   const [form, setForm] = useState(() => ({
-    expenseNo: initialData?.expenseNo || `EXP-${Math.floor(1000 + Math.random() * 9000)}`,
-    date: initialData?.date || new Date().toISOString().split('T')[0],
-    userName: initialData?.userName || '',
-    expenseCharge: initialData?.expenseCharge || '',
+    expenseNo: initialData?.expenseNo || initialData?.expense_id || '',
+    date: initialData?.date || initialData?.expense_date || new Date().toISOString().split('T')[0],
+    userName: initialData?.userName || initialData?.field1 || '',
+    expenseCharge: initialData?.expenseCharge || initialData?.description || '',
     amount: initialData?.amount || '',
-    payType: initialData?.payType || '',
-    remark: initialData?.remark || '',
+    payType: initialData?.payType || initialData?.payment_mode || '',
+    remark: initialData?.remark || initialData?.description || '',
   }));
 
   const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({

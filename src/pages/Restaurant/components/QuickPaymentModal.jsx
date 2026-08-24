@@ -29,6 +29,7 @@ const QuickPaymentModal = ({
   const { setTables, activeStoreId } = useRestaurant();
 
   const [isFooterCollapsed, setIsFooterCollapsed] = useState(false);
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
 
   const [dbPaymentModes, setDbPaymentModes] = useState([]);
   const [paymentAmounts, setPaymentAmounts] = useState({});
@@ -254,8 +255,12 @@ const QuickPaymentModal = ({
       }
 
       toast(`Payment of ₹${totalPaid.toFixed(2)} completed! Table T${targetTableNo} is now ${Number(balanceDue) > 0 ? 'Partial' : 'Paid'}.`);
-      if (typeof onTableUpdated === 'function') onTableUpdated();
-      onClose();
+      setShowPaymentSuccessModal(true);
+      setTimeout(() => {
+        if (typeof onTableUpdated === 'function') onTableUpdated();
+        onClose();
+        setShowPaymentSuccessModal(false);
+      }, 1200);
     } catch (err) {
       toast(err.message || 'Failed to save payment', 'error');
     }
@@ -339,8 +344,12 @@ const QuickPaymentModal = ({
       });
 
       toast(`Payment saved & Tax Invoice printed for Table T${targetTableNo}!`);
-      if (typeof onTableUpdated === 'function') onTableUpdated();
-      onClose();
+      setShowPaymentSuccessModal(true);
+      setTimeout(() => {
+        if (typeof onTableUpdated === 'function') onTableUpdated();
+        onClose();
+        setShowPaymentSuccessModal(false);
+      }, 1200);
     } catch (err) {
       toast(err.message || 'Failed to save & print', 'error');
     }
@@ -603,6 +612,36 @@ const QuickPaymentModal = ({
               <span style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '4px', padding: '1px 6px', fontSize: '10px', color: '#ffffff' }}>F7</span>
             </button>
           </div>
+
+          {/* Payment Completed Modal Popup */}
+          {showPaymentSuccessModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 10001,
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <div style={{
+                background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', width: '360px', fontFamily: 'system-ui'
+              }}>
+                <div style={{
+                  width: '72px', height: '72px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', fontSize: '2rem'
+                }}>
+                  ✓
+                </div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 8px 0' }}>
+                  Payment Completed
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0, fontWeight: 500 }}>
+                  Transaction Settled Successfully
+                </p>
+                <span style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginTop: '16px' }}>
+                  Updating table registers...
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

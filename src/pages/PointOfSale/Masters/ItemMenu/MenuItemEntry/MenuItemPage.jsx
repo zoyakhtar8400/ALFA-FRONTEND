@@ -12,7 +12,7 @@ const columns = [
   { key: 'price', label: 'Sale Rate', sortable: true, render: (v) => `₹${v}` },
   { key: 'itemGroup', label: 'Menu Category', sortable: true },
   { key: 'category', label: 'Food Type', sortable: true },
-  { key: 'taxCategory', label: 'Tax', sortable: true },
+  { key: 'taxCategory', label: 'Tax', sortable: true, render: (v, row) => row.taxDisplay || v },
   { key: 'rateEdit', label: 'Rate Edit', sortable: true },
   { key: 'discApp', label: 'DISC App', sortable: true },
   { key: 'kitchen', label: 'Kitchen', sortable: true },
@@ -44,7 +44,16 @@ const MenuItemPage = ({ showToast }) => {
   } = useItemMenu('menu-item', toastTrigger);
 
   const handleOpenAdd = () => {
-    setModal({ open: true, isEdit: false, fields: {} });
+    const defaultTax = taxCategories.find(t => String(t.percentage) === '5' || (t.name && t.name.includes('5'))) || taxCategories[0];
+    const defaultTaxName = defaultTax ? defaultTax.name : '';
+
+    setModal({ 
+      open: true, 
+      isEdit: false, 
+      fields: {
+        taxCategory: defaultTaxName
+      } 
+    });
   };
 
   const handleOpenEdit = (row) => {

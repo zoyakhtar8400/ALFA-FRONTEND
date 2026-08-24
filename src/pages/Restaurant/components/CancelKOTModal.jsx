@@ -76,19 +76,42 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
 
     try {
       setLoading(true);
+      const cancelledItemsList = [];
       
       for (const kotId of kotsToProcess) {
         const itemIds = selectedItems[kotId];
         const kot = kots.find(k => String(k.kot_id) === String(kotId) || String(k.id) === String(kotId) || String(k.kotId) === String(kotId));
+        const kotDisplayNo = kot?.custom_bill_number || kot?.id || `KOT-${kotId}`;
         
         const allItems = kot?.items || kot?.sync_kot_item_list || [];
-        const activeItemCount = allItems.filter(i => String(i.status) !== '5').length;
+        const activeItems = allItems.filter(i => String(i.status) !== '5');
+        const activeItemCount = activeItems.length;
         const isFullCancel = itemIds.length === activeItemCount;
+
+        activeItems.forEach((i, idx) => {
+          const id = i.id || `item_${idx}`;
+          if (itemIds.includes(id)) {
+            cancelledItemsList.push({ ...i, kotNo: kotDisplayNo });
+          }
+        });
 
         await kotService.deleteKOT(kotId, {
           reason: reason,
           itemIds: isFullCancel ? undefined : itemIds // send undefined for full cancellation
         });
+      }
+
+      if (cancelledItemsList.length > 0) {
+        try {
+          const { printCancelKOT } = await import('../utils/printCancelKOT');
+          printCancelKOT({
+            tableLabel: String(tableId).replace('T', ''),
+            items: cancelledItemsList,
+            reason: reason
+          });
+        } catch (e) {
+          console.error('Print cancel kot error:', e);
+        }
       }
 
       window.showToast?.('Successfully cancelled selected items/KOTs', 'success');
@@ -138,8 +161,12 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
           Select the items or KOTs you want to cancel:
         </h4>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto', paddingRight: '8px' }}>
-          {kots.map(kot => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '40vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingRight: '8px', paddingBottom: '10px' }}>
+          {kots.filter(kot => {
+            const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+            const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
+            return !isNC;
+          }).map(kot => {
             const kotId = kot.kot_id || kot.kotId || kot.id;
             const items = kot.items || kot.sync_kot_item_list || [];
             const activeItems = items.filter(i => String(i.status) !== '5'); // Exclude already cancelled
@@ -151,7 +178,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
             if (activeItems.length === 0) return null;
 
             return (
-              <div key={kotId} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+              <div key={kotId} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', flexShrink: 0 }}>
                 {/* KOT Header */}
                 <div 
                   tabIndex={0}

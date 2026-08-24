@@ -24,6 +24,9 @@ const DeliveryMasterPage = ({ showToast }) => {
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    outletFilter,
+    setOutletFilter,
+    outletsList,
     modal,
     setModal,
     deleteModal,
@@ -33,6 +36,33 @@ const DeliveryMasterPage = ({ showToast }) => {
     handleSave,
     handleDelete
   } = useDeliveryMaster(toastTrigger);
+
+  const columns = [
+    { key: 'partner', label: 'Partner Name', sortable: true },
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'phone', label: 'Phone', sortable: true },
+    {
+      key: 'store_id',
+      label: 'Outlet',
+      sortable: true,
+      render: (val) => {
+        const cleanVal = String(val || '').trim();
+        const o = (outletsList || []).find(store => 
+          String(store.store_id || '') === cleanVal || 
+          String(store.id || '') === cleanVal || 
+          `STORE_${store.id}` === cleanVal ||
+          String(store.code || '') === cleanVal
+        );
+        if (o) return o.store_name || o.name || o.outlet_name || 'Main Restaurant';
+        if (cleanVal === 'STORE_1' || cleanVal === '1' || !cleanVal) {
+          const firstOutlet = outletsList && outletsList[0];
+          return firstOutlet?.store_name || firstOutlet?.name || 'Main Restaurant';
+        }
+        return cleanVal;
+      }
+    },
+    { key: 'status', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Active' }
+  ];
 
   const handleOpenAdd = () => {
     setModal({ open: true, isEdit: false, fields: {} });
@@ -48,6 +78,9 @@ const DeliveryMasterPage = ({ showToast }) => {
         title="Delivery Master"
         columns={columns}
         data={data}
+        outletFilter={outletFilter}
+        setOutletFilter={setOutletFilter}
+        outletsList={outletsList}
         actions={[
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }

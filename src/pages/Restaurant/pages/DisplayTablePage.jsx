@@ -29,6 +29,7 @@ import { reservationService } from '../../../services/reservationService';
 import areaService from '../../../services/areaService';
 import { restaurantApi } from '../../../api/restaurantApi';
 import posApi from '../../../api/posApi';
+import companyProfileService from '../../../services/companyProfileService';
 import { useRestaurant } from '../../../context/RestaurantContext';
 
 const aggregateItems = (items) => {
@@ -72,17 +73,26 @@ const DisplayTablePage = () => {
   // Helper to fetch rich details from backend and print instantly
   const handlePrintPaidTable = async (table) => {
     try {
-      const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
-      const res = await orderService.getOrderById(targetId);
-      let fetchedOrder = res?.order || res?.data;
+      let fetchedOrder = null;
+      try {
+        const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
+        const res = await orderService.getOrderById(targetId);
+        fetchedOrder = res?.order || res?.data;
+      } catch (orderErr) {
+        // Fallback to table state
+      }
+
       if (!fetchedOrder) {
         fetchedOrder = {
           tableNo: table.no,
+          table_number: table.no,
+          table_name: table.table_name || `T${table.no}`,
           kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
           customerName: table.customer_name || 'Walk-in',
           waiterName: table.waiter_name || 'Staff',
           subtotal: table.amount,
           amount: table.amount,
+          grand_total: table.amount,
           items: [],
           printerName: table.printerName || ''
         };
@@ -102,24 +112,77 @@ const DisplayTablePage = () => {
       if (localItems && localItems.length > 0) {
         fetchedOrder.items = localItems;
       }
-      
-      const { default: companyProfileService } = await import('../../../services/companyProfileService');
+
+      // Directly dispatch bill print to ws://localhost:8989 (triggers Windows Print Spooler Save As dialog)
+      await printTaxInvoice({ ...fetchedOrder, printerName: table.printerName || '' });
+      if (window.showToast) window.showToast('✅ Bill print dispatched');
+    } catch (err) {
+      console.warn('Direct print failed', err);
+      if (window.showToast) window.showToast('Failed to print bill');
+    }
+  };
+
+  // Helper to open thermal bill preview modal
+  const handleOpenInvoicePreview = async (table) => {
+    console.log('%c🔍 [Display Table] Opening Invoice Preview for Table:', 'color: #0ea5e9; font-weight: bold;', table);
+    try {
+      let fetchedOrder = null;
+      try {
+        const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
+        const res = await orderService.getOrderById(targetId);
+        fetchedOrder = res?.order || res?.data;
+      } catch (e) {}
+
+      const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
+      const localItems = aggregateItems(
+        (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
+        (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
+        (orderItemsMap[String(table.no)] && orderItemsMap[String(table.no)].length > 0 ? orderItemsMap[String(table.no)] : null) ||
+        (orderItemsMap[`T${table.no}`] && orderItemsMap[`T${table.no}`].length > 0 ? orderItemsMap[`T${table.no}`] : null) ||
+        (table.table_prefix && orderItemsMap[`${table.table_prefix}${table.no}`] && orderItemsMap[`${table.table_prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.table_prefix}${table.no}`] : null) ||
+        (table.prefix && orderItemsMap[`${table.prefix}${table.no}`] && orderItemsMap[`${table.prefix}${table.no}`].length > 0 ? orderItemsMap[`${table.prefix}${table.no}`] : null) ||
+        (kotItemsFromTable.length > 0 ? kotItemsFromTable : [])
+      );
+
+      const subtotalAmt = Number(table.amount || 0);
+      const taxAmt = subtotalAmt * (Number(globalTaxRate || 5) / 100);
+      const grandTotalAmt = subtotalAmt + taxAmt;
+
+      const invoiceData = fetchedOrder ? {
+        ...fetchedOrder,
+        pax: fetchedOrder.pax || table.pax || table.paxCount || table.seats || 1,
+        guests: fetchedOrder.guests || table.pax || table.paxCount || table.seats || 1
+      } : {
+        table_number: table.no,
+        table_name: table.table_name || `T${table.no}`,
+        invoice_number: `INV-${table.no}`,
+        customer_name: table.customer_name || table.customer || 'Walk-in',
+        waiter_name: table.waiter_name || table.waiter || 'Staff',
+        pax: table.pax || table.paxCount || table.seats || 1,
+        guests: table.pax || table.paxCount || table.seats || 1,
+        items: localItems,
+        subtotal: subtotalAmt,
+        discount: Number(table.discount || table.discount_amount || table.discountAmount || 0),
+        discount_reason: table.discount_reason || table.discount_remarks || table.discount_note || '',
+        tax: taxAmt,
+        grand_total: grandTotalAmt,
+        payment_method: table.status === 'Paid' ? 'Paid' : 'Unpaid'
+      };
+      if (localItems.length > 0) invoiceData.items = localItems;
+
       let companyProfile = {};
       try {
         const cpRes = await companyProfileService.getProfile();
         companyProfile = cpRes?.data || cpRes?.companyProfile || (cpRes && cpRes.id ? cpRes : {});
-      } catch (err) {
-        console.warn('Failed to load company profile for print:', err);
-      }
+      } catch (err) {}
 
-      const html = generateInvoiceHTML(fetchedOrder, companyProfile, false);
+      const html = generateInvoiceHTML(invoiceData, companyProfile, true);
+      console.log('%c📄 [Display Table] Invoice HTML generated successfully. Opening modal...', 'color: #10b981; font-weight: bold;');
       setPreviewHtmlContent(html);
-      setPreviewInvoiceData({ ...fetchedOrder, printerName: table.printerName || '' });
+      setPreviewInvoiceData(invoiceData);
       setPreviewModalOpen(true);
-      
     } catch (err) {
-      console.warn('Direct print failed', err);
-      if (window.showToast) window.showToast('Failed to generate bill preview');
+      console.error('❌ [Display Table] Failed to generate preview:', err);
     }
   };
 
@@ -205,6 +268,17 @@ const DisplayTablePage = () => {
   const [kotCancelError, setKotCancelError] = useState('');
   const [ncReleaseTable, setNcReleaseTable] = useState(null);
   const [globalTaxRate, setGlobalTaxRate] = useState(0);
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      toast(location.state.toastMessage);
+      window.history.replaceState({}, document.title);
+    } else if (location.state?.updatedTable && location.state?.updatedTable?.status === 'UNPAID_BILL') {
+      const tNo = location.state.updatedTable.no || location.state.updatedTable.id;
+      toast(`✅ Bill generated & printed for Table T${tNo}!`);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     posApi.getItemTaxCategories().then(res => {
@@ -297,49 +371,6 @@ const DisplayTablePage = () => {
     };
     window.addEventListener('tableMasterSync', handleSync);
     return () => window.removeEventListener('tableMasterSync', handleSync);
-  }, []);
-
-  // 1-second interval for green (Paid) table cleaning countdown
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTables(prev => {
-        let hasChanges = false;
-        const updated = prev.map(t => {
-          const statusUpper = (t.status || '').toUpperCase();
-          const isPaidTable = ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING'].includes(statusUpper) || t.color === 'green';
-          if (!isPaidTable) return t;
-
-          const currentRem = t.remaining_seconds !== undefined ? t.remaining_seconds : 60;
-          if (currentRem > 1) {
-            hasChanges = true;
-            return { ...t, remaining_seconds: currentRem - 1 };
-          } else if (currentRem === 1) {
-            // Timer expired -> table is cleaned and returns to Blank
-            hasChanges = true;
-            tableService.patchTableStatus(t.id, {
-              status: 'AVAILABLE',
-              amount: 0,
-              customer: 'Walk-in',
-              waiter: null
-            }).catch(() => { });
-            return {
-              ...t,
-              status: 'Blank',
-              color: 'white',
-              amount: 0,
-              customer: 'Walk-in',
-              waiter: null,
-              remaining_seconds: 0,
-              available_actions: [],
-              updatedAt: Date.now()
-            };
-          }
-          return t;
-        });
-        return hasChanges ? updated : prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   // Automatically reload live tables from PostgreSQL database whenever this page is mounted or navigated to
@@ -853,7 +884,7 @@ const DisplayTablePage = () => {
     return Array.from(areaSet);
   }, [tables, dbAreasList]);
 
-  const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Unpaid', 'Reserved', 'Paid', 'Cleaning', 'NC Blocked'];
+  const STATUS_FILTERS = ['All', 'Blank', 'Running', 'Unpaid', 'Reserved'];
 
   // When viewing a future/specific date, tables reflect reservations on that date only (all other tables are completely blank)
   const dateAdjustedTables = React.useMemo(() => {
@@ -1008,7 +1039,7 @@ const DisplayTablePage = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '10px 18px', borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>POS Tables</h2>
-          
+
           {/* Service switcher tabs */}
           <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '8px', border: '1px solid #e2e8f0', gap: '2px' }}>
             {SERVICES.map(({ id, label }) => {
@@ -1284,7 +1315,7 @@ const DisplayTablePage = () => {
                       } else {
                         // Prevent accidental navigation if a modal is currently open
                         if (quickPaymentTable || showQuickSwitch || kotCancelTable || ncReleaseTable) return;
-                        
+
                         setIsKeyboardNav(false);
                         setFocusedTableIndex(idx);
                         handleTableCardClick(table);
@@ -1294,6 +1325,7 @@ const DisplayTablePage = () => {
                       e?.stopPropagation?.();
                       const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
                       const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
+                      console.log('%c👁️ [EYE ICON PAX DEBUG] table =', 'color: #7c3aed; font-weight:bold;', { id: table.id, pax: table.pax, guests: table.guests, paxCount: table.paxCount, seats: table.seats, extra_details: table.extra_details });
 
                       navigate(getBillingPath(), {
                         state: {
@@ -1308,7 +1340,7 @@ const DisplayTablePage = () => {
                     }}
                     onSave={(e) => {
                       e?.stopPropagation?.();
-                      handlePrintPaidTable(table);
+                      handleOpenInvoicePreview(table);
                     }}
                     onDelete={handleDeleteClick}
                   />
@@ -1416,16 +1448,6 @@ const DisplayTablePage = () => {
         initialDate={selectedDate}
       />
 
-      <InvoicePreviewModal
-        isOpen={previewModalOpen}
-        onClose={() => setPreviewModalOpen(false)}
-        htmlContent={previewHtmlContent}
-        onPrint={() => {
-          setPreviewModalOpen(false);
-          printTaxInvoice(previewInvoiceData);
-        }}
-      />
-
       <TableMasterForm
         isOpen={addTableModalOpen}
         onClose={() => setAddTableModalOpen(false)}
@@ -1439,10 +1461,20 @@ const DisplayTablePage = () => {
         table={directPayTable || {}}
         items={orderItemsMap[directPayTable?.id] || orderItemsMap[directPayTable?.no] || []}
         onTableUpdated={() => {
-           setShowDirectPayModal(false);
-           refreshTables();
+          setShowDirectPayModal(false);
+          refreshTables();
         }}
         showToast={toast}
+      />
+
+      <InvoicePreviewModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        htmlContent={previewHtmlContent}
+        onPrint={async () => {
+          setPreviewModalOpen(false);
+          await printTaxInvoice(previewInvoiceData);
+        }}
       />
 
       {/* Select Table First Dialog */}

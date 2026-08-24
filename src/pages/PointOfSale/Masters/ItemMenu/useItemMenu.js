@@ -39,11 +39,14 @@ export const useItemMenu = (activeTab, showToast) => {
       }));
       setOutlets(mappedOutlets);
       
-      const mappedTaxes = taxes.map((t, idx) => ({
+      let mappedTaxes = taxes.map((t, idx) => ({
         id: t.id || idx + 1,
         name: t.name || 'GST Category',
         percentage: t.percentage || 5
       }));
+      if (!mappedTaxes.some(t => String(t.percentage) === '5' || t.name.includes('5'))) {
+        mappedTaxes.unshift({ id: 'fallback-gst-5', name: 'GST', percentage: 5 });
+      }
       setTaxCategories(mappedTaxes);
 
       const mappedProductGroups = groups.map((g, idx) => ({
@@ -61,6 +64,10 @@ export const useItemMenu = (activeTab, showToast) => {
       const mappedMenuItems = items.map((m, idx) => {
         const itemStoreId = m.store_id || (mappedOutlets.length > 0 ? mappedOutlets[0].store_id : 'STORE_1');
         const outletObj = mappedOutlets.find(o => String(o.store_id) === String(itemStoreId));
+        const taxName = m.tax_name && m.tax_name !== 'Default 5%' ? m.tax_name : 'GST';
+        const matchedTax = mappedTaxes.find(t => t.name === taxName);
+        const taxPercent = matchedTax ? matchedTax.percentage : 5;
+        
         return {
           id: m.id || m.item_id || idx + 1,
           name: m.name || m.title || `Menu Item ${idx + 1}`,
@@ -77,7 +84,8 @@ export const useItemMenu = (activeTab, showToast) => {
           kitchen: 'Main Kitchen',
           status: m.active !== 0 ? 'Active' : 'Inactive',
           hsnCode: '2106',
-          taxCategory: m.tax_name || 'Default 5%'
+          taxCategory: taxName,
+          taxDisplay: `${taxName} (${taxPercent}%)`
         };
       });
 

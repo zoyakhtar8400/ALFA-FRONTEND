@@ -30,6 +30,10 @@ const BillingPanel = ({
   setMobileNumber,
   paxCount,
   setPaxCount,
+  customerAddress,
+  setCustomerAddress,
+  customerLocality,
+  setCustomerLocality,
   paxAdults,
   setPaxAdults,
   paxChildren,
@@ -576,54 +580,56 @@ const BillingPanel = ({
         )}
 
         {/* ── Discount UI Panel ── */}
-        <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155' }}>Discount</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', padding: '2px' }}>
-              <button
-                type="button"
-                onClick={() => updateDiscountLine(discountLines[0]?.id || 1, 'type', 'Percentage')}
+        {(isBillingDesk || isViewMode) && (
+          <div style={{ padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#334155' }}>Discount</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: '6px', padding: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => updateDiscountLine(discountLines[0]?.id || 1, 'type', 'Percentage')}
+                  style={{
+                    border: 'none', padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', cursor: 'pointer',
+                    background: discountLines[0]?.type === 'Percentage' ? '#fff' : 'transparent',
+                    color: discountLines[0]?.type === 'Percentage' ? '#0f172a' : '#64748b',
+                    boxShadow: discountLines[0]?.type === 'Percentage' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >%</button>
+                <button
+                  type="button"
+                  onClick={() => updateDiscountLine(discountLines[0]?.id || 1, 'type', 'Amount')}
+                  style={{
+                    border: 'none', padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', cursor: 'pointer',
+                    background: discountLines[0]?.type === 'Amount' ? '#fff' : 'transparent',
+                    color: discountLines[0]?.type === 'Amount' ? '#0f172a' : '#64748b',
+                    boxShadow: discountLines[0]?.type === 'Amount' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  }}
+                >₹</button>
+              </div>
+              <input
+                type="number"
+                min="0"
+                placeholder={discountLines[0]?.type === 'Percentage' ? '0.0 %' : '0.00'}
+                value={discountLines[0]?.value || ''}
+                onChange={e => updateDiscountLine(discountLines[0]?.id || 1, 'value', e.target.value)}
                 style={{
-                  border: 'none', padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', cursor: 'pointer',
-                  background: discountLines[0]?.type === 'Percentage' ? '#fff' : 'transparent',
-                  color: discountLines[0]?.type === 'Percentage' ? '#0f172a' : '#64748b',
-                  boxShadow: discountLines[0]?.type === 'Percentage' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1',
+                  outline: 'none', fontSize: '0.8rem', fontWeight: 700, textAlign: 'right'
                 }}
-              >%</button>
-              <button
-                type="button"
-                onClick={() => updateDiscountLine(discountLines[0]?.id || 1, 'type', 'Amount')}
+              />
+              <input
+                type="text"
+                placeholder="Reason"
+                value={discountLines[0]?.reason || ''}
+                onChange={e => updateDiscountLine(discountLines[0]?.id || 1, 'reason', e.target.value)}
                 style={{
-                  border: 'none', padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700, borderRadius: '4px', cursor: 'pointer',
-                  background: discountLines[0]?.type === 'Amount' ? '#fff' : 'transparent',
-                  color: discountLines[0]?.type === 'Amount' ? '#0f172a' : '#64748b',
-                  boxShadow: discountLines[0]?.type === 'Amount' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                  width: '90px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1',
+                  outline: 'none', fontSize: '0.8rem', fontWeight: 700
                 }}
-              >₹</button>
+              />
             </div>
-            <input
-              type="number"
-              min="0"
-              placeholder={discountLines[0]?.type === 'Percentage' ? '0.0 %' : '0.00'}
-              value={discountLines[0]?.value || ''}
-              onChange={e => updateDiscountLine(discountLines[0]?.id || 1, 'value', e.target.value)}
-              style={{
-                width: '70px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1',
-                outline: 'none', fontSize: '0.8rem', fontWeight: 700, textAlign: 'right'
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Reason"
-              value={discountLines[0]?.reason || ''}
-              onChange={e => updateDiscountLine(discountLines[0]?.id || 1, 'reason', e.target.value)}
-              style={{
-                width: '90px', padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1',
-                outline: 'none', fontSize: '0.8rem', fontWeight: 700
-              }}
-            />
           </div>
-        </div>
+        )}
 
         {/* ── Summary Bar (Total & Split) ── */}
         <POSSummaryBar
@@ -670,10 +676,12 @@ const BillingPanel = ({
       <CustomerDrawer
         isOpen={isCustomerDrawerOpen}
         onClose={() => setIsCustomerDrawerOpen(false)}
-        currentCustomer={{ phone: mobileNumber, name: customerName }}
+        currentCustomer={{ phone: mobileNumber, name: customerName, address: customerAddress, locality: customerLocality }}
         onSaveCustomer={(cust) => {
           setCustomerName(cust.name);
           setMobileNumber(cust.phone);
+          if (setCustomerAddress) setCustomerAddress(cust.address);
+          if (setCustomerLocality) setCustomerLocality(cust.locality);
           if (toast) toast(`Linked customer: ${cust.name}`);
         }}
       />
@@ -730,35 +738,7 @@ const BillingPanel = ({
         }}
       />
 
-      {/* Success settlements animation */}
-      {isSettling && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: '16px', padding: '40px', textAlign: 'center',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', width: '360px', fontFamily: 'system-ui'
-          }}>
-            <div style={{
-              width: '72px', height: '72px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', fontSize: '2rem'
-            }}>
-              ✓
-            </div>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#111827', margin: '0 0 8px 0' }}>
-              Payment Completed
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: 0, fontWeight: 500 }}>
-              Transaction Settled Successfully
-            </p>
-            <span style={{ fontSize: '0.72rem', color: '#9ca3af', display: 'block', marginTop: '16px' }}>
-              Resetting checkout registers...
-            </span>
-          </div>
-        </div>
-      )}
+
 
       {/* Variant Selection Modal */}
       {showVariantModal && variantModalItem && (

@@ -2,13 +2,30 @@ import React, { useState, useEffect } from 'react';
 import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
+import posApi from '../../../../api/posApi';
 
 const NCTypeMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
-  const [fields, setFields] = useState({ name: '', status: 'Active' });
+  const [fields, setFields] = useState({ name: '', store_id: 'STORE_1', status: 'Active' });
+  const [outlets, setOutlets] = useState([]);
 
   useEffect(() => {
+    posApi.getOutlets().then(res => {
+      const list = res?.data || res?.stores || [];
+      setOutlets(list);
+    }).catch(err => console.warn('Failed to fetch outlets in NCTypeMasterForm', err));
+  }, []);
+
+  useEffect(() => {
+    const activeOutlet = localStorage.getItem('activeOutletId') || 'STORE_1';
     if (isOpen) {
-      setFields(isEdit ? { ...initialData } : { name: '', status: 'Active' });
+      setFields(isEdit ? {
+        store_id: activeOutlet,
+        ...initialData
+      } : {
+        name: '',
+        store_id: activeOutlet,
+        status: 'Active'
+      });
     }
   }, [isOpen, isEdit, initialData]);
 
@@ -36,6 +53,23 @@ const NCTypeMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
                 className="form-input"
                 required
               />
+            </div>
+
+            <div className="form-field">
+              <label className="form-label">Outlet *</label>
+              <select
+                value={fields.store_id}
+                onChange={(e) => setFields(p => ({ ...p, store_id: e.target.value }))}
+                className="form-select"
+                required
+              >
+                {outlets.length === 0 && <option value="STORE_1">Main Restaurant</option>}
+                {outlets.map(o => (
+                  <option key={o.store_id || o.id} value={o.store_id || o.id}>
+                    {o.store_name || o.name || `Outlet ${o.id}`}
+                  </option>
+                ))}
+              </select>
             </div>
             
             <div className="form-field">
@@ -65,3 +99,4 @@ const NCTypeMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit })
 };
 
 export default NCTypeMasterForm;
+export { NCTypeMasterForm };

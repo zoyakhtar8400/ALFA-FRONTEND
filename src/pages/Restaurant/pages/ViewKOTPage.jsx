@@ -205,11 +205,12 @@ const ViewKOTPage = () => {
     } else {
       const groups = groupItemsByPrinter(kot.items || [], menuItems, categories, printers);
       const isReprint = !!(kot.print_count && kot.print_count > 0);
+      const isRunningKOT = dbKots.some(k => String(k.tableId) === String(kot.tableId) && Number(k.numericKotId) < Number(kot.numericKotId));
       
       const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
-      const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC');
+      const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
       const cleanServerNo = String(kot.id).replace(/[^0-9]/g, '');
-      const formattedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+      const formattedKotNo = kot.custom_bill_number || (isNC ? `NC-KOT-${cleanServerNo.padStart(2, '0')}` : `KOT-${cleanServerNo.padStart(2, '0')}`);
 
       const payloads = groups.map(g => generateKOTPayload({
         tableNo: kot.tableId,
@@ -218,7 +219,8 @@ const ViewKOTPage = () => {
         group: g,
         waiter: kot.waiter || 'Staff',
         remarks: kot.remark || kot.remarks || kot.note || extra.remarks || '',
-        isReprint
+        isReprint,
+        isRunningKOT
       }));
       printAllStationKOTs(payloads);
     }

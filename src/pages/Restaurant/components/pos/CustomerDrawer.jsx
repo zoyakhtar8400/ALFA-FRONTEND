@@ -18,7 +18,8 @@ const CustomerDrawer = ({ isOpen, onClose, currentCustomer, onSaveCustomer }) =>
       setAddress(currentCustomer?.address || '');
       setLocality(currentCustomer?.locality || '');
     }
-  }, [isOpen, currentCustomer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Handle phone changes — debounced live lookup from backend
   const handlePhoneChange = (e) => {

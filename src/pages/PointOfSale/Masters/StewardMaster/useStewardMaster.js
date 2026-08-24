@@ -6,6 +6,8 @@ export const useStewardMaster = (showToast) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [outletFilter, setOutletFilter] = useState('All');
+  const [outletsList, setOutletsList] = useState([]);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -15,6 +17,13 @@ export const useStewardMaster = (showToast) => {
   const [modal, setModal] = useState({ open: false, mode: 'add', row: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
   const [duplicateConfirm, setDuplicateConfirm] = useState({ open: false, fields: null, duplicateItem: null });
+
+  useEffect(() => {
+    posApi.getOutlets().then(res => {
+      const list = res?.data || res?.stores || [];
+      setOutletsList(list);
+    }).catch(err => console.warn('Failed to fetch outlets in useStewardMaster', err));
+  }, []);
 
   const fetchStewards = useCallback(() => {
     setLoading(true);
@@ -38,6 +47,11 @@ export const useStewardMaster = (showToast) => {
   const processedData = useMemo(() => {
     let result = [...data];
 
+    // Outlet filter
+    if (outletFilter !== 'All') {
+      result = result.filter(row => String(row.store_id || 'STORE_1') === String(outletFilter));
+    }
+
     // Status filter
     if (statusFilter !== 'All') {
       result = result.filter(row => {
@@ -55,7 +69,7 @@ export const useStewardMaster = (showToast) => {
     }
 
     return result;
-  }, [data, searchTerm, statusFilter]);
+  }, [data, searchTerm, statusFilter, outletFilter]);
 
   // Pagination bounds
   const totalEntries = processedData.length;
@@ -103,12 +117,14 @@ export const useStewardMaster = (showToast) => {
     const payload = {
       id: modal.mode === 'edit' ? modal.row?.id : undefined,
       name: trimmedName,
+      store_id: formData.store_id || 'STORE_1',
       active: formData.active !== false ? 'Yes' : 'No'
     };
 
     posApi.saveSteward(payload).then(() => {
       if (showToast) showToast(modal.mode === 'add' ? 'Steward added successfully in PostgreSQL!' : 'Steward updated successfully in PostgreSQL!');
       fetchStewards();
+      try { window.dispatchEvent(new Event('stewardsMasterRefreshed')); } catch (e) { }
       setModal({ open: false, mode: 'add', row: null });
       setDuplicateConfirm({ open: false, fields: null, duplicateItem: null });
     }).catch(err => {
@@ -124,6 +140,7 @@ export const useStewardMaster = (showToast) => {
     posApi.deleteSteward(deleteModal.row.id).then(() => {
       if (showToast) showToast('Steward record deactivated in PostgreSQL.');
       fetchStewards();
+      try { window.dispatchEvent(new Event('stewardsMasterRefreshed')); } catch (e) { }
       setDeleteModal({ open: false, row: null });
     }).catch(err => {
       if (showToast) showToast(err?.response?.data?.message || 'Failed to delete steward');
@@ -131,12 +148,16 @@ export const useStewardMaster = (showToast) => {
   }, [deleteModal, showToast, fetchStewards]);
 
   return {
-    data,
+    data: processedData,
+    rawCount: data.length,
     loading,
     searchTerm,
     setSearchTerm,
     statusFilter,
     setStatusFilter,
+    outletFilter,
+    setOutletFilter,
+    outletsList,
     currentPage,
     setCurrentPage,
     entriesPerPage,

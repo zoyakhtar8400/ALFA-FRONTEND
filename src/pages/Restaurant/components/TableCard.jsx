@@ -37,44 +37,36 @@ const getAreaBorder = (areaStr) => {
 const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSelected, globalTaxRate = 0 }) => {
   // Determine color theme strictly and instantly from backend/frontend status attributes
   const statusUpper = (table.status || table.order_state || '').toUpperCase();
-  const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || table.color === 'white';
+  const isBlank = table.status === 'Blank' || statusUpper === 'BLANK' || statusUpper === 'AVAILABLE' || ['PAYMENT_COMPLETED', 'PAID', 'CLEANING', 'CLEANUP_RUNNING', 'BILL GENERATED'].includes(statusUpper) || table.color === 'white';
   const isNCBlocked = !isBlank && (statusUpper === 'NC_BLOCKED' || table.color === 'purple');
   const isReserved = !isBlank && !isNCBlocked && (statusUpper === 'RESERVED' || table.status === 'Reserved' || table.color === 'orange');
-  const isCleaning = !isBlank && !isReserved && !isNCBlocked && ['CLEANING', 'CLEANUP_RUNNING'].includes(statusUpper);
-  const isPaid = !isBlank && !isReserved && !isNCBlocked && !isCleaning && ['PAYMENT_COMPLETED', 'PAID', 'BILL GENERATED'].includes(statusUpper);
-  const isUnpaidBill = !isBlank && !isReserved && !isPaid && !isCleaning && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
+  const isUnpaidBill = !isBlank && !isReserved && !isNCBlocked && (statusUpper === 'UNPAID_BILL' || statusUpper === 'UNPAID' || table.color === 'blue' || table.color === 'red');
   const kotCount = table.kotCount || (Array.isArray(table.kots) ? table.kots.length : 0);
   const hasActualItems = (Number(table.amount || 0) > 0) || kotCount > 0 || (Array.isArray(table.items) && table.items.length > 0);
 
   // STRICT RULE: Only consider it running if it ACTUALLY has items/amount/KOTs. 
-  // Ignore phantom 'RUNNING'/'OCCUPIED' statuses from backend for empty tables.
-  const isRunning = !isBlank && !isReserved && !isPaid && !isCleaning && !isUnpaidBill && !isNCBlocked && (hasActualItems);
+  const isRunning = !isBlank && !isReserved && !isUnpaidBill && !isNCBlocked && (hasActualItems);
 
   const colorKey = isNCBlocked
     ? 'purple'
-    : isCleaning
-      ? 'gray'
-      : isPaid
-        ? 'green'
-        : isReserved
-          ? 'orange'
-          : isUnpaidBill
-            ? 'blue'
-            : isRunning
-              ? 'yellow'
-              : 'white';
+    : isReserved
+      ? 'orange'
+      : isUnpaidBill
+        ? 'blue'
+        : isRunning
+          ? 'yellow'
+          : 'white';
 
   const cfg = COLOR_MAP[colorKey] || COLOR_MAP.white;
-  // If it doesn't have actual items and isn't reserved/blocked/paid, it's available (blank).
-  const isAvailable = isBlank || (!isReserved && !isRunning && !isPaid && !isCleaning && !isUnpaidBill && !isNCBlocked);
-  const isPaymentCompleted = isPaid || isCleaning;
+  // If it doesn't have actual items and isn't reserved/blocked, it's available (blank).
+  const isAvailable = isBlank || (!isReserved && !isRunning && !isUnpaidBill && !isNCBlocked);
 
   // Action icons:
   const actions = isNCBlocked
     ? []
     : isUnpaidBill ? ['quick_pay'] : (Array.isArray(table.available_actions) && table.available_actions.length > 0 && hasActualItems)
       ? table.available_actions
-      : (isPaymentCompleted ? ['quick_pay'] : (colorKey === 'yellow' || colorKey === 'red' || isRunning || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : []);
+      : ((colorKey === 'yellow' || isRunning) && !isAvailable && !isReserved) ? ['print_kot', 'view_kot'] : [];
 
   // Format remaining_seconds into 00:SS or MM:SS
   const formatTimer = (totalSec) => {
@@ -129,8 +121,8 @@ const TableCard = React.memo(({ table, onClick, onSave, onView, onDelete, isSele
         e.currentTarget.style.boxShadow = cfg.glow || '0 1px 3px rgba(0,0,0,0.02)';
       }}
     >
-      {/* Reset button (visible when occupied) */}
-      {!isAvailable && (
+      {/* Reset button (visible when occupied, but NOT when unpaid) */}
+      {!isAvailable && !isUnpaidBill && (
         <button
           onClick={(e) => {
             e.stopPropagation();

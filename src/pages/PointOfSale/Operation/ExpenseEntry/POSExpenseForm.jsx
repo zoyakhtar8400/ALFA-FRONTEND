@@ -17,7 +17,7 @@ const POSExpenseForm = ({
   const [paymentModes, setPaymentModes] = useState([]);
 
   const [form, setForm] = useState({
-    expense_id: `EXP-${Math.floor(1000 + Math.random() * 9000)}`,
+    expense_id: '',
     expense_date: new Date().toISOString().split('T')[0],
     field1: '',
     amount: '',
@@ -30,7 +30,7 @@ const POSExpenseForm = ({
     
     if (isEdit && isOpen) {
       setForm({
-        expense_id: expenseData.expense_id || '',
+        expense_id: expenseData.expense_id || expenseData.id || '',
         expense_date: expenseData.expense_date || new Date().toISOString().split('T')[0],
         field1: expenseData.field1 || '',
         amount: expenseData.amount || '',
@@ -39,7 +39,7 @@ const POSExpenseForm = ({
       });
     } else if (!isEdit && isOpen) {
       setForm({
-        expense_id: `EXP-${Math.floor(1000 + Math.random() * 9000)}`,
+        expense_id: '',
         expense_date: new Date().toISOString().split('T')[0],
         field1: '',
         amount: '',
@@ -74,18 +74,23 @@ const POSExpenseForm = ({
     e.preventDefault();
     if (!form.expense_id || !form.amount || !form.field1) return;
 
+    const payload = {
+      ...form,
+      store_id: localStorage.getItem('activeOutletId') || 'STORE_1'
+    };
+
     try {
       if (isEdit) {
-        await apiClient.put(`/expenses/${expenseData.id}`, form);
+        await apiClient.put(`/expenses/${expenseData.id}`, payload);
         showToast('Expense updated successfully');
       } else {
-        await apiClient.post(`/expenses`, form);
+        await apiClient.post(`/expenses`, payload);
         showToast('Expense added successfully');
       }
       onSave(); // this triggers parent to refresh and close
     } catch (error) {
       console.error('Error saving expense:', error);
-      showToast('Failed to save expense');
+      showToast(error?.response?.data?.message || error?.message || 'Failed to save expense');
     }
   };
 
@@ -105,8 +110,9 @@ const POSExpenseForm = ({
                 Expense Number <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
+                type="number"
                 name="expense_id"
+                placeholder="e.g. 1"
                 value={form.expense_id}
                 onChange={handleChange}
                 className="form-input"

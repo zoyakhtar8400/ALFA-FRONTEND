@@ -52,13 +52,6 @@ export const printShiftKOT = async ({ fromTableLabel, toTableLabel, items = [], 
           </table>
           <div class="divider"></div>
         </div>
-        ${isBrowser ? `
-        <script>
-          setTimeout(function() {
-            window.print();
-          }, 500);
-        </script>
-        ` : ''}
       </body>
     </html>
   `;

@@ -192,14 +192,14 @@ const MenuItemForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit, itemG
               <div className="form-field">
                 <label className="form-label">Tax Category</label>
                 <select
-                  value={fields.taxCategory || 'Default 5%'}
+                  value={fields.taxCategory || ''}
                   onChange={(e) => setFields(p => ({ ...p, taxCategory: e.target.value }))}
                   className="form-select"
                 >
                   {taxCategories.length > 0 ? taxCategories.map((t) => (
                     <option key={t.id || t.name} value={t.name}>{t.name} ({t.percentage}%)</option>
                   )) : null}
-                  <option value="Default 5%">Default 5%</option>
+                  {/* <option value="Default 5%">Default 5%</option> */}
                 </select>
               </div>
 

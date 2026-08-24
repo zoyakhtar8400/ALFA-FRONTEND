@@ -22,10 +22,21 @@ export const useItemTaxCategory = (showToast) => {
         name: t.name || 'GST Category',
         applicableDate: new Date().toISOString().split('T')[0],
         department: 'Restaurant',
-        taxes: [
-          { taxName: 'CGST', percentage: `${t.cgst || (t.percentage / 2 || 2.5)}%`, postAccount: 'CGST Output A/c' },
-          { taxName: 'SGST', percentage: `${t.sgst || (t.percentage / 2 || 2.5)}%`, postAccount: 'SGST Output A/c' }
-        ],
+        taxes: (() => {
+          let extra = {};
+          if (typeof t.extra_details === 'string') {
+            try { extra = JSON.parse(t.extra_details); } catch(e){}
+          } else if (t.extra_details) {
+            extra = t.extra_details;
+          }
+          if (extra.taxes && Array.isArray(extra.taxes)) {
+            return extra.taxes;
+          }
+          // Default to a single row if no detailed configuration was saved
+          return [
+            { taxName: t.name || 'GST Category', percentage: `${t.percentage || 5}%`, postAccount: 'Output A/c' }
+          ];
+        })(),
         percentage: t.percentage || 5,
         status: t.status || 'Active'
       }));
@@ -78,7 +89,8 @@ export const useItemTaxCategory = (showToast) => {
       name: fields.name,
       tax_name: fields.name,
       percentage: totalPct,
-      tax_percentage: totalPct
+      tax_percentage: totalPct,
+      taxes_json: JSON.stringify(fields.taxes || [])
     };
 
     posApi.saveItemTaxCategory(payload).then(() => {

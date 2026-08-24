@@ -17,6 +17,7 @@ import MenuPanel from '../components/pos/MenuPanel';
 import BillingPanel from '../components/pos/BillingPanel';
 import { printTaxInvoice, printKitchenKOT } from '../utils/printInvoice';
 import QuickPaymentModal from '../components/QuickPaymentModal';
+import InvoicePreviewModal from '../components/InvoicePreviewModal';
 import posApi from '../../../api/posApi';
 
 const aggregateItems = (items) => {
@@ -50,7 +51,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const navigate = useNavigate();
   const searchInputRef = React.useRef(null);
 
-  const { activeStoreId } = useRestaurant();
+  const { activeStoreId, activeOutletId, allOutlets } = useRestaurant();
+  const currentOutlet = (allOutlets || []).find(o => String(o.id) === String(activeOutletId) || String(o.store_id) === String(activeStoreId));
+  const currentOutletName = currentOutlet?.name || currentOutlet?.store_name || localStorage.getItem('active_outlet_name') || 'MAIN RESTAURANT';
 
   const [loadingMenu, setLoadingMenu] = useState(true);
   const [allMenuItems, setAllMenuItems] = useState([]);
@@ -64,6 +67,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       setTaxLines(taxes.map(t => ({ name: t.name || 'Tax', rate: Number(t.percentage || 0) })));
     }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
   }, []);
+
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHtmlContent, setPreviewHtmlContent] = useState('');
+  const [previewInvoiceData, setPreviewInvoiceData] = useState(null);
 
   const toast = useCallback((msg) => {
     if (window.showToast) {
@@ -171,10 +178,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
   // Check if opened from "Book Table" button in new booking flow
   const isNewBooking = location.state?.isNewBooking || location.state?.newBooking || false;
-  const isViewMode = location.state?.isViewMode || false;
+  const isViewMode = location.state?.isViewMode || location.state?.isKotView || false;
   const preselectedTableId = location.state?.tableId || null;
   const preselectedTableNumber = location.state?.tableNumber || null;
-  const [existingRows, setExistingRows] = useState(location.state?.existingRows || []);
+  const [existingRows, setExistingRows] = useState(location.state?.updatedRows || location.state?.existingRows || []);
 
   // Tables List for Assignment
   const { tables: tablesList, setTables: setTablesList, refreshTables, orderItemsMap = {}, setOrderItemsMap } = useRestaurant();
@@ -190,6 +197,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const restoredTable = location.state?.table || savedContextRef.current?.table || null;
   const routedTable = restoredTable;
   const restoredTableId = preselectedTableId || restoredTable?.id || savedContextRef.current?.tableId || savedContextRef.current?.table?.id || '';
+  console.log('%c🔍 [POS PAX DEBUG] restoredTable =', 'color: #e11d48; font-weight:bold;', { pax: restoredTable?.pax, guests: restoredTable?.guests, paxCount: restoredTable?.paxCount, seats: restoredTable?.seats, tableId: restoredTable?.id, locationStatePax: location.state?.table?.pax });
 
   // Component states
   const [category, setCategory] = useState('FOOD');
@@ -228,10 +236,12 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   }, [tablesList]);
 
   // Customer Information inputs
-  const [customerName, setCustomerName] = useState(restoredTable?.customer || '');
-  const [mobileNumber, setMobileNumber] = useState(restoredTable?.mobile || '');
-  const [paxCount, setPaxCount] = useState(restoredTable?.seats || 1);
-  const [paxAdults, setPaxAdults] = useState(restoredTable?.seats || 1);
+  const [customerName, setCustomerName] = useState(restoredTable?.customer || restoredTable?.customer_name || '');
+  const [mobileNumber, setMobileNumber] = useState(restoredTable?.mobile || restoredTable?.customer_phone || '');
+  const [customerAddress, setCustomerAddress] = useState(restoredTable?.address || restoredTable?.customer_address || '');
+  const [customerLocality, setCustomerLocality] = useState(restoredTable?.locality || restoredTable?.customer_locality || '');
+  const [paxCount, setPaxCount] = useState(restoredTable?.pax || restoredTable?.guests || restoredTable?.paxCount || restoredTable?.seats || 1);
+  const [paxAdults, setPaxAdults] = useState(restoredTable?.pax || restoredTable?.guests || restoredTable?.paxCount || restoredTable?.seats || 1);
   const [paxChildren, setPaxChildren] = useState(0);
   const [waiter, setWaiter] = useState(restoredTable?.waiter || 'Staff');
   const [deliveryBoy, setDeliveryBoy] = useState('');
@@ -403,6 +413,8 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             if (stateKot.customer_name) setCustomerName(stateKot.customer_name);
             if (stateKot.waiter) setWaiter(stateKot.waiter);
             const extra = typeof stateKot.extra_details === 'string' ? JSON.parse(stateKot.extra_details || '{}') : stateKot.extra_details;
+            const paxVal = stateKot.pax || stateKot.guests || stateKot.paxCount || extra?.pax || extra?.guests || 1;
+            setPaxCount(paxVal);
             if (extra?.ncType || stateKot.ncType) {
               setNcType(extra?.ncType || stateKot.ncType || '');
             } else {
@@ -422,9 +434,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             setMobileNumber(singleKot.customer?.mobile || singleKot.mobile_number || '');
             setWaiter(singleKot.waiter || '');
             setRemarks(singleKot.remark || singleKot.remarks || '');
+            const extra = typeof singleKot.extra_details === 'string' ? JSON.parse(singleKot.extra_details || '{}') : singleKot.extra_details;
+            const paxVal = singleKot.pax || singleKot.guests || singleKot.paxCount || extra?.pax || extra?.guests || 1;
+            setPaxCount(paxVal);
             const activeSingleItems = singleKot.items.filter(item => item.status !== 'Cancelled' && String(item.status) !== '5' && item.is_active !== 0 && item.status !== 'Deleted');
             setRows(activeSingleItems.map((r, i) => mapItemToRow(r, i)));
-            const extra = typeof singleKot.extra_details === 'string' ? JSON.parse(singleKot.extra_details || '{}') : singleKot.extra_details;
             if (extra?.ncType || singleKot.ncType) {
               setNcType(extra?.ncType || singleKot.ncType || '');
             } else {
@@ -460,6 +474,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.mobile || currentTable?.phone) setMobileNumber(currentTable.mobile || currentTable.phone);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
+        if (currentTable?.pax || currentTable?.guests || currentTable?.paxCount) setPaxCount(currentTable.pax || currentTable.guests || currentTable.paxCount);
         return;
       }
 
@@ -470,6 +485,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         if (currentTable?.customer) setCustomerName(currentTable.customer);
         if (currentTable?.mobile || currentTable?.phone) setMobileNumber(currentTable.mobile || currentTable.phone);
         if (currentTable?.waiter) setWaiter(currentTable.waiter);
+        if (currentTable?.pax || currentTable?.guests || currentTable?.paxCount) setPaxCount(currentTable.pax || currentTable.guests || currentTable.paxCount);
         return;
       }
 
@@ -483,6 +499,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
           if (currentTable.customer) setCustomerName(currentTable.customer);
           if (currentTable.mobile) setMobileNumber(currentTable.mobile);
           if (currentTable.waiter) setWaiter(currentTable.waiter);
+          if (currentTable.pax || currentTable.guests || currentTable.paxCount) setPaxCount(currentTable.pax || currentTable.guests || currentTable.paxCount);
           return;
         }
       }
@@ -511,6 +528,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             if (kotList[0]?.customer_mobile) setMobileNumber(kotList[0].customer_mobile);
             if (kotList[0]?.customer_name) setCustomerName(kotList[0].customer_name);
             if (kotList[0]?.waiter) setWaiter(kotList[0].waiter);
+
+            const firstKotExtra = typeof kotList[0]?.extra_details === 'string' ? JSON.parse(kotList[0].extra_details || '{}') : (kotList[0]?.extra_details || {});
+            const listPaxVal = kotList[0]?.pax || kotList[0]?.guests || kotList[0]?.paxCount || firstKotExtra?.pax || firstKotExtra?.guests || 1;
+            setPaxCount(listPaxVal);
             return;
           }
         }
@@ -1231,6 +1252,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     // Pre-open print windows synchronously to bypass browser popup blockers
     const printWindows = groups.map(() => null);
 
+    const hasPreviousItems = (existingRows && existingRows.length > 0) || rows.some(r => r.isCut || r.printedQty > 0);
+    const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
+
     const payloads = groups.map(group =>
       generateKOTPayload({
         tableNo,
@@ -1240,7 +1264,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         customerName: customerName || 'Walk-in',
         waiter: activeWaiter,
         captain,
+        guests: paxCount || 1,
+        pax: paxCount || 1,
         remarks: remarks || resolvedTable?.remarks || '',
+        isRunningKOT: !isNewSession,
       })
     );
 
@@ -1271,8 +1298,6 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         return t;
       }));
     }
-
-    const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
 
     let actualKotNo = newKotNo;
 
@@ -1308,10 +1333,13 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         return;
       }
 
+      const returnedCustomNo = kotResult?.kot?.custom_bill_number || kotResult?.data?.custom_bill_number || kotResult?.custom_bill_number;
       const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
-      if (serverKotNo) {
+      if (returnedCustomNo) {
+        actualKotNo = returnedCustomNo;
+      } else if (serverKotNo) {
         const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
-        actualKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+        actualKotNo = isNC ? `NC-KOT-${cleanServerNo.padStart(2, '0')}` : `KOT-${cleanServerNo.padStart(2, '0')}`;
       }
 
       console.log('✅ KOT request persisted to PostgreSQL via POST /api/kot');
@@ -1383,7 +1411,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     // 2. Update Table status in PostgreSQL to KOT_CUT / RUNNING (NO BILL GENERATED)
     try {
       await restaurantApi.patchTableStatus(targetTable?.id || resolvedTableId, {
-        status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE'
+        status: activeRows.length > 0 ? 'KOT_CUT' : 'AVAILABLE',
+        pax: paxCount || 1,
+        guests: paxCount || 1
       });
     } catch (err) { }
 
@@ -1399,6 +1429,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       waiter: waiter || 'Staff',
       customer: customerName || 'Walk-in',
       mobile: (mobileNumber && mobileNumber !== '—') ? mobileNumber : '',
+      pax: paxCount || 1,
+      guests: paxCount || 1,
+      paxCount: paxCount || 1,
       updatedAt: Date.now()
     };
 
@@ -1430,6 +1463,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
 
     const resolvedTable = tablesList.find(t => String(t.id) === String(targetTableId) || String(t.no) === String(targetTableId)) || routedTable || { id: targetTableId, no: String(targetTableNo) };
     const resolvedTableName = resolvedTable.table_name || resolvedTable.no || targetTableNo;
+    const hasPreviousItems = (existingRows && existingRows.length > 0) || rows.some(r => r.isCut || r.printedQty > 0);
     const isNewSession = !resolvedTable || resolvedTable.status === 'Blank' || resolvedTable.status === 'AVAILABLE';
 
     if (!isNC) {
@@ -1439,7 +1473,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       setTablesList(prev => prev.map(t => {
         const curNum = normalizeNum(t.no || t.table_no || t.id);
         if (String(t.id) === String(targetTableId) || (targetNum !== '00' && curNum === targetNum)) {
-          return { ...t, status: 'KOT_CUT', color: 'yellow', amount: finalAmt, waiter: activeWaiter, customer: customerName || 'Walk-in', updatedAt: Date.now() };
+          return { ...t, status: 'KOT_CUT', color: 'yellow', amount: finalAmt, waiter: activeWaiter, customer: customerName || 'Walk-in', pax: paxCount || 1, guests: paxCount || 1, paxCount: paxCount || 1, updatedAt: Date.now() };
         }
         return t;
       }));
@@ -1466,7 +1500,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         generateKOTPayload({
           tableNo: resolvedTableName, tableId: targetTableId, kotNo: invoiceNo, group,
           customerName: customerName || 'Walk-in', waiter: activeWaiter, captain,
-          remarks: remarks || resolvedTable?.remarks || ''
+          guests: paxCount || 1, pax: paxCount || 1,
+          remarks: remarks || resolvedTable?.remarks || '',
+          isRunningKOT: !isNewSession
         })
       );
       setKotGroups(groups);
@@ -1488,7 +1524,11 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             tableNo: resolvedTableName,
             customerName: customerName || 'Walk-in',
             mobileNo: mobileNumber || '',
+            customer_address: customerAddress || '',
+            customer_locality: customerLocality || '',
             waiter: activeWaiter,
+            guests: paxCount || 1,
+            pax: paxCount || 1,
             items: itemsForApi,
             isNewSession,
             ncType: ncType || '',
@@ -1498,10 +1538,14 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
             delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
           });
+          const returnedCustomNo = kotResult?.kot?.custom_bill_number || kotResult?.data?.custom_bill_number || kotResult?.custom_bill_number;
           const serverKotNo = kotResult?.kot?.id || kotResult?.data?.id || kotResult?.id;
-          if (serverKotNo) {
+          if (returnedCustomNo) {
+            printedKotNo = returnedCustomNo;
+            setGeneratedKotNo(printedKotNo);
+          } else if (serverKotNo) {
             const cleanServerNo = String(serverKotNo).replace(/[^0-9]/g, '');
-            printedKotNo = isNC ? `KOT-FREE-${cleanServerNo}` : `KOT-${cleanServerNo}`;
+            printedKotNo = isNC ? `NC-KOT-${cleanServerNo.padStart(2, '0')}` : `KOT-${cleanServerNo.padStart(2, '0')}`;
             setGeneratedKotNo(printedKotNo);
           }
         }
@@ -1520,7 +1564,15 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
             order_type: serviceType,
             takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
             delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null,
-            remarks: remarks || resolvedTable?.remarks || ''
+            remarks: remarks || resolvedTable?.remarks || '',
+            isNC: isNC,
+            ncType: ncType || '',
+            guests: paxCount || 1,
+            pax: paxCount || 1,
+            store_id: activeStoreId || 'STORE_1',
+            outletName: currentOutletName,
+            outlet_name: currentOutletName,
+            isRunningKOT: !isNewSession
           }, printWindows[idx]);
         });
 
@@ -1531,14 +1583,16 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       }
     }
 
-    // Persist KOT_CUT state to backend
-    if (targetTableId) {
+    // Persist KOT_CUT state to backend (skip if NC)
+    if (targetTableId && !isNC) {
       try {
         await tableService.patchTableStatus(targetTableId, {
           status: 'KOT_CUT',
           amount: finalAmt,
           waiter: activeWaiter,
-          customer: customerName || 'Walk-in'
+          customer: customerName || 'Walk-in',
+          pax: paxCount || 1,
+          guests: paxCount || 1
         });
       } catch (err) {
         console.warn('Error updating table status to KOT_CUT:', err);
@@ -1553,6 +1607,9 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       amount: calculatedSubtotal > 0 ? calculatedSubtotal : finalAmt,
       waiter: activeWaiter,
       customer: customerName || 'Walk-in',
+      pax: paxCount || 1,
+      guests: paxCount || 1,
+      paxCount: paxCount || 1,
       updatedAt: Date.now()
     };
 
@@ -1568,12 +1625,14 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
   const isBillingSubmittingRef = React.useRef(false);
 
   const handleDirectComplete = async (shouldPrint = true) => {
+    console.log('%c🖱️ [POS Billing] handleDirectComplete clicked with shouldPrint =', 'color: #3b82f6; font-weight: bold;', shouldPrint);
     if (isBillingSubmittingRef.current) return;
 
     const activeRows = rows.filter(r => (r.itemName || r.name || '') !== '');
     const allFinalItems = [...existingRows, ...activeRows];
 
     if (allFinalItems.length === 0) {
+      console.warn('⚠️ [POS Billing] No items in cart.');
       toast('Please add at least one item before billing.');
       return;
     }
@@ -1599,12 +1658,15 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     const cleanMobile = (mobileNumber && mobileNumber !== '—') ? mobileNumber : '';
     setIsSettling(true);
 
+    let createdOrderId = null;
     try {
       const orderRes = await orderService.createOrder({
         tableId: Number(resolvedTable?.id) || 1,
         tableNo: String(resolvedTableName),
         customerName: customerName || 'Walk-in',
         mobileNo: cleanMobile,
+        customer_address: customerAddress || '',
+        customer_locality: customerLocality || '',
         waiter: waiter || 'Staff',
         status: 'unpaid',
         items: allFinalItems,
@@ -1614,75 +1676,77 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         grand_total: netAmt,
         total_amount: netAmt,
         taxes_breakdown: taxBreakdown,
-        store_id: activeStoreId,
+        store_id: activeStoreId || 'STORE_1',
         order_type: serviceType,
         takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
         delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
       });
+      createdOrderId = orderRes?.order?.order_id || orderRes?.data?.order_id || orderRes?.order?.id || orderRes?.data?.id;
+    } catch (orderErr) {
+      console.warn('Non-blocking order persistence warning:', orderErr);
+    }
 
-      const createdOrderId = orderRes?.order?.order_id || orderRes?.data?.order_id || orderRes?.order?.id || orderRes?.data?.id;
-
-      if (resolvedId) {
-        try {
-          await tableService.patchTableStatus(resolvedId, {
-            status: 'UNPAID_BILL',
-            amount: subtotalAmt,
-            discount_amount: discountAmt,
-            tax_amount: taxAmt,
-            total_amount: netAmt,
-            taxes_breakdown: taxBreakdown,
-            customer: customerName || 'Walk-in',
-            waiter: waiter || 'Staff'
-          });
-        } catch (err) { }
-        const normalizeNum = (val) => String(val || '').replace(/[^0-9]/g, '').padStart(2, '0');
-        const targetSettledNum = normalizeNum(resolvedId);
-
-        setTablesList(prev => prev.map(t => {
-          const curNum = normalizeNum(t.no || t.table_no || t.id);
-          if (t.id === resolvedId || String(t.id) === String(resolvedId) || (targetSettledNum !== '00' && curNum === targetSettledNum)) {
+    try {
+      if (resolvedTable && resolvedTable.id && typeof setTablesList === 'function') {
+        setTablesList(prev => (Array.isArray(prev) ? prev : []).map(t => {
+          if (String(t.id) === String(resolvedTable.id)) {
             return {
               ...t,
               status: 'UNPAID_BILL',
               color: 'blue',
               amount: netAmt,
+              total_amount: netAmt,
+              current_order_id: createdOrderId || t.current_order_id,
+              waiter: waiter || t.waiter,
+              customer: customerName || t.customer,
+              pax: paxCount || t.pax || t.seats,
+              paxCount: paxCount || t.paxCount || t.seats,
               updatedAt: Date.now()
             };
           }
           return t;
         }));
       }
-      refreshTables();
+      if (typeof refreshTables === 'function') {
+        refreshTables();
+      }
 
       if (shouldPrint) {
-        // Auto-print the Tax Invoice / Bill using the pre-opened window
-        import('../utils/printInvoice').then(({ printTaxInvoice }) => {
-          printTaxInvoice({
+        // Auto-print the Tax Invoice / Bill directly to ws://localhost:8989
+        try {
+          await printTaxInvoice({
             invoice_number: createdOrderId || `INV-${resolvedTableName}`,
             table_number: resolvedTableName,
             customer_name: customerName || 'Walk-in',
+            customer_phone: mobileNumber || '',
+            customer_address: customerAddress || '',
+            customer_locality: customerLocality || '',
             waiter_name: waiter || 'Staff',
+            pax: paxCount || 1,
+            guests: paxCount || 1,
+            paxCount: paxCount || 1,
             payment_method: 'Unpaid',
             items: allFinalItems,
             subtotal: subtotalAmt,
             discount: discountAmt,
+            discount_reason: (discountLines && discountLines.find(d => d.reason)?.reason) || '',
+            discountLines: discountLines,
             grand_total: netAmt,
             taxes_breakdown: taxBreakdown && taxBreakdown.length > 0 ? taxBreakdown : [{ name: 'Tax', rate: 5, amount: taxAmt }],
             serviceType: serviceType,
             takeaway_no: serviceType === 'Takeaway' ? generatedTakeawayNo : null,
-            delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null
-          }, invoicePrintWindow);
-        }).catch(e => {
-          console.warn('Failed to load print module:', e);
-          if (invoicePrintWindow) invoicePrintWindow.close();
-        });
+            delivery_no: serviceType === 'Delivery' ? generatedDeliveryNo : null,
+            store_id: activeStoreId || 'STORE_1'
+          });
+        } catch (e) {
+          console.warn('Failed to print tax invoice:', e);
+        }
         toast(`${serviceType} order settled! Bill printed for Table ${resolvedTableName}.`);
       } else {
         toast(`${serviceType} order settled! Bill saved for Table ${resolvedTableName}.`);
       }
     } catch (err) {
-      console.warn('Error settling order in PostgreSQL:', err);
-      if (invoicePrintWindow && shouldPrint) invoicePrintWindow.close();
+      console.warn('Error in POS billing completion:', err);
       toast(`Failed to complete billing: ${err.message || 'Error occurred'}`);
     } finally {
       setIsSettling(false);
@@ -1697,6 +1761,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
       } else {
         navigate('/restaurant/display-table', {
           state: {
+            toastMessage: `✅ ${serviceType} order settled! Bill printed for Table ${resolvedTableName}.`,
             updatedTable: {
               id: resolvedId,
               no: preselectedTableNumber || routedTable?.no || '1',
@@ -1742,6 +1807,10 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         setCustomerName={setCustomerName}
         mobileNumber={mobileNumber}
         setMobileNumber={setMobileNumber}
+        customerAddress={customerAddress}
+        setCustomerAddress={setCustomerAddress}
+        customerLocality={customerLocality}
+        setCustomerLocality={setCustomerLocality}
         paxCount={paxCount}
         setPaxCount={setPaxCount}
         paxAdults={paxAdults}
@@ -1770,8 +1839,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         handleVariantChange={handleVariantChange}
         handleAddEmptyRow={handleAddEmptyRow}
         INITIAL_ROWS={INITIAL_ROWS}
-        showDiscountPanel={showDiscountPanel}
-        setShowDiscountPanel={setShowDiscountPanel}
+        isViewMode={isViewMode}
         discountLines={discountLines}
         setDiscountLines={setDiscountLines}
         updateDiscountLine={updateDiscountLine}
@@ -1820,7 +1888,7 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
         kotPayloads={kotPayloads}
         kotSuccessCallbackRef={kotSuccessCallbackRef}
         toast={toast}
-        isViewMode={isViewMode}
+      // isViewMode={isViewMode}
       />
 
       <QuickPaymentModal

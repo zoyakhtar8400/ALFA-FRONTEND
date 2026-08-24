@@ -5,7 +5,6 @@ import CommonModal from '../../../components/common/CommonModal';
 import CommonActionButtons from '../../../components/common/CommonActionButtons';
 import F from '../../../components/common/F';
 import StatusBadge from '../../../components/common/StatusBadge';
-import { INITIAL_PRODUCTION_CATEGORIES, INITIAL_PRINTERS } from '../constants/printerData';
 import apiClient from '../../../services/apiClient';
 
 const emptyCategory = { id: '', name: '', printerId: '', status: 'Active' };
@@ -24,18 +23,22 @@ const ProductionCategoryPage = () => {
     try {
       const [catRes, printRes] = await Promise.allSettled([
         apiClient.get('/production-categories'),
-        apiClient.get('/printers')
+        apiClient.get('/printers?printer_type=KOT')
       ]);
 
       let plist = [];
       if (printRes.status === 'fulfilled' && printRes.value) {
         const rawP = printRes.value.data || printRes.value || [];
         if (Array.isArray(rawP)) {
-          plist = rawP.map((p, idx) => ({
-            id: p.id || p.printer_id || idx + 1,
-            name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
-            ip: p.printer_ip || p.ip_address || ''
-          }));
+          // Strictly ensure only KOT printers are listed
+          plist = rawP
+            .filter(p => String(p.printer_type || p.type || '').toUpperCase() === 'KOT' || String(p.printer_type || p.type || '').toUpperCase() !== 'BILL')
+            .map((p, idx) => ({
+              id: p.id || p.printer_id || idx + 1,
+              name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
+              printer_type: 'KOT',
+              ip: p.printer_ip || p.ip_address || ''
+            }));
           setPrinters(plist);
         }
       }

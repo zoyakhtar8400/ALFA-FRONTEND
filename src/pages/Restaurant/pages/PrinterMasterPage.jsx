@@ -8,8 +8,20 @@ import StatusBadge from '../../../components/common/StatusBadge';
 import apiClient from '../../../services/apiClient';
 import useOutletFilter from '../../../hooks/useOutletFilter';
 
-const PRINTER_TYPES = ['Network', 'USB', 'Windows'];
-const emptyPrinter = { id: '', name: '', type: 'Network', ip: '', port: 9100, status: 'Active', isDefault: false, store_id: 'STORE_1' };
+const PRINTER_PURPOSES = [
+  { value: 'KOT', label: 'KOT / Kitchen Ticket' },
+  { value: 'BILL', label: 'BILL / Tax Invoice' }
+];
+
+const emptyPrinter = {
+  id: '',
+  name: '',
+  type: 'KOT',
+  ip: '192.168.1.100',
+  port: 9100,
+  status: 'Active',
+  store_id: 'STORE_1'
+};
 
 const PrinterMasterPage = () => {
   const [printers, setPrinters] = useState([]);
@@ -27,18 +39,22 @@ const PrinterMasterPage = () => {
       const res = await apiClient.get('/printers');
       const apiList = res?.data || res || [];
       if (Array.isArray(apiList)) {
-        const mapped = apiList.map((p, idx) => ({
-          id: p.id || p.printer_id || idx + 1,
-          name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
-          type: p.printer_type === 2 ? 'USB' : (p.printer_type === 3 ? 'Windows' : 'Network'),
-          ipPort: (p.printer_type === 2 ? 'USB Local' : `${p.printer_ip || '192.168.1.100'} : ${p.printer_port_number || 9100}`),
-          ip: p.printer_ip || '192.168.1.100',
-          port: p.printer_port_number || 9100,
-          status: (p.is_active === 1 || p.activate === 1 || p.status === 'Active') ? 'Active' : 'Inactive',
-          isDefault: p.no_of_prints === 1 || idx === 0,
-          isSinglePrinter: p.no_of_prints === 1 || idx === 0,
-          store_id: p.store_id || 'STORE_1'
-        }));
+        const mapped = apiList.map((p, idx) => {
+          const pPurpose = String(p.printer_type || p.type || '').toUpperCase() === 'BILL' ? 'BILL' : 'KOT';
+          const pIp = p.printer_ip || p.device_address || '192.168.1.100';
+          const pPort = p.printer_port_number || p.port || 9100;
+          return {
+            id: p.id || p.printer_id || idx + 1,
+            name: p.printer_name || p.title || p.device_name || `Printer ${p.id || idx + 1}`,
+            printer_type: pPurpose,
+            type: pPurpose,
+            ipPort: `${pIp} : ${pPort}`,
+            ip: pIp,
+            port: Number(pPort),
+            status: (p.is_active === 1 || p.activate === 1 || p.status === 'Active') ? 'Active' : 'Inactive',
+            store_id: p.store_id || 'STORE_1'
+          };
+        });
         setPrinters(mapped);
       }
     } catch (err) {
@@ -52,90 +68,33 @@ const PrinterMasterPage = () => {
     fetchPrinters();
   }, []);
 
-  const handleToggleSinglePrinter = async (targetId) => {
-    const updated = printers.map((p) => {
-      const isTarget = String(p.id) === String(targetId);
-      const currentlyOn = Boolean(p.isDefault || p.isSinglePrinter);
-      const nextState = isTarget ? !currentlyOn : false;
-      return {
-        ...p,
-        isDefault: nextState,
-        isSinglePrinter: nextState
-      };
-    });
-
-    setPrinters(updated);
-    localStorage.setItem('alfa_pos_printers', JSON.stringify(updated));
-
-    const activeSingle = updated.find((p) => p.isDefault || p.isSinglePrinter);
-    if (activeSingle) {
-      localStorage.setItem('alfa_active_single_printer', JSON.stringify(activeSingle));
-    } else {
-      localStorage.removeItem('alfa_active_single_printer');
-    }
-
-    try {
-      const isNumericId = typeof targetId === 'number' || !isNaN(Number(targetId));
-      if (isNumericId) {
-        const targetP = updated.find((p) => String(p.id) === String(targetId));
-        await apiClient.post('/printers', {
-          printer_id: Number(targetId),
-          no_of_prints: targetP?.isDefault ? 1 : 0
-        });
-      }
-    } catch (err) {
-      console.warn('Toggle single printer API error:', err.message);
-    }
-  };
-
   const columns = [
     { key: 'name', label: 'Printer Name', sortable: true },
-    { key: 'type', label: 'Type', sortable: true },
-    { key: 'ipPort', label: 'IP / Port', sortable: true },
     {
-      key: 'isSinglePrinter',
-      label: 'Single Printer',
+      key: 'printer_type',
+      label: 'Purpose',
       sortable: true,
-      render: (val, row) => {
-        const isSingle = Boolean(row.isDefault || row.isSinglePrinter);
+      render: (val) => {
+        const isBill = String(val).toUpperCase() === 'BILL';
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={() => handleToggleSinglePrinter(row.id)}
-              style={{
-                width: '44px',
-                height: '24px',
-                borderRadius: '12px',
-                backgroundColor: isSingle ? '#059669' : '#cbd5e1',
-                position: 'relative',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '2px'
-              }}
-              title={isSingle ? 'Single Printer Enabled' : 'Click to set as Single Printer'}
-            >
-              <span
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ffffff',
-                  transform: isSingle ? 'translateX(20px)' : 'translateX(0px)',
-                  transition: 'transform 0.2s ease',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
-                }}
-              />
-            </button>
-            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isSingle ? '#059669' : '#64748b' }}>
-              {isSingle ? 'Single Printer ON' : 'OFF'}
-            </span>
-          </div>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.5px',
+              backgroundColor: isBill ? '#ecfdf5' : '#eff6ff',
+              color: isBill ? '#059669' : '#2563eb',
+              border: `1px solid ${isBill ? '#a7f3d0' : '#bfdbfe'}`
+            }}
+          >
+            {isBill ? 'BILL / INVOICE' : 'KOT / KITCHEN'}
+          </span>
         );
       }
     },
+    { key: 'ipPort', label: 'IP / Port', sortable: true },
     {
       key: 'store_id',
       label: 'Outlet',
@@ -157,6 +116,7 @@ const PrinterMasterPage = () => {
   const handleOpenEdit = (row) => {
     setForm({
       ...row,
+      type: row.printer_type || row.type || 'KOT',
       ip: row.ip || (row.ipPort ? row.ipPort.split(' : ')[0] : '192.168.1.100'),
       port: row.port || (row.ipPort ? Number(row.ipPort.split(' : ')[1]) : 9100),
       store_id: row.store_id || 'STORE_1'
@@ -170,11 +130,16 @@ const PrinterMasterPage = () => {
     const isNumericId = modal.row && (typeof modal.row.id === 'number' || !isNaN(Number(modal.row.id)));
     const payload = {
       printer_id: isNumericId ? Number(modal.row.id) : undefined,
-      printer_name: form.name,
-      name: form.name,
-      printer_ip: form.ip,
-      ip_address: form.ip,
-      printer_type: form.type === 'USB' ? 2 : (form.type === 'Windows' ? 3 : 1),
+      printer_name: form.name.trim(),
+      name: form.name.trim(),
+      title: form.name.trim(),
+      printer_ip: form.ip || '192.168.1.100',
+      ip_address: form.ip || '192.168.1.100',
+      device_address: form.ip || '192.168.1.100',
+      port: String(form.port || 9100),
+      printer_port_number: String(form.port || 9100),
+      printer_type: form.type === 'BILL' ? 'BILL' : 'KOT',
+      type: form.type === 'BILL' ? 'BILL' : 'KOT',
       is_active: form.status === 'Active' ? 1 : 0,
       store_id: form.store_id || 'STORE_1'
     };
@@ -184,6 +149,7 @@ const PrinterMasterPage = () => {
       await fetchPrinters();
     } catch (err) {
       console.warn('Save printer API error:', err.message);
+      alert('Failed to save printer: ' + (err.response?.data?.message || err.message));
     }
     setModal({ open: false, mode: 'add', row: null });
   };
@@ -234,37 +200,35 @@ const PrinterMasterPage = () => {
           <F label="Printer Name *" value={form.name || ''} onChange={(val) => {
             const strVal = typeof val === 'object' && val?.target ? val.target.value : val;
             setForm((p) => ({ ...p, name: strVal }));
-          }} placeholder="e.g. Kitchen Thermal Printer" />
+          }} placeholder="e.g. Tandoor Printer / Billing Desk Printer" />
           
           <label style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>
-            Printer Type *
+            Printer Purpose *
             <select
               value={form.type}
               onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
               style={{ padding: '9px 12px', borderRadius: '7px', border: '1.5px solid #e2e8f0', fontSize: '0.85rem' }}
             >
-              {PRINTER_TYPES.map((t) => (
-                <option key={t}>{t}</option>
+              {PRINTER_PURPOSES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
           </label>
 
-          {form.type === 'Network' && (
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div style={{ flex: 2 }}>
-                <F label="IP Address *" value={form.ip || ''} onChange={(val) => {
-                  const strVal = typeof val === 'object' && val?.target ? val.target.value : val;
-                  setForm((p) => ({ ...p, ip: strVal }));
-                }} placeholder="192.168.1.100" />
-              </div>
-              <div style={{ flex: 1 }}>
-                <F label="Port" type="number" value={form.port || ''} onChange={(val) => {
-                  const strVal = typeof val === 'object' && val?.target ? val.target.value : val;
-                  setForm((p) => ({ ...p, port: Number(strVal || 9100) }));
-                }} placeholder="9100" />
-              </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ flex: 2 }}>
+              <F label="IP Address *" value={form.ip || ''} onChange={(val) => {
+                const strVal = typeof val === 'object' && val?.target ? val.target.value : val;
+                setForm((p) => ({ ...p, ip: strVal }));
+              }} placeholder="192.168.1.100" />
             </div>
-          )}
+            <div style={{ flex: 1 }}>
+              <F label="Port" type="number" value={form.port || ''} onChange={(val) => {
+                const strVal = typeof val === 'object' && val?.target ? val.target.value : val;
+                setForm((p) => ({ ...p, port: Number(strVal || 9100) }));
+              }} placeholder="9100" />
+            </div>
+          </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>
             Outlet *

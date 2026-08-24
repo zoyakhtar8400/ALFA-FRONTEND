@@ -1,10 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { FaUtensils, FaUser, FaUsers, FaCommentAlt, FaUserTie, FaTruck, FaTag } from 'react-icons/fa';
 import posApi from '../../../../api/posApi';
+import { useRestaurant } from '../../../../context/RestaurantContext';
 
 const formatTableNoDisplay = (tableVal) => {
   if (!tableVal) return 'Table';
   return String(tableVal).trim();
+};
+
+const resolveStoreId = (val, outletsList = []) => {
+  if (!val || val === 'All' || val === 'ALL') return 'All';
+  const str = String(val).trim();
+  
+  if (Array.isArray(outletsList) && outletsList.length > 0) {
+    const matched = outletsList.find(o => 
+      String(o.store_id || '').toLowerCase() === str.toLowerCase() ||
+      String(o.id || '') === str ||
+      `store_${o.id}`.toLowerCase() === str.toLowerCase() ||
+      String(o.store_name || '').toLowerCase() === str.toLowerCase() ||
+      String(o.name || '').toLowerCase() === str.toLowerCase()
+    );
+    if (matched) {
+      return matched.store_id || `STORE_${matched.id}`;
+    }
+  }
+
+  if (str.toLowerCase().includes('main') || str === '1') {
+    return 'STORE_1';
+  }
+
+  const num = parseInt(str.replace(/\D/g, ''), 10);
+  if (!isNaN(num)) {
+    return `STORE_${num}`;
+  }
+
+  return str.toUpperCase();
 };
 
 const HeaderActions = ({
@@ -26,44 +56,86 @@ const HeaderActions = ({
   onPaxClick,
   onRemarksClick
 }) => {
+  const { activeStoreId, activeOutletId, allOutlets } = useRestaurant ? useRestaurant() : {};
   const [waitersList, setWaitersList] = useState([]);
   const [deliveryBoysList, setDeliveryBoysList] = useState([]);
   const [ncTypesList, setNcTypesList] = useState([]);
 
   useEffect(() => {
-    // 1. Stewards / Waiters
-    posApi.getStewards().then(res => {
-      const stewards = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.waiters) ? res.waiters : []);
-      const mapped = stewards.map(s => s.name || s.waiter_name || `Steward ${s.id}`);
-      const uniqueWaiters = Array.from(new Set(mapped.length > 0 ? mapped : ['Staff', 'Steward Michael', 'Steward Alex', 'Steward John']));
-      setWaitersList(uniqueWaiters);
-    }).catch(err => {
-      console.error('Error fetching waiters for POS header:', err);
-      setWaitersList(['Staff', 'Steward Michael', 'Steward Alex', 'Steward John']);
-    });
+    const loadHeaderMasters = () => {
+      const rawOutlet = activeStoreId || activeOutletId || localStorage.getItem('activeOutletId') || 'STORE_1';
+      const normCurrent = resolveStoreId(rawOutlet, allOutlets);
 
-    // 2. Delivery Boys / Partners
-    posApi.getDeliveryBoys().then(res => {
-      const boys = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.delivery_boys) ? res.delivery_boys : []);
-      const mapped = boys.map(b => b.name || b.delivery_boy_name || b.partner || `Delivery ${b.id}`);
-      const uniqueBoys = Array.from(new Set(mapped.length > 0 ? mapped : ['Swiggy Partner', 'Zomato Partner', 'Direct Delivery']));
-      setDeliveryBoysList(uniqueBoys);
-    }).catch(err => {
-      console.error('Error fetching delivery boys for POS header:', err);
-      setDeliveryBoysList(['Swiggy Partner', 'Zomato Partner', 'Direct Delivery']);
-    });
+      // 1. Stewards / Waiters filtered strictly by active outlet
+      posApi.getStewards({ store_id: normCurrent }).then(res => {
+        const stewards = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.waiters) ? res.waiters : (Array.isArray(res) ? res : []));
+        const filtered = stewards.filter(s => {
+          const normItem = resolveStoreId(s.store_id, allOutlets);
+          return normCurrent === 'All' || normCurrent === normItem || (normCurrent === 'STORE_1' && (!s.store_id || normItem === 'STORE_1'));
+        });
+        const targetList = filtered.length > 0 ? filtered : stewards;
+        const mapped = targetList
+          .filter(s => s.status !== 'Inactive')
+          .map(s => (s.name || s.waiter_name || `Steward ${s.id}`).trim())
+          .filter(Boolean);
+        const uniqueWaiters = Array.from(new Set(mapped.length > 0 ? mapped : ['Staff']));
+        setWaitersList(uniqueWaiters);
+      }).catch(err => {
+        console.error('Error fetching waiters for POS header:', err);
+        setWaitersList(['Staff']);
+      });
 
-    // 3. NC Types (Non-Chargeable Types)
-    posApi.getNCTypes().then(res => {
-      const ncs = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.ncTypes) ? res.ncTypes : []);
-      const mapped = ncs.map(n => n.name || n.nc_type_name || n.title || `NC ${n.id}`);
-      const uniqueNcs = Array.from(new Set(mapped.length > 0 ? mapped : ['Management NC', 'Staff Meal', 'Owner NC', 'VIP Tasting', 'Promotion']));
-      setNcTypesList(uniqueNcs);
-    }).catch(err => {
-      console.error('Error fetching NC types for POS header:', err);
-      setNcTypesList(['Management NC', 'Staff Meal', 'Owner NC', 'VIP Tasting', 'Promotion']);
-    });
-  }, []);
+      // 2. Delivery Boys / Partners filtered strictly by active outlet
+      posApi.getDeliveryBoys({ store_id: normCurrent }).then(res => {
+        const boys = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.delivery_boys) ? res.delivery_boys : (Array.isArray(res) ? res : []));
+        const filtered = boys.filter(b => {
+          const normItem = resolveStoreId(b.store_id, allOutlets);
+          return normCurrent === 'All' || normCurrent === normItem || (normCurrent === 'STORE_1' && (!b.store_id || normItem === 'STORE_1'));
+        });
+        const targetList = filtered.length > 0 ? filtered : boys;
+        const mapped = targetList
+          .filter(b => b.status !== 'Inactive')
+          .map(b => (b.name || b.delivery_boy_name || b.partner || `Delivery ${b.id}`).trim())
+          .filter(Boolean);
+        const uniqueBoys = Array.from(new Set(mapped.length > 0 ? mapped : ['Direct Delivery']));
+        setDeliveryBoysList(uniqueBoys);
+      }).catch(err => {
+        console.error('Error fetching delivery boys for POS header:', err);
+        setDeliveryBoysList(['Direct Delivery']);
+      });
+
+      // 3. NC Types (Non-Chargeable Types) loaded strictly from NC Type Master database
+      posApi.getNCTypes({ store_id: normCurrent }).then(res => {
+        const ncs = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.ncTypes) ? res.ncTypes : (Array.isArray(res) ? res : []));
+        const filtered = ncs.filter(n => {
+          const normItem = resolveStoreId(n.store_id, allOutlets);
+          return normCurrent === 'All' || normCurrent === normItem || (normCurrent === 'STORE_1' && (!n.store_id || normItem === 'STORE_1'));
+        });
+        const targetList = filtered.length > 0 ? filtered : (ncs.length > 0 ? ncs : []);
+        const mapped = targetList
+          .filter(n => n.status !== 'Inactive')
+          .map(n => (n.name || n.nc_type_name || n.title || '').trim())
+          .filter(Boolean);
+        const uniqueNcs = Array.from(new Set(mapped));
+        setNcTypesList(uniqueNcs);
+      }).catch(err => {
+        console.error('Error fetching NC types for POS header:', err);
+        setNcTypesList([]);
+      });
+    };
+
+    loadHeaderMasters();
+    window.addEventListener('outletChanged', loadHeaderMasters);
+    window.addEventListener('ncTypesMasterRefreshed', loadHeaderMasters);
+    window.addEventListener('stewardsMasterRefreshed', loadHeaderMasters);
+    window.addEventListener('deliveryMasterRefreshed', loadHeaderMasters);
+    return () => {
+      window.removeEventListener('outletChanged', loadHeaderMasters);
+      window.removeEventListener('ncTypesMasterRefreshed', loadHeaderMasters);
+      window.removeEventListener('stewardsMasterRefreshed', loadHeaderMasters);
+      window.removeEventListener('deliveryMasterRefreshed', loadHeaderMasters);
+    };
+  }, [activeStoreId, activeOutletId, allOutlets]);
 
   const isCustomerLinked = Boolean(customerName || (mobileNumber && mobileNumber !== '—'));
   const customerLabel = isCustomerLinked

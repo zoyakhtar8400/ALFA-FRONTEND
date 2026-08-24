@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaFileInvoiceDollar, FaPrint } from 'react-icons/fa';
+import { FaFileInvoiceDollar, FaPrint, FaEye } from 'react-icons/fa';
 import CommonTable from '../../../components/common/CommonTable';
 import CommonModal from '../../../components/common/CommonModal';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
@@ -59,7 +59,8 @@ const OrderDetailsPage = ({ showToast }) => {
               mobileNo: o.mobileNo || o.mobile_no || o.customer_phone || o.phone || o.mobile || '—',
               waiter: o.waiter || o.waiter_name || 'Staff',
               payment_status: o.payment_status || 'Paid',
-              items: o.items || []
+              items: o.items || [],
+              extra_details: typeof o.extra_details === 'string' ? JSON.parse(o.extra_details || '{}') : (o.extra_details || {})
             };
           });
           setData(mapped);
@@ -173,7 +174,8 @@ const OrderDetailsPage = ({ showToast }) => {
     },
     {
       label: 'Items List',
-      onClick: (row) => handleMenuClick(row)
+      onClick: (row) => handleMenuClick(row),
+      icon: <FaEye size={13} />
     },
     {
       label: 'Delete',
@@ -229,6 +231,18 @@ const OrderDetailsPage = ({ showToast }) => {
                   <span style={{ color: '#64748b' }}>Bill Type:</span>
                   <span style={{ fontWeight: 800, color: '#0e7490' }}>{selectedBill.billType}</span>
                 </div>
+                {selectedBill.extra_details?.customer_address && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Address:</span>
+                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedBill.extra_details.customer_address}</span>
+                  </div>
+                )}
+                {selectedBill.extra_details?.customer_locality && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Locality:</span>
+                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{selectedBill.extra_details.customer_locality}</span>
+                  </div>
+                )}
               </div>
             </div>
 

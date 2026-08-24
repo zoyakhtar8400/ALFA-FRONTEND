@@ -48,7 +48,18 @@ const ItemTaxCategoryPage = ({ showToast }) => {
   } = useItemTaxCategory(toastTrigger);
 
   const handleOpenAdd = () => {
-    setModal({ open: true, isEdit: false, fields: {} });
+    setModal({ 
+      open: true, 
+      isEdit: false, 
+      fields: {
+        applicableDate: new Date().toISOString().split('T')[0],
+        department: 'Restaurant',
+        status: 'Active',
+        taxes: [
+          { taxName: 'GST', percentage: '5', postAccount: 'GST Output A/c' }
+        ]
+      } 
+    });
   };
 
   const handleOpenEdit = (row) => {

@@ -4,6 +4,7 @@ import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
+import posApi from '../../../../api/posApi';
 
 const StewardMasterForm = ({
   isOpen,
@@ -13,7 +14,8 @@ const StewardMasterForm = ({
   onClose,
   existingRecords = []
 }) => {
-  const [form, setForm] = useState({ name: '', active: 'Yes' });
+  const [form, setForm] = useState({ name: '', store_id: 'STORE_1', active: 'Yes' });
+  const [outlets, setOutlets] = useState([]);
 
   // HMS Duplicate validation helper
   const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
@@ -25,13 +27,22 @@ const StewardMasterForm = ({
   });
 
   useEffect(() => {
+    posApi.getOutlets().then(res => {
+      const list = res?.data || res?.stores || [];
+      setOutlets(list);
+    }).catch(err => console.warn('Failed to fetch outlets in StewardMasterForm', err));
+  }, []);
+
+  useEffect(() => {
+    const activeOutlet = localStorage.getItem('activeOutletId') || 'STORE_1';
     if (initialData) {
       setForm({
         name: initialData.name || '',
+        store_id: initialData.store_id || activeOutlet,
         active: initialData.active || 'Yes'
       });
     } else {
-      setForm({ name: '', active: 'Yes' });
+      setForm({ name: '', store_id: activeOutlet, active: 'Yes' });
     }
   }, [initialData, isOpen]);
 
@@ -70,6 +81,26 @@ const StewardMasterForm = ({
               />
             </div>
 
+            {/* Outlet Selector */}
+            <div className="form-field">
+              <label className="form-label">
+                Outlet <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={form.store_id}
+                onChange={(e) => setForm(prev => ({ ...prev, store_id: e.target.value }))}
+                className="form-select"
+                required
+              >
+                {outlets.length === 0 && <option value="STORE_1">Main Restaurant</option>}
+                {outlets.map(o => (
+                  <option key={o.store_id || o.id} value={o.store_id || o.id}>
+                    {o.store_name || o.name || `Outlet ${o.id}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Active Status Select */}
             <div className="form-field">
               <label className="form-label">Active Status</label>
@@ -100,3 +131,4 @@ const StewardMasterForm = ({
 };
 
 export default StewardMasterForm;
+export { StewardMasterForm };

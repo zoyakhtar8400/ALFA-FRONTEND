@@ -81,8 +81,11 @@ const TableOperationsModal = (props) => {
               <div style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', background: '#fff' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {tables.map(t => {
-                    const st = String(t.status || '').toLowerCase().trim();
-                    const isOccupied = Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
+                    const st = String(t.status || t.raw_status || t.order_state || '').toLowerCase().trim();
+                    const color = String(t.color || '').toLowerCase().trim();
+                    const isUnpaid = st === 'unpaid' || st === 'unpaid_bill' || color === 'blue';
+                    const isBlankOrPaid = st === 'blank' || st === 'available' || st === 'white' || st === 'paid' || st === 'payment_completed' || color === 'green';
+                    const isOccupied = !isUnpaid && !isBlankOrPaid && (st === 'running' || st === 'kot_cut' || st === 'ordered' || st === 'occupied' || color === 'yellow' || Number(t.amount || 0) > 0 || (Array.isArray(t.kots) && t.kots.length > 0));
                     const isFrom = fromTableId === String(t.id);
                     const isTo = toTableId === String(t.id);
                     return (
@@ -118,7 +121,7 @@ const TableOperationsModal = (props) => {
                   })}
                 </div>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '8px', fontSize: '0.68rem', color: '#94a3b8' }}>
-                  <span><span style={{ color: '#1d4ed8', fontWeight: 700 }}>Blue border</span> = From table (occupied)</span>
+                  <span><span style={{ color: '#1d4ed8', fontWeight: 700 }}>Blue border</span> = From table (running)</span>
                   <span><span style={{ color: '#be185d', fontWeight: 700 }}>Pink border</span> = To table (target)</span>
                 </div>
               </div>
@@ -139,15 +142,18 @@ const TableOperationsModal = (props) => {
                 }}
                 style={{ flex: 1, padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #3b82f6', background: '#eff6ff', fontSize: '0.8rem', fontWeight: 700, outline: 'none', cursor: 'pointer' }}
               >
-                <option value="">Select occupied table...</option>
+                <option value="">Select running table...</option>
                 {Object.entries(
                   tables
                     .filter(t => {
-                      const st = String(t.status || '').toLowerCase().trim();
-                      return Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid');
+                      const st = String(t.status || t.raw_status || t.order_state || '').toLowerCase().trim();
+                      const color = String(t.color || '').toLowerCase().trim();
+                      const isUnpaid = st === 'unpaid' || st === 'unpaid_bill' || color === 'blue';
+                      const isBlankOrPaid = st === 'blank' || st === 'available' || st === 'white' || st === 'paid' || st === 'payment_completed' || color === 'green';
+                      return !isUnpaid && !isBlankOrPaid && (st === 'running' || st === 'kot_cut' || st === 'ordered' || st === 'occupied' || color === 'yellow' || Number(t.amount || 0) > 0 || (Array.isArray(t.kots) && t.kots.length > 0));
                     })
                     .reduce((acc, t) => {
-                      const area = t.area_name || 'Main Area';
+                      const area = t.area || t.area_name || t.floor || 'Main Area';
                       if (!acc[area]) acc[area] = [];
                       acc[area].push(t);
                       return acc;
@@ -155,7 +161,7 @@ const TableOperationsModal = (props) => {
                 ).map(([area, areaTables]) => (
                   <optgroup key={`from-${area}`} label={`--- ${area} ---`}>
                     {areaTables.map(t => (
-                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} ({t.status || 'Occupied'}) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
+                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} (Running) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -174,12 +180,14 @@ const TableOperationsModal = (props) => {
                   tables
                     .filter(t => String(t.id) !== fromTableId)
                     .filter(t => {
-                      const st = String(t.status || '').toLowerCase().trim();
-                      const isOccupied = Number(t.amount || 0) > 0 || (st !== 'blank' && st !== 'available' && st !== 'white' && st !== 'cleaning' && st !== 'paid' && st !== '');
-                      return !isOccupied; // Only show available tables in To field
+                      const st = String(t.status || t.raw_status || t.order_state || '').toLowerCase().trim();
+                      const color = String(t.color || '').toLowerCase().trim();
+                      const hasKots = (Array.isArray(t.kots) && t.kots.length > 0) || Number(t.kotCount || 0) > 0;
+                      const hasAmount = Number(t.amount || 0) > 0;
+                      return !hasKots && !hasAmount && (st === 'blank' || st === 'available' || st === 'white' || color === 'white' || st === '');
                     })
                     .reduce((acc, t) => {
-                      const area = t.area_name || 'Main Area';
+                      const area = t.area || t.area_name || t.floor || 'Main Area';
                       if (!acc[area]) acc[area] = [];
                       acc[area].push(t);
                       return acc;
@@ -187,7 +195,7 @@ const TableOperationsModal = (props) => {
                 ).map(([area, areaTables]) => (
                   <optgroup key={`to-${area}`} label={`--- ${area} ---`}>
                     {areaTables.map(t => (
-                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} ({t.status || 'Blank'})</option>
+                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} (Available)</option>
                     ))}
                   </optgroup>
                 ))}

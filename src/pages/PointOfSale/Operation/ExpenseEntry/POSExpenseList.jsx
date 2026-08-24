@@ -23,10 +23,10 @@ const POSExpenseList = ({ showToast }) => {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/expenses`);
-      if (response && response.body) {
-        setExpenses(response.body);
-      }
+      const activeStore = localStorage.getItem('activeOutletId') || 'STORE_1';
+      const response = await apiClient.get(`/expenses`, { params: { store_id: activeStore } });
+      const list = response?.data || response?.body || (Array.isArray(response) ? response : []);
+      setExpenses(list);
     } catch (error) {
       console.error('Error fetching expenses:', error);
       showToast('Failed to fetch expenses');
@@ -80,6 +80,10 @@ const POSExpenseList = ({ showToast }) => {
     fetchExpenses();
   };
 
+  const nextExpenseNo = expenses && expenses.length > 0 
+    ? Math.max(...expenses.map(e => Number(String(e.expense_id || e.id).replace(/\D/g, '')) || 0)) + 1
+    : 1;
+
   return (
     <div style={{ padding: '16px 24px', backgroundColor: '#F8FAFC', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <CommonTable
@@ -102,6 +106,7 @@ const POSExpenseList = ({ showToast }) => {
       <POSExpenseForm
         isOpen={formModalOpen}
         expenseData={expenseToEdit}
+        nextExpenseNo={nextExpenseNo}
         onClose={() => setFormModalOpen(false)}
         onSave={handleFormSave}
         showToast={showToast}

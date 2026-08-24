@@ -19,7 +19,11 @@ const MoveKOTTab = ({
   );
 
   const srcTable = tables.find(t => String(t.id) === fromTableId);
-  const kots = srcTable?.kots || [];
+  const kots = (srcTable?.kots || []).filter(kot => {
+    const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+    const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
+    return !isNC;
+  });
 
   // Flatten all items across all KOTs for item-level selection
   const allItems = kots.flatMap(k =>
@@ -76,6 +80,7 @@ const MoveKOTTab = ({
           ) : (
             kots.map(k => (
               <div key={k.id} style={{
+                flexShrink: 0,
                 display: 'flex', alignItems: 'flex-start', gap: '10px',
                 background: selectedTransferKots[k.id] ? '#f0f9ff' : '#f8fafc',
                 padding: '10px 12px', borderRadius: '8px',
@@ -125,6 +130,7 @@ const MoveKOTTab = ({
           ) : (
             allItems.map(it => (
               <div key={it.itemKey} style={{
+                flexShrink: 0,
                 display: 'flex', alignItems: 'center', gap: '10px',
                 background: selectedItems[it.itemKey] ? '#f0f9ff' : '#f8fafc',
                 padding: '9px 12px', borderRadius: '8px',
