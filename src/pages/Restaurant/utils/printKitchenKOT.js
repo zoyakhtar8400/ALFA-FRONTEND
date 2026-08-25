@@ -215,7 +215,7 @@ export const generateKitchenKOTHTML = ({
 
           <!-- Header -->
           <div class="text-center">
-            <div class="title">KOT RECEIPT</div>
+            <div class="title">${isReprint ? 'KOT RECEIPT REPRINT' : 'KOT RECEIPT'}</div>
             <div class="subtitle" style="font-weight: bold; font-size: 12px; margin-bottom: 3px;">(${kotHeading})</div>
             <div class="subtitle">Outlet: ${resolvedOutlet}</div>
           </div>

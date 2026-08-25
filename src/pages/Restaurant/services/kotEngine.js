@@ -100,16 +100,13 @@ export function groupItemsByPrinter(
       }
     } else if (pId && !printer) {
       groupKey = `missing_printer_${pId}`;
-      hasError = true;
-      errorMessage = `Printer ID ${pId} configured for "${categoryName}" is offline or missing in Printer Master.`;
+      hasError = false; // Allow printing to default
     } else if (category && !pId) {
       groupKey = `unassigned_cat_${category.id}`;
-      hasError = true;
-      errorMessage = `No printer assigned in Production Category Master for "${categoryName}".`;
+      hasError = false; // Allow printing to default
     } else {
       groupKey = `unassigned_general`;
-      hasError = true;
-      errorMessage = `Item "${row.name || row.itemName}" is not mapped to any Production Kitchen Station.`;
+      hasError = false; // Allow printing to default
     }
 
     if (!groupMap[groupKey]) {

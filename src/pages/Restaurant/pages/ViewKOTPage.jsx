@@ -204,7 +204,7 @@ const ViewKOTPage = () => {
       printTaxInvoice({ tableNo: kot.tableId, kotId: kot.id, items: kot.items || [], time: kot.time, status: kot.status });
     } else {
       const groups = groupItemsByPrinter(kot.items || [], menuItems, categories, printers);
-      const isReprint = !!(kot.print_count && kot.print_count > 0);
+      const isReprint = true; // Always mark as REPRINT when printed from history/View KOT page
       const isRunningKOT = dbKots.some(k => String(k.tableId) === String(kot.tableId) && Number(k.numericKotId) < Number(kot.numericKotId));
       
       const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
@@ -376,6 +376,9 @@ const ViewKOTPage = () => {
                         }}>
                           {(() => {
                             const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+                            const isNC = extra?.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC');
+                            if (isNC) return '—';
+
                             if (extra.takeaway_no) return extra.takeaway_no;
                             if (extra.delivery_no) return extra.delivery_no;
                             if (String(kot.tableId).startsWith('TK-') || String(kot.tableId).startsWith('DL-')) return kot.tableId;
@@ -491,17 +494,25 @@ const ViewKOTPage = () => {
                       </button>
 
                       {/* Delete */}
-                      {kot.status !== 'Cancelled' && kot.is_active !== 0 && kot.status !== 'Closed' && (
-                        <button
-                          onClick={() => handleDelete(kot)}
-                          title="Cancel KOT"
-                          style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
-                        >
-                          <LuTrash2 size={13} />
-                        </button>
-                      )}
+                      {(() => {
+                        const matchingTable = tables.find(t => String(t.id) === String(kot.table_id) || t.no === kot.tableId);
+                        const isTableRunning = matchingTable && String(matchingTable.status).toUpperCase() === 'RUNNING';
+                        
+                        if (isTableRunning && kot.status !== 'Cancelled' && kot.is_active !== 0 && kot.status !== 'Closed') {
+                          return (
+                            <button
+                              onClick={() => handleDelete(kot)}
+                              title="Cancel KOT"
+                              style={{ width: '30px', height: '30px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 140ms' }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.color = '#fff'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#dc2626'; }}
+                            >
+                              <LuTrash2 size={13} />
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </td>
                 </tr>
@@ -522,6 +533,9 @@ const ViewKOTPage = () => {
            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
             {(() => {
               const extra = typeof selected.extra_details === 'string' ? JSON.parse(selected.extra_details || '{}') : (selected.extra_details || {});
+              const isNC = extra?.isNC || selected.isNC || selected.ncType || String(selected.remarks || '').toUpperCase().includes('NC');
+              if (isNC) return '—';
+
               if (extra.takeaway_no) return extra.takeaway_no;
               if (extra.delivery_no) return extra.delivery_no;
               return formatTableNoDisplay(selected.tableId);
@@ -563,14 +577,22 @@ const ViewKOTPage = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            {selected.status !== 'Cancelled' && selected.is_active !== 0 && selected.status !== 'Closed' && (
-              <button
-                onClick={() => { handleDelete(selected); }}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              >
-                <LuTrash2 size={14} /> Cancel KOT
-              </button>
-            )}
+            {(() => {
+              const matchingTable = tables.find(t => String(t.id) === String(selected.table_id) || t.no === selected.tableId);
+              const isTableRunning = matchingTable && String(matchingTable.status).toUpperCase() === 'RUNNING';
+
+              if (isTableRunning && selected.status !== 'Cancelled' && selected.is_active !== 0 && selected.status !== 'Closed') {
+                return (
+                  <button
+                    onClick={() => { handleDelete(selected); }}
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1.5px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                    <LuTrash2 size={14} /> Cancel KOT
+                  </button>
+                );
+              }
+              return null;
+            })()}
             <button
               onClick={() => handlePrint(selected)}
               style={{ flex: 1.2, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
