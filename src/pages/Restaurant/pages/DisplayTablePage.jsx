@@ -284,9 +284,13 @@ const DisplayTablePage = () => {
     posApi.getItemTaxCategories().then(res => {
       const taxes = Array.isArray(res?.data) ? res.data : [];
       let rate = 0;
-      taxes.forEach(t => rate += Number(t.percentage || 0));
+      if (taxes.length === 0) {
+        rate = 5;
+      } else {
+        taxes.forEach(t => rate += Number(t.tax_percentage || t.percentage || 0));
+      }
       setGlobalTaxRate(rate);
-    }).catch(() => setGlobalTaxRate(0));
+    }).catch(() => setGlobalTaxRate(5));
   }, []);
 
   // Load real outlets directly from Outlet Master (/stores) & Department API

@@ -103,10 +103,14 @@ const QuickPaymentModal = ({
     if (!isOpen) return;
     posApi.getItemTaxCategories().then(res => {
       const taxes = Array.isArray(res?.data) ? res.data : [];
-      setTaxLines(taxes.map(t => ({
-        name: t.name || 'Tax',
-        rate: Number(t.percentage || 0)
-      })));
+      if (taxes.length === 0) {
+        setTaxLines([{ name: 'GST', rate: 5 }]);
+      } else {
+        setTaxLines(taxes.map(t => ({
+          name: t.name || t.tax_name || 'Tax',
+          rate: Number(t.tax_percentage || t.percentage || 0)
+        })));
+      }
     }).catch(() => setTaxLines([{ name: 'CGST', rate: 2.5 }, { name: 'SGST', rate: 2.5 }]));
 
     paymentModeService.getPaymentModes().then(res => {
