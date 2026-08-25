@@ -7,8 +7,7 @@ const InvoicePreviewModal = ({ isOpen, onClose, htmlContent, onPrint }) => {
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.7)',
-      backdropFilter: 'blur(3px)',
+      backgroundColor: 'rgba(15, 23, 42, 0.4)',
       display: 'flex', justifyContent: 'center', alignItems: 'center',
       zIndex: 99999,
       fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -41,19 +40,19 @@ const InvoicePreviewModal = ({ isOpen, onClose, htmlContent, onPrint }) => {
           </button>
         </div>
 
-        {/* Receipt Content Area */}
-        <div style={{ flex: 1, backgroundColor: '#f1f5f9', padding: '16px', overflowY: 'auto' }}>
+        {/* Invoice Content Area */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', background: '#f8fafc', display: 'flex', justifyContent: 'center' }}>
           <div style={{
+            background: '#fff',
+            padding: '10px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             width: '100%',
-            backgroundColor: '#ffffff',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-            borderRadius: '8px',
-            padding: '12px',
-            boxSizing: 'border-box'
+            maxWidth: '350px' // typical receipt width
           }}>
-            <div
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
-              style={{ width: '100%', overflow: 'hidden' }}
+            <iframe
+              srcDoc={htmlContent}
+              style={{ width: '100%', height: '100%', minHeight: '400px', border: 'none', overflow: 'hidden' }}
+              title="Invoice Preview"
             />
           </div>
         </div>

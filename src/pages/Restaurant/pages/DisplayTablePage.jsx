@@ -1253,6 +1253,8 @@ const DisplayTablePage = () => {
           gap: '16px 12px',
           alignContent: 'start',
           overflowY: 'auto',
+          filter: previewModalOpen ? 'blur(4px)' : 'none',
+          transition: 'filter 0.3s ease',
         }}>
           {filteredData.map((table, idx) => {
             const isBlank = table.status === 'Blank';

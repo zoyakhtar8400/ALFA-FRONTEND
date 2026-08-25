@@ -2,13 +2,13 @@ import React from 'react';
 import { FaPrint, FaEye, FaWallet, FaRupeeSign } from 'react-icons/fa';
 
 const COLOR_MAP = {
-  white: { bg: '#ffffff', text: '#475569', border: '1.5px solid #cbd5e1', dot: '#94a3b8' },
-  yellow: { bg: '#f59e0b', text: '#ffffff', border: '1.5px solid #d97706', dot: '#ffffff', glow: '0 4px 12px rgba(245, 158, 11, 0.2)' },  // Running / Occupied (Orange-Yellow)
-  blue: { bg: '#2563eb', text: '#ffffff', border: '1.5px solid #1d4ed8', dot: '#ffffff', glow: '0 4px 12px rgba(37, 99, 235, 0.2)' },     // Unpaid (Blue)
-  orange: { bg: '#f97316', text: '#ffffff', border: '1.5px solid #ea580c', dot: '#ffffff', glow: '0 4px 12px rgba(249, 115, 22, 0.2)' },   // Reserved (Orange)
-  purple: { bg: '#8b5cf6', text: '#ffffff', border: '1.5px solid #6d28d9', dot: '#ffffff', glow: '0 4px 12px rgba(139, 92, 246, 0.2)' },   // NC Blocked (Purple)
-  green: { bg: '#10b981', text: '#ffffff', border: '1.5px solid #047857', dot: '#ffffff', glow: '0 4px 12px rgba(16, 185, 129, 0.2)' },    // Paid (Green)
-  gray: { bg: '#94a3b8', text: '#ffffff', border: '1.5px solid #64748b', dot: '#ffffff', glow: '0 4px 12px rgba(148, 163, 184, 0.2)' }     // Cleaning (Gray)
+  white: { bg: '#ffffff', text: '#475569', border: '1.5px dashed #cbd5e1', dot: '#94a3b8' },
+  yellow: { bg: '#f59e0b', text: '#ffffff', border: '1.5px dashed #d97706', dot: '#ffffff', glow: '0 4px 12px rgba(245, 158, 11, 0.2)' },  // Running / Occupied (Orange-Yellow)
+  blue: { bg: '#2563eb', text: '#ffffff', border: '1.5px dashed #1d4ed8', dot: '#ffffff', glow: '0 4px 12px rgba(37, 99, 235, 0.2)' },     // Unpaid (Blue)
+  orange: { bg: '#f97316', text: '#ffffff', border: '1.5px dashed #ea580c', dot: '#ffffff', glow: '0 4px 12px rgba(249, 115, 22, 0.2)' },   // Reserved (Orange)
+  purple: { bg: '#8b5cf6', text: '#ffffff', border: '1.5px dashed #6d28d9', dot: '#ffffff', glow: '0 4px 12px rgba(139, 92, 246, 0.2)' },   // NC Blocked (Purple)
+  green: { bg: '#10b981', text: '#ffffff', border: '1.5px dashed #047857', dot: '#ffffff', glow: '0 4px 12px rgba(16, 185, 129, 0.2)' },    // Paid (Green)
+  gray: { bg: '#94a3b8', text: '#ffffff', border: '1.5px dashed #64748b', dot: '#ffffff', glow: '0 4px 12px rgba(148, 163, 184, 0.2)' }     // Cleaning (Gray)
 };
 
 const AREA_BORDER_COLORS = [

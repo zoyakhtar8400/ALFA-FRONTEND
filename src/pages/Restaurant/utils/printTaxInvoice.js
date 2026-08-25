@@ -110,7 +110,6 @@ export const generateInvoiceHTML = (invoiceData, companyProfile, isBrowser = fal
           <div class="header-sub">${printAddress}</div>
           <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 600; margin-bottom: 1px;">
             <span>GSTIN: ${printGstin}</span>
-            ${invoiceData.hsn ? `<span>HSN: ${invoiceData.hsn}</span>` : ''}
             <span>FSSAI: ${printFssai}</span>
           </div>
           <div class="header-sub">Ph: ${printPhone}</div>

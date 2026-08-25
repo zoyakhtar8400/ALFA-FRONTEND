@@ -17,6 +17,7 @@ import NCTypeMasterPage from './Masters/NCTypeMaster/NCTypeMasterPage';
 import ItemRateUpdatePage from './Masters/ItemRateUpdate/ItemRateUpdatePage';
 import ItemRateCategoryPage from './Masters/ItemRateCategory/ItemRateCategoryPage';
 import POSExpenseList from './Operation/ExpenseEntry/POSExpenseList';
+import ReportsRouter from './reports/ReportsRouter';
 
 
 const PointOfSale = ({ showToast }) => {
