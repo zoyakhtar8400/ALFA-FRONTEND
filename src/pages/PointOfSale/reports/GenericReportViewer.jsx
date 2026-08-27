@@ -6,6 +6,7 @@ import { exportPDF } from '../../../utils/exportPDF';
 import { exportExcel } from '../../../utils/exportExcel';
 import { handlePrint } from '../../../utils/printUtil';
 import { PrintHeader } from '../../../components/common/PrintComponent';
+import { mapSalesRegisterData, SalesRegisterTable } from './components/SalesRegisterReport';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
@@ -29,11 +30,59 @@ const getLocalDateStr = (dateObj = new Date()) => {
 
 const GenericReportViewer = ({ report, onBack, showToast }) => {
   const todayStr = useMemo(() => getLocalDateStr(), []);
+  const getInitialStoreId = () => {
+    let storeId = localStorage.getItem('activeOutletId') || localStorage.getItem('store_id');
+    if (!storeId) {
+      try {
+        const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
+        storeId = user.store_id;
+      } catch(e) {}
+    }
+    return storeId || 'STORE_11';
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [liveData, setLiveData] = useState(null);
   const [dateFrom, setDateFrom] = useState('2026-08-01'); // Default to start of month to include existing orders
   const [dateTo, setDateTo] = useState(todayStr);
   const [activePreset, setActivePreset] = useState('month');
+  const [selectedStoreId, setSelectedStoreId] = useState(getInitialStoreId());
+  const [outletsList, setOutletsList] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState('');
+  const [companyName, setCompanyName] = useState('ALFA HOTEL MANAGEMENT SYSTEM');
+  const [companyLogo, setCompanyLogo] = useState('/logo/alfa-logo.png');
+
+  useEffect(() => {
+    const fetchCompanyProfile = async () => {
+      try {
+        const { companyProfileService } = await import('../../../services/companyProfileService');
+        const profile = await companyProfileService.getProfile();
+        if (profile?.restaurant_name) setCompanyName(profile.restaurant_name);
+        else if (profile?.company_name) setCompanyName(profile.company_name);
+        else if (profile?.name) setCompanyName(profile.name);
+        
+        if (profile?.logo) setCompanyLogo(profile.logo);
+      } catch (err) {
+        console.warn('Could not fetch company profile', err);
+      }
+    };
+    fetchCompanyProfile();
+  }, []);
+
+  useEffect(() => {
+    const fetchOutlets = async () => {
+      try {
+        const { posApi } = await import('../../../api/posApi');
+        const res = await posApi.getOutlets();
+        const data = res?.data || res || [];
+        if (Array.isArray(data)) setOutletsList(data);
+      } catch (e) {
+        console.error('Failed to fetch outlets', e);
+      }
+    };
+    fetchOutlets();
+  }, []);
 
   // Quick Preset Handlers
   const handlePresetChange = (preset) => {
@@ -73,6 +122,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
         const effFrom = dateFrom || '2026-08-01';
         const effTo = dateTo || todayStr;
+        
         const params = {
           reportType: reportTypeCode,
           fromDate: effFrom.includes(' ') ? effFrom : effFrom + ' 00:00:00',
@@ -82,7 +132,9 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           showDiscountData: true,
           showCategoryData: true,
           showDuePaymentReceivableData: true,
-          showCancelitems: true
+          showCancelitems: true,
+          store_id: selectedStoreId,
+          _t: Date.now() // Cache-buster to guarantee fresh data on refresh
         };
 
         const res = await reportService.getReportData(params);
@@ -104,49 +156,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
         // 1. Sales Register
         if (reportId === 'sales-register') {
-          const rows = bills.map((b, idx) => {
-            const gross = Number(b.order_total || 0) + Number(b.discount || 0) - Number(b.order_level_total_taxes || 0);
-            const disc = Number(b.discount || 0);
-            const tax = Number(b.order_level_total_taxes || 0);
-            const net = Number(b.order_total || 0);
-
-            let dateDisplay = '12-Aug-2026';
-            if (b.created_time && !isNaN(new Date(b.created_time).getTime())) {
-              dateDisplay = new Date(b.created_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
-            } else if (b.my_order_date) {
-              const p = String(b.my_order_date).split('-');
-              if (p.length === 3) {
-                const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(p[1], 10) - 1] || 'Aug';
-                dateDisplay = `${p[2]}-${m}-${p[0]}`;
-              }
-            }
-
-            let timeDisplay = '12:00';
-            if (b.created_time && typeof b.created_time === 'string' && b.created_time.includes(':')) {
-              timeDisplay = b.created_time.slice(0, 5);
-            } else if (b.created_time && !isNaN(new Date(b.created_time).getTime())) {
-              timeDisplay = new Date(b.created_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-            }
-
-            return {
-              c1: String(idx + 1),
-              c2: dateDisplay,
-              c3: timeDisplay,
-              c4: String(b.custom_bill_number || (b.bill_number ? `BILL-${b.bill_number}` : '') || b.order_id || `BILL-${idx + 1}`),
-              c5: String(b.table_name || 'Walk-In'),
-              c6: String(b.cust_name || 'Walk-In'),
-              c7: String(b.payment || 'Cash'),
-              c8: formatIndianCurrency(gross),
-              c9: formatIndianCurrency(disc),
-              c10: formatIndianCurrency(tax),
-              c11: formatIndianCurrency(net),
-              outlet: 'MAIN RESTAURANT',
-              rawGross: gross,
-              rawDiscount: disc,
-              rawTax: tax,
-              rawNet: net
-            };
-          });
+          const rows = mapSalesRegisterData(bills);
           setLiveData(rows);
         } else if (reportId === 'tablewise-sale') {
           const rows = bills.map((b, idx) => ({
@@ -600,6 +610,9 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
             c11: formatIndianCurrency(b.order_total || 0)
           }));
           setLiveData(rows);
+          if (isMounted) {
+            setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          }
         }
       } catch (err) {
         console.warn('Error loading live report data:', err);
@@ -608,7 +621,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
     }
     loadLiveReport();
     return () => { isMounted = false; };
-  }, [report.id, dateFrom, dateTo, todayStr]);
+  }, [report.id, dateFrom, dateTo, todayStr, selectedStoreId, refreshKey]);
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
@@ -655,7 +668,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
       outlet: 'All Outlets',
       user: 'Admin'
     };
-    exportPDF(report.name, report.columns, filteredData, filters, printedOnStr);
+    exportPDF(report.name, report.columns, filteredData, filters, printedOnStr, companyName, companyLogo);
     if (showToast) showToast('Exporting PDF...', 'info');
   };
 
@@ -671,6 +684,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
   };
 
   const getColAlign = (colName) => {
+    if (report.id === 'sales-register') return 'center';
     const name = (colName || '').toLowerCase();
     if (name === 'date' || name === 'time' || name === 'sr no' || name === 's.no.') return 'center';
     if (name.includes('amount') || name.includes('sale') || name.includes('tax') || name.includes('discount') || name.includes('net') || name.includes('subtotal') || name.includes('value')) return 'right';
@@ -679,10 +693,10 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
 
   return (
     <div className="reports-layout" style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'var(--font-family, system-ui)' }}>
-      <PrintHeader title={report.name} />
+      <PrintHeader title={report.name} companyName={companyName} companyLogo={companyLogo} />
 
       {/* Header - Hidden during A4 Print */}
-      <div className="no-print" style={{ textAlign: 'center' }}>
+      <div className="no-print" style={{ marginBottom: '16px' }}>
         <PageHeader
           title={report.name}
           breadcrumbs={['Dashboard', 'POS', 'Reports', report.name]}
@@ -690,7 +704,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           onBack={onBack}
           style={{ marginBottom: '4px' }}
         />
-        <div style={{ fontSize: '0.86rem', color: '#64748b', marginTop: '4px', textAlign: 'center', fontWeight: 600 }}>
+        <div style={{ fontSize: '0.9rem', color: '#64748b', marginTop: '2px', fontWeight: 500, paddingLeft: '4px' }}>
           {report.desc}
         </div>
       </div>
@@ -698,22 +712,36 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
       {/* Toolbar / Filters - Hidden during A4 Print */}
       <div className="no-print" style={{
         background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px',
-        padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: '12px', boxShadow: '0 2px 8px -3px rgba(0,0,0,0.05)'
+        padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 2px 8px -3px rgba(0,0,0,0.05)'
       }}>
-        {/* Left Side Filters & Preset Quick-Select */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>From:</label>
-            <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActivePreset('custom'); }} style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.76rem', outline: 'none' }} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>To:</label>
-            <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActivePreset('custom'); }} style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.76rem', outline: 'none' }} />
+        {/* Top Row: Filters & Presets */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>From:</label>
+              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActivePreset('custom'); }} style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>To:</label>
+              <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActivePreset('custom'); }} style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', outline: 'none' }} />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b' }}>Store:</label>
+              <select value={selectedStoreId} onChange={e => setSelectedStoreId(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '0.8rem', outline: 'none', background: '#fff', minWidth: '160px' }}>
+                <option value="ALL">All Outlets</option>
+                {outletsList.length === 0 && <option value={selectedStoreId}>Loading Stores...</option>}
+                {outletsList.map(o => (
+                  <option key={o.id || o.store_id} value={o.id || o.store_id}>
+                    {o.name || o.store_name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Quick Date Presets */}
-          <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
             {[
               { id: 'today', label: 'Today' },
               { id: 'yesterday', label: 'Yesterday' },
@@ -725,10 +753,10 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                 key={p.id}
                 onClick={() => handlePresetChange(p.id)}
                 style={{
-                  padding: '4px 10px',
+                  padding: '6px 12px',
                   borderRadius: '6px',
                   border: 'none',
-                  fontSize: '0.72rem',
+                  fontSize: '0.75rem',
                   fontWeight: activePreset === p.id ? 700 : 500,
                   background: activePreset === p.id ? '#0f172a' : 'transparent',
                   color: activePreset === p.id ? '#ffffff' : '#475569',
@@ -739,23 +767,34 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                 {p.label}
               </button>
             ))}
+            {lastUpdated && (
+              <div style={{ marginLeft: '12px', fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>Last Updated:</span>
+                <strong style={{ color: '#0f172a' }}>{lastUpdated}</strong>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Right Side Actions */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <div style={{ width: '220px' }}>
+        {/* Bottom Row: Actions */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
+          <div style={{ width: '300px', maxWidth: '100%' }}>
             <CommonSearch value={searchQuery} onChange={handleSearchChange} placeholder="Search register..." />
           </div>
-          <button onClick={handlePrintClick} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '0.78rem', cursor: 'pointer' }}>
-            <FaPrint /> Print
-          </button>
-          <button onClick={handlePDF} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '0.78rem', cursor: 'pointer', color: '#dc2626' }}>
-            <FaFilePdf /> PDF
-          </button>
-          <button onClick={handleExcel} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '0.78rem', cursor: 'pointer', color: '#16a34a' }}>
-            <FaFileExcel /> Excel
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button onClick={() => setRefreshKey(prev => prev + 1)} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', cursor: 'pointer', color: '#0ea5e9' }}>
+              <FaSync /> Refresh
+            </button>
+            <button onClick={handlePrintClick} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', cursor: 'pointer' }}>
+              <FaPrint /> Print
+            </button>
+            <button onClick={handlePDF} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', cursor: 'pointer', color: '#dc2626' }}>
+              <FaFilePdf /> PDF
+            </button>
+            <button onClick={handleExcel} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.8rem', cursor: 'pointer', color: '#16a34a' }}>
+              <FaFileExcel /> Excel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1651,81 +1690,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                 });
               })()
             ) : report.id === 'sales-register' ? (
-              (() => {
-                const grouped = {};
-                filteredData.forEach(row => {
-                  const d = row.c2;
-                  if (!grouped[d]) grouped[d] = [];
-                  grouped[d].push(row);
-                });
-
-                const sortedDates = Object.keys(grouped).sort((a, b) => {
-                  const parseDate = (dStr) => {
-                    if (!dStr || dStr === 'N/A') return new Date(0);
-                    const parts = dStr.split('-');
-                    if (parts.length < 3) return new Date(0);
-                    const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5, 'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11 };
-                    const mIndex = months[parts[1]] !== undefined ? months[parts[1]] : 0;
-                    return new Date(parseInt(parts[2]) || 2026, mIndex, parseInt(parts[0]) || 1);
-                  };
-                  return parseDate(a) - parseDate(b);
-                });
-
-                if (sortedDates.length === 0) {
-                  return (
-                    <tr>
-                      <td colSpan={report.columns.length} style={{ padding: '32px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>
-                        No records matching the filter query. Click <strong>All Time</strong> or <strong>This Month</strong> to view existing sales.
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return sortedDates.flatMap((date) => {
-                  const bills = grouped[date];
-                  let dailyGross = 0;
-                  let dailyDiscount = 0;
-                  let dailyTax = 0;
-                  let dailyNet = 0;
-
-                  const rowsList = bills.map((row, idx) => {
-                    dailyGross += row.rawGross || 0;
-                    dailyDiscount += row.rawDiscount || 0;
-                    dailyTax += row.rawTax || 0;
-                    dailyNet += row.rawNet || 0;
-
-                    return (
-                      <tr key={`${date}-row-${idx}`}>
-                        <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                        <td style={{ textAlign: 'center' }}>{row.c2}</td>
-                        <td style={{ textAlign: 'center' }}>{row.c3}</td>
-                        <td>{row.c4}</td>
-                        <td>{row.c5}</td>
-                        <td>{row.c6}</td>
-                        <td>{row.c7}</td>
-                        <td style={{ textAlign: 'right' }}>{row.c8}</td>
-                        <td style={{ textAlign: 'right' }}>{row.c9}</td>
-                        <td style={{ textAlign: 'right' }}>{row.c10}</td>
-                        <td style={{ textAlign: 'right', fontWeight: '700' }}>{row.c11}</td>
-                      </tr>
-                    );
-                  });
-
-                  return [
-                    <tr key={`${date}-header`} style={{ background: '#f1f5f9', fontWeight: 'bold' }}>
-                      <td colSpan={11} style={{ textAlign: 'left', padding: '8px 12px', color: '#334155' }}>{date}</td>
-                    </tr>,
-                    ...rowsList,
-                    <tr key={`${date}-footer`} style={{ background: '#fafafa', fontWeight: 'bold' }}>
-                      <td colSpan={7} style={{ textAlign: 'right', color: '#475569' }}>Daily Total</td>
-                      <td style={{ textAlign: 'right' }}>{formatIndianCurrency(dailyGross)}</td>
-                      <td style={{ textAlign: 'right' }}>{formatIndianCurrency(dailyDiscount)}</td>
-                      <td style={{ textAlign: 'right' }}>{formatIndianCurrency(dailyTax)}</td>
-                      <td style={{ textAlign: 'right', color: '#0f172a' }}>{formatIndianCurrency(dailyNet)}</td>
-                    </tr>
-                  ];
-                });
-              })()
+              <SalesRegisterTable filteredData={filteredData} reportColumns={report.columns} />
             ) : (
               // Default view for other reports
               filteredData.length > 0 ? (

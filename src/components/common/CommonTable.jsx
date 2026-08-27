@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { FaFileExport, FaEdit, FaTrash, FaSync, FaEye } from 'react-icons/fa';
+import { handlePrint as globalHandlePrint } from '../../utils/printUtil';
 import PageHeader from './PageHeader';
 import CommonSearch from './CommonSearch';
 import CommonPagination from './CommonPagination';
@@ -321,7 +322,7 @@ const CommonTable = ({
 
   // Handle Print
   const handlePrint = useCallback(() => {
-    window.print();
+    globalHandlePrint();
   }, []);
 
   // Handle Refresh

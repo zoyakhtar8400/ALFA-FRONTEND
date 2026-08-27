@@ -18,7 +18,7 @@ import { exportUserwiseCollectionPDF } from './exportUserwiseCollectionPDF';
 import { exportCustomerInfoPDF } from './exportCustomerInfoPDF';
 import { exportCustomerOutletVisitPDF } from './exportCustomerOutletVisitPDF';
 
-export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr) => {
+export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr, companyName = 'ALFA HOTEL MANAGEMENT SYSTEM', companyLogo = null) => {
   // Delegate Customer Info to custom portrait exporter
   if (reportName === 'Customer Info Report') {
     exportCustomerInfoPDF(columns, data, activeFilters, printedOnStr);
@@ -66,7 +66,7 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
   }
   // Delegate Sales Register to custom landscape exporter
   if (reportName === 'Sales Register') {
-    exportSalesRegisterPDF(columns, data, activeFilters, printedOnStr);
+    exportSalesRegisterPDF(columns, data, activeFilters, printedOnStr, companyName, companyLogo);
     return;
   }
   // Delegate Itemwise Sale to custom portrait exporter
@@ -119,10 +119,28 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
     const rightMargin = 12;
 
     // 1. Hotel Header
-    doc.setFont('ArialRupee', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(0, 0, 0);
-    doc.text('ALFA', pageWidth / 2, 14, { align: 'center' });
+    let currentY = 14;
+    if (companyLogo && companyLogo.startsWith('data:image')) {
+      try {
+        // Simple center logic for a roughly square logo
+        doc.addImage(companyLogo, 'PNG', (pageWidth / 2) - 8, 4, 16, 16);
+        doc.setFont('ArialRupee', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(0, 0, 0);
+        currentY = 25;
+        doc.text(companyName, pageWidth / 2, currentY, { align: 'center' });
+      } catch (e) {
+        doc.setFont('ArialRupee', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(0, 0, 0);
+        doc.text(companyName, pageWidth / 2, currentY, { align: 'center' });
+      }
+    } else {
+      doc.setFont('ArialRupee', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(0, 0, 0);
+      doc.text(companyName, pageWidth / 2, currentY, { align: 'center' });
+    }
 
     // 2. Date Range Format
     const formatDateDisplay = (dateVal, defaultFallback) => {
@@ -145,15 +163,16 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
     const fromStr = formatDateDisplay(activeFilters?.startDate || activeFilters?.dateFrom, 'Start');
     const toStr = formatDateDisplay(activeFilters?.endDate || activeFilters?.dateTo, 'End');
 
+    currentY += 6;
     doc.setFontSize(10.5);
-    doc.text(`${reportName} From ${fromStr} To ${toStr}`, pageWidth / 2, 20, { align: 'center' });
+    doc.text(`${reportName} From ${fromStr} To ${toStr}`, pageWidth / 2, currentY, { align: 'center' });
 
     // 3. Filter Parameters Block (Left Aligned Key-Value Pairs)
     doc.setFont('ArialRupee', 'normal');
     doc.setFontSize(8.2);
     doc.setTextColor(30, 41, 59);
 
-    let filterY = 27;
+    let filterY = currentY + 7;
     const filterLines = [
       `From Date       : ${fromStr}`,
       `To Date         : ${toStr}`,

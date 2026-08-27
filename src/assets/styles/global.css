@@ -1871,7 +1871,11 @@ body {
 
 /* Print styles */
 @media print {
+  @page {
+    margin: 0mm; /* Hides browser default header/footer (like title/URL) */
+  }
   body {
+    margin: 10mm; /* Add margin back to body so content isn't flush against the physical edge */
     background-color: #ffffff !important;
     background-image: none !important;
     color: #000000 !important;

@@ -1,17 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { companyProfileService } from '../../services/companyProfileService';
 
 /**
  * PrintHeader renders the top of the printed document (visible only during print).
  */
-export const PrintHeader = ({ title }) => {
+export const PrintHeader = ({ title, companyName, companyLogo }) => {
+  const [profileName, setProfileName] = useState('ALFA HOTEL MANAGEMENT SYSTEM');
+  const [profileLogo, setProfileLogo] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    companyProfileService.getProfile().then(res => {
+      const data = res?.data || res;
+      if (isMounted && data) {
+        if (data.restaurant_name || data.company_name) {
+          setProfileName(data.restaurant_name || data.company_name);
+        }
+        if (data.logo) {
+          setProfileLogo(data.logo);
+        }
+      }
+    }).catch(err => {
+      console.warn("PrintHeader failed to fetch company profile", err);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const finalName = companyName || profileName;
+  const finalLogo = companyLogo || profileLogo;
+
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   return (
     <div className="print-only print-header-container" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
-      <img src="/logo/alfa-logo.png" alt="Company Logo" className="print-logo" style={{ margin: '0 auto 8px auto', maxHeight: '50px' }} />
-      <h1 className="print-company-name" style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 800, margin: '4px 0' }}>ALFA HOTEL MANAGEMENT SYSTEM</h1>
+      {finalLogo && <img src={finalLogo} alt="Company Logo" className="print-logo" style={{ margin: '0 auto 8px auto', maxHeight: '50px', objectFit: 'contain' }} />}
+      <h1 className="print-company-name" style={{ textAlign: 'center', fontSize: '1.4rem', fontWeight: 800, margin: '4px 0' }}>{finalName}</h1>
       <h2 className="print-report-title" style={{ textAlign: 'center', fontSize: '1.1rem', fontWeight: 700, margin: '4px 0', textTransform: 'uppercase' }}>{title}</h2>
       <div className="print-date-time" style={{ textAlign: 'center', fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
         Date: {dateStr} &nbsp;|&nbsp; Time: {timeStr}

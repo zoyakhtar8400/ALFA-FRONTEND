@@ -63,7 +63,8 @@ export const usePaymentMaster = (showToast) => {
 
   useEffect(() => {
     fetchPaymentModes();
-  }, [fetchPaymentModes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── FILTER ───────────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {

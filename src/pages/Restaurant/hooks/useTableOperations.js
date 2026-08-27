@@ -529,21 +529,35 @@ export const useTableOperations = (location, navigate) => {
 
       const { orderService } = await import('../../../services/orderService');
 
-      // 1. Create Bill in PostgreSQL
-      const billRes = await orderService.createOrder({
-        tableId: srcId,
-        table_id: srcId,
-        subtotal: subtotal,
-        tax: gst,
-        discount: discount,
-        total_amount: grandTotal,
-        items: orderItemsMap[srcId] || [],
-        paymentMethod: paymentMethod,
-        store_id: activeStoreId
-      });
+      const sourceTable = tables.find(t => t.id === srcId);
+      let orderId = sourceTable?.current_order_id || sourceTable?.order_id;
+      let createdOrder;
 
-      const createdOrder = billRes?.data?.data || billRes?.data || billRes?.order;
-      const orderId = createdOrder?.id || createdOrder?.order_id || srcId;
+      if (orderId) {
+        await orderService.updateOrder(orderId, {
+          subtotal: subtotal,
+          tax: gst,
+          discount: discount,
+          total_amount: grandTotal,
+          paymentMethod: paymentMethod
+        }).catch(err => console.warn('Order update warning:', err));
+        createdOrder = { id: orderId };
+      } else {
+        // 1. Create Bill in PostgreSQL
+        const billRes = await orderService.createOrder({
+          tableId: srcId,
+          table_id: srcId,
+          subtotal: subtotal,
+          tax: gst,
+          discount: discount,
+          total_amount: grandTotal,
+          items: orderItemsMap[srcId] || [],
+          paymentMethod: paymentMethod,
+          store_id: activeStoreId
+        });
+        createdOrder = billRes?.data?.data || billRes?.data || billRes?.order;
+        orderId = createdOrder?.id || createdOrder?.order_id || srcId;
+      }
 
       // 2. Settle payment in PostgreSQL DB
       await orderService.settleOrder(orderId, {

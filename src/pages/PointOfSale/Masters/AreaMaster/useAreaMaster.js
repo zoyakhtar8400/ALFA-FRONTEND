@@ -65,7 +65,8 @@ export const useAreaMaster = (showToast) => {
 
   useEffect(() => {
     fetchAreas();
-  }, [fetchAreas]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── FILTER ───────────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {

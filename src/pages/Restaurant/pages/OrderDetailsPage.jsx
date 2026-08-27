@@ -53,12 +53,28 @@ const OrderDetailsPage = ({ showToast }) => {
                 const dt = new Date(dStr);
                 return isNaN(dt) ? dStr : dt.toLocaleDateString();
               })(),
+              billTime: (() => {
+                const timeSource = o.createdAt || o.billDate;
+                if (!timeSource) return '—';
+                let parsedTime = timeSource;
+                if (typeof parsedTime === 'string' && /^\d+$/.test(parsedTime)) {
+                  parsedTime = Number(parsedTime);
+                }
+                const dt = new Date(typeof parsedTime === 'number' && parsedTime < 1e12 ? parsedTime * 1000 : parsedTime);
+                if (!isNaN(dt.getTime())) {
+                  return dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                } else if (o.bill_date && typeof o.bill_date === 'string' && o.bill_date.includes(':')) {
+                  return o.bill_date;
+                }
+                return '—';
+              })(),
               orderNo: String(o.orderNo || o.order_number || (idx + 1)),
               amount: Number(o.amount || o.total_amount || 0),
               customerName: o.customerName || o.customer_name || 'Walk-in',
               mobileNo: o.mobileNo || o.mobile_no || o.customer_phone || o.phone || o.mobile || '—',
               waiter: o.waiter || o.waiter_name || 'Staff',
               payment_status: o.payment_status || 'Paid',
+              paymentMode: String(o.payment_status || 'Paid').toUpperCase() === 'UNPAID' ? '—' : (o.paymentMode || o.payment_mode || o.payment_method || '—'),
               items: o.items || [],
               extra_details: typeof o.extra_details === 'string' ? JSON.parse(o.extra_details || '{}') : (o.extra_details || {})
             };
@@ -158,11 +174,13 @@ const OrderDetailsPage = ({ showToast }) => {
     },
     { key: 'billType', label: 'Bill Type', renderStatus: true, activeValue: 'DINE_IN' },
     { key: 'billDate', label: 'Bill Date' },
+    { key: 'billTime', label: 'Time' },
     { key: 'orderNo', label: 'Order No' },
     { key: 'amount', label: 'Amount', render: (val) => `₹${Number(val).toFixed(2)}` },
     { key: 'customerName', label: 'Customer Name' },
     { key: 'mobileNo', label: 'Mobile No' },
-    // { key: 'payment_status', label: 'Payment Status', renderStatus: true, activeValue: 'Paid' },
+    // { key: 'paymentMode', label: 'Payment Mode' },
+    { key: 'payment_status', label: 'Payment Status', renderStatus: true, activeValue: 'Paid' },
     { key: 'action', label: 'Action', sortable: false }
   ];
 

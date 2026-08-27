@@ -1687,6 +1687,23 @@ const POSBillingPage = ({ isBillingDesk = false }) => {
     }
 
     try {
+      if (resolvedId && createdOrderId) {
+        try {
+          await tableService.patchTableStatus(resolvedId, {
+            status: 'UNPAID_BILL',
+            amount: netAmt,
+            total_amount: netAmt,
+            current_order_id: createdOrderId,
+            waiter: waiter || resolvedTable?.waiter,
+            customer: customerName || resolvedTable?.customer,
+            pax: paxCount || resolvedTable?.pax || 1,
+            guests: paxCount || resolvedTable?.guests || 1
+          });
+        } catch (e) {
+          console.warn('Failed to patch table status in backend:', e);
+        }
+      }
+
       if (resolvedTable && resolvedTable.id && typeof setTablesList === 'function') {
         setTablesList(prev => (Array.isArray(prev) ? prev : []).map(t => {
           if (String(t.id) === String(resolvedTable.id)) {

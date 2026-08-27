@@ -62,15 +62,15 @@ const QuickPaymentModal = ({
     }, 0);
   }, [taxLines, taxableAmount]);
 
-  const totalTax = providedTaxAmt !== undefined 
-    ? Number(providedTaxAmt) 
+  const totalTax = providedTaxAmt !== undefined
+    ? Number(providedTaxAmt)
     : (Number(table?.tax_amount || table?.taxAmount || table?.tax || 0) || calculatedLocalTax);
-    
+
   const cgstAmt = Number((totalTax / 2).toFixed(2));
   const sgstAmt = Number((totalTax / 2).toFixed(2));
-  
+
   const fallbackNet = Math.round(taxableAmount + totalTax);
-  
+
   // Prioritize exact provided net bill. 
   // If not provided, prioritize live items calculation (fallbackNet) over stale database amounts (table.total_amount).
   let netBill = 0;
@@ -118,10 +118,10 @@ const QuickPaymentModal = ({
       const activeList = list
         .filter(p => p.active !== 'No' && p.isActive !== false)
         .map(p => ({
-            id: p.name || p.payment_mode_name,
-            name: p.name || p.payment_mode_name,
-            label: p.name || p.payment_mode_name,
-            type: p.type || 'CASH'
+          id: p.name || p.payment_mode_name,
+          name: p.name || p.payment_mode_name,
+          label: p.name || p.payment_mode_name,
+          type: p.type || 'CASH'
         }));
       const finalModes = activeList.length > 0 ? activeList : [{ id: 'Cash', name: 'Cash', label: 'Cash', type: 'CASH' }];
       setDbPaymentModes(finalModes);
@@ -174,34 +174,50 @@ const QuickPaymentModal = ({
         .filter(([mode, amt]) => Number(amt) > 0)
         .map(([mode, amt]) => ({ method: mode, amount: Number(amt) }));
 
-      const mainMode = paymentsArray.length > 0 ? paymentsArray.sort((a,b) => b.amount - a.amount)[0].method : 'Cash';
+      const mainMode = paymentsArray.length > 0 ? paymentsArray.sort((a, b) => b.amount - a.amount)[0].method : 'Cash';
 
-      // 1. Create completed Order record in PostgreSQL
-      const orderRes = await orderService.createOrder({
-        tableId: Number(targetTableId) || 1,
-        tableNo: String(targetTableNo),
-        customerName: table.customer || 'Walk-in',
-        mobileNo: cleanMobile,
-        waiter: table.waiter || 'Staff',
-        status: 'completed',
-        payment_status: Number(balanceDue) > 0 ? 'Partial' : 'Paid',
-        paymentMode: mainMode,
-        payments: paymentsArray,
-        items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
-        discount: totalDiscountAmt,
-        tax: totalTax,
-        cgst: cgstAmt,
-        sgst: sgstAmt,
-        grand_total: netBill,
-        total_amount: netBill,
-        store_id: activeStoreId
-      }).catch(err => {
-        console.warn('Order creation warning in quick pay:', err);
-        return null;
-      });
+      let createdOrderId = table.current_order_id || table.order_id;
 
-      // 2. Process payment settlement
-      const createdOrderId = orderRes?.order?.id || orderRes?.data?.id || orderRes?.order?.order_id || orderRes?.data?.order_id;
+      if (createdOrderId) {
+        // Update existing order
+        await orderService.updateOrder(createdOrderId, {
+          status: 'completed',
+          payment_status: Number(balanceDue) > 0 ? 'Partial' : 'Paid',
+          paymentMode: mainMode,
+          payments: paymentsArray,
+          discount: totalDiscountAmt,
+          tax: totalTax,
+          cgst: cgstAmt,
+          sgst: sgstAmt,
+          grand_total: netBill,
+          total_amount: netBill
+        }).catch(err => console.warn('Order update warning in quick pay:', err));
+      } else {
+        // 1. Create completed Order record in PostgreSQL
+        const orderRes = await orderService.createOrder({
+          tableId: Number(targetTableId) || 1,
+          tableNo: String(targetTableNo),
+          customerName: table.customer || 'Walk-in',
+          mobileNo: cleanMobile,
+          waiter: table.waiter || 'Staff',
+          status: 'completed',
+          payment_status: Number(balanceDue) > 0 ? 'Partial' : 'Paid',
+          paymentMode: mainMode,
+          payments: paymentsArray,
+          items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
+          discount: totalDiscountAmt,
+          tax: totalTax,
+          cgst: cgstAmt,
+          sgst: sgstAmt,
+          grand_total: netBill,
+          total_amount: netBill,
+          store_id: activeStoreId
+        }).catch(err => {
+          console.warn('Order creation warning in quick pay:', err);
+          return null;
+        });
+        createdOrderId = orderRes?.order?.id || orderRes?.data?.id || orderRes?.order?.order_id || orderRes?.data?.order_id;
+      }
       if (createdOrderId) {
         await orderService.processPayment({
           orderId: createdOrderId,
@@ -244,7 +260,7 @@ const QuickPaymentModal = ({
           }));
         }
       } else {
-         if (setTables) {
+        if (setTables) {
           setTables(prev => prev.map(t => {
             if (String(t.id) === String(targetTableId) || String(t.no) === String(targetTableNo)) {
               return {
@@ -274,33 +290,54 @@ const QuickPaymentModal = ({
     try {
       const cleanMobile = (table.mobile && table.mobile !== '—') ? table.mobile : '';
 
-      // 1. Create completed Order record in PostgreSQL
-      const orderRes = await orderService.createOrder({
-        tableId: Number(targetTableId) || 1,
-        tableNo: String(targetTableNo),
-        customerName: table.customer || 'Walk-in',
-        mobileNo: cleanMobile,
-        waiter: table.waiter || 'Staff',
-        status: 'completed',
-        payment_status: 'Paid',
-        paymentMode: paymentMode || 'Cash',
-        items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
-        discount: totalDiscountAmt,
-        tax: totalTax,
-        grand_total: netBill,
-        total_amount: netBill,
-        store_id: activeStoreId
-      }).catch(err => {
-        console.warn('Order creation warning in quick pay:', err);
-        return null;
-      });
+      const paymentsArray = Object.entries(paymentAmounts)
+        .filter(([mode, amt]) => Number(amt) > 0)
+        .map(([mode, amt]) => ({ method: mode, amount: Number(amt) }));
 
-      // 2. Process payment settlement
-      const createdOrderId = orderRes?.order?.id || orderRes?.data?.id || orderRes?.order?.order_id || orderRes?.data?.order_id;
+      const mainMode = paymentsArray.length > 0 ? paymentsArray.sort((a, b) => b.amount - a.amount)[0].method : 'Cash';
+
+      let createdOrderId = table.current_order_id || table.order_id;
+
+      if (createdOrderId) {
+        await orderService.updateOrder(createdOrderId, {
+          status: 'completed',
+          payment_status: 'Paid',
+          paymentMode: mainMode,
+          payments: paymentsArray,
+          discount: totalDiscountAmt,
+          tax: totalTax,
+          grand_total: netBill,
+          total_amount: netBill
+        }).catch(err => console.warn('Order update warning in quick pay:', err));
+      } else {
+        // 1. Create completed Order record in PostgreSQL
+        const orderRes = await orderService.createOrder({
+          tableId: Number(targetTableId) || 1,
+          tableNo: String(targetTableNo),
+          customerName: table.customer || 'Walk-in',
+          mobileNo: cleanMobile,
+          waiter: table.waiter || 'Staff',
+          status: 'completed',
+          payment_status: 'Paid',
+          paymentMode: mainMode,
+          payments: paymentsArray,
+          items: activeRows.length > 0 ? activeRows : [{ name: 'Order Items', qty: 1, unitPrice: netBill }],
+          discount: totalDiscountAmt,
+          tax: totalTax,
+          grand_total: netBill,
+          total_amount: netBill,
+          store_id: activeStoreId
+        }).catch(err => {
+          console.warn('Order creation warning in quick pay:', err);
+          return null;
+        });
+        createdOrderId = orderRes?.order?.id || orderRes?.data?.id || orderRes?.order?.order_id || orderRes?.data?.order_id;
+      }
       if (createdOrderId) {
         await orderService.processPayment({
           orderId: createdOrderId,
-          paymentMethod: paymentMode || 'Cash',
+          payments: paymentsArray,
+          paymentMethod: mainMode,
           amount: netBill
         }).catch(() => { });
       }
@@ -344,7 +381,7 @@ const QuickPaymentModal = ({
         status: 'PAID',
         discount: totalDiscountAmt,
         total: netBill,
-        paymentMode
+        paymentMode: mainMode
       });
 
       toast(`Payment saved & Tax Invoice printed for Table T${targetTableNo}!`);
@@ -543,55 +580,55 @@ const QuickPaymentModal = ({
 
           {!isFooterCollapsed && (
             <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #cbd5e1' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{netBill.toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Paid</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{totalPaid.toFixed(2)}</span>
-                  </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed #cbd5e1' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Bill</span>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{netBill.toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
-                  {dbPaymentModes.map(mode => (
-                    <div key={mode.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode.label}</label>
-                      <input 
-                        type="number"
-                        placeholder="0"
-                        min="0"
-                        value={paymentAmounts[mode.id] || ''}
-                        onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [mode.id]: e.target.value }))}
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
-                      />
-                    </div>
-                  ))}
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b' }}>Tip Amount</label>
-                      <input 
-                        type="number"
-                        placeholder="0"
-                        min="0"
-                        value={tipAmount}
-                        onChange={(e) => setTipAmount(e.target.value)}
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #fcd34d', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
-                      />
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Paid</span>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>₹{totalPaid.toFixed(2)}</span>
                 </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
+                {dbPaymentModes.map(mode => (
+                  <div key={mode.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode.label}</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      min="0"
+                      value={paymentAmounts[mode.id] || ''}
+                      onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [mode.id]: e.target.value }))}
+                      style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
+                    />
+                  </div>
+                ))}
 
-                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                    <div style={{ flex: 1, background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(239, 68, 68, 0.05)' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balance Due</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#991b1b', marginTop: '2px' }}>₹{balanceDue}</div>
-                    </div>
-                    <div style={{ flex: 1, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1.5px solid #86efac', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(34, 197, 94, 0.05)' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cash Return</div>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#14532d', marginTop: '2px' }}>₹{cashReturn}</div>
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#f59e0b' }}>Tip Amount</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    value={tipAmount}
+                    onChange={(e) => setTipAmount(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '6px', borderRadius: '6px', border: '1px solid #fcd34d', outline: 'none', fontSize: '0.8rem', fontWeight: 700 }}
+                  />
                 </div>
-                  </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                <div style={{ flex: 1, background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(239, 68, 68, 0.05)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Balance Due</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#991b1b', marginTop: '2px' }}>₹{balanceDue}</div>
+                </div>
+                <div style={{ flex: 1, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1.5px solid #86efac', borderRadius: '10px', padding: '12px', textAlign: 'center', boxShadow: '0 4px 6px rgba(34, 197, 94, 0.05)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cash Return</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#14532d', marginTop: '2px' }}>₹{cashReturn}</div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Action Buttons: Single Save Button labeled as Save & Print */}
