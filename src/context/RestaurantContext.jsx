@@ -91,15 +91,17 @@ export const RestaurantProvider = ({ children }) => {
     const extra = t.extra_details || {};
     const rawStatus = (extra.status === 'Reserved' || String(t.status).toLowerCase() === 'reserved' || String(t.order_state).toUpperCase() === 'RESERVED') ? 'Reserved' : (t.status || t.order_state || 'AVAILABLE');
     const statusUpper = String(rawStatus).toUpperCase();
-    const isNCBlocked = statusUpper === 'NC_BLOCKED' || t.color === 'purple' || extra.status === 'NC_BLOCKED' || extra.color === 'purple';
+    const hasNCKot = Array.isArray(t.kots) && t.kots.some(k => k.is_nc || String(k.kot_number || k.custom_bill_number || '').toUpperCase().startsWith('NC'));
+    const isNCBlocked = statusUpper === 'NC_BLOCKED' || t.color === 'purple' || extra.status === 'NC_BLOCKED' || extra.color === 'purple' || hasNCKot;
+    
     const isReserved = !isNCBlocked && (statusUpper === 'RESERVED' || rawStatus === 'Reserved');
     const isPaid = !isNCBlocked && ['PAYMENT_COMPLETED', 'CLEANUP_RUNNING', 'PAID', 'CLEANING'].includes(statusUpper);
     const isUnpaid = !isNCBlocked && !isReserved && !isPaid && (['UNPAID_BILL', 'UNPAID'].includes(statusUpper) || t.color === 'blue' || t.color === 'red' || extra.color === 'blue' || extra.color === 'red' || extra.status === 'UNPAID_BILL');
     const isRunning = !isNCBlocked && !isReserved && !isPaid && !isUnpaid && (['KOT_CUT', 'ORDERED', 'RUNNING', 'KOT GENERATED', 'OCCUPIED'].includes(statusUpper) || (Number(t.amount || 0) > 0));
 
-    // When a table is paid, it immediately becomes Blank (white) with no 60s green delay
-    const color = isNCBlocked ? 'purple' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
-    const normalizedStatus = isNCBlocked ? 'NC_BLOCKED' : isReserved ? 'Reserved' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
+    // For NC Blocked tables, force color to white and status to Blank to hide unpaid/running state
+    const color = isNCBlocked ? 'white' : isReserved ? 'orange' : isUnpaid ? 'blue' : isRunning ? 'yellow' : 'white';
+    const normalizedStatus = isNCBlocked ? 'Blank' : isReserved ? 'Reserved' : isUnpaid ? 'Unpaid' : isRunning ? 'Running' : 'Blank';
 
     const isAvailable = color === 'white';
     const actions = Array.isArray(t.available_actions) && t.available_actions.length > 0

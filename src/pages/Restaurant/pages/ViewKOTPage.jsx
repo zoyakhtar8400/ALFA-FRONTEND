@@ -80,19 +80,29 @@ const ViewKOTPage = () => {
       const res = await kotService.getKOTList({ active: activeParam, store_id: activeStoreId });
       let rawKots = res?.kots || res?.data || [];
       if (Array.isArray(rawKots)) {
-        if (filterVal === 'cancelled') {
-          rawKots = rawKots.filter(k => k.status === 'Cancelled');
-        } else if (filterVal === 'nc') {
-          rawKots = rawKots.filter(k => {
-            const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : k.extra_details;
-            return (
-              extra?.isNC || k.isNC || k.ncType ||
-              String(k.remarks || k.comment || '').toUpperCase().includes('NC') ||
-              String(k.customer_name || '').toUpperCase().includes('NC') ||
-              (k.items && k.items.some(item => String(item.itemName || '').toUpperCase().includes('NC') || Number(item.unitPrice || item.price || 0) === 0))
-            );
-          });
+        
+        const isNCKot = (k) => {
+          const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : (k.extra_details || {});
+          return (
+            extra?.isNC || k.isNC || k.ncType ||
+            String(k.remarks || k.comment || '').toUpperCase().includes('NC') ||
+            String(k.customer_name || '').toUpperCase().includes('NC') ||
+            (k.items && k.items.some(item => String(item.itemName || '').toUpperCase().includes('NC') || Number(item.unitPrice || item.price || 0) === 0))
+          );
+        };
+
+        if (filterVal === 'nc') {
+          // Show ONLY NC KOTs
+          rawKots = rawKots.filter(k => isNCKot(k));
+        } else {
+          // Hide NC KOTs from ALL other views
+          rawKots = rawKots.filter(k => !isNCKot(k));
+          
+          if (filterVal === 'cancelled') {
+            rawKots = rawKots.filter(k => k.status === 'Cancelled');
+          }
         }
+        
         setDbKots(rawKots);
       }
     } catch (err) {

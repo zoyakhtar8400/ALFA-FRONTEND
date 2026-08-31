@@ -46,12 +46,12 @@ export const exportPDF = (reportName, columns, data, activeFilters, printedOnStr
   }
   // Delegate NC KOT to custom portrait exporter
   if (reportName === 'NC KOT(Bill Report)(Detailed)') {
-    exportNCKOTPDF(columns, data, activeFilters, printedOnStr);
+    exportNCKOTPDF(columns, data, activeFilters, printedOnStr, companyName, companyLogo);
     return;
   }
   // Delegate KOT Register to custom landscape exporter
   if (reportName === 'KOT Register') {
-    exportKOTRegisterPDF(columns, data, activeFilters, printedOnStr);
+    exportKOTRegisterPDF(columns, data, activeFilters, printedOnStr, companyName, companyLogo);
     return;
   }
   // Delegate Tax Register (Detailed) to custom landscape exporter

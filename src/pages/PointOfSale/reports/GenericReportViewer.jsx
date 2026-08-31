@@ -137,10 +137,20 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           _t: Date.now() // Cache-buster to guarantee fresh data on refresh
         };
 
-        const res = await reportService.getReportData(params);
-        if (!isMounted) return;
-
         const reportId = (report.id || '').toLowerCase();
+        let res = {};
+
+        if (reportId === 'nc-kot') {
+          // NC KOTs don't generate bills, so we must fetch them directly from kotService
+          const { kotService } = await import('../../../services/kotService');
+          const kotRes = await kotService.getKOTList({ active: 'all', store_id: selectedStoreId });
+          const rawKots = kotRes?.kots || kotRes?.data || [];
+          res = { kotReportData: rawKots };
+        } else {
+          res = await reportService.getReportData(params);
+        }
+
+        if (!isMounted) return;
 
         // Extract primary dataset from backend response payload
         const bills = res?.bills || res?.list || [];
@@ -340,7 +350,14 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           const rows = [];
           if (kotReportData.length > 0) {
             kotReportData.forEach((k) => {
-              const dateStr = k.in_time ? (typeof k.in_time === 'string' && k.in_time.length === 8 ? '12-Aug-2026' : new Date(k.in_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')) : '12-Aug-2026';
+              // Skip NC KOTs entirely from the KOT Register
+              if (k.is_nc) return;
+              const checkStr = String(k.kot_number || k.custom_bill_number || '');
+              if (checkStr.toUpperCase().startsWith('NC')) return;
+
+              let dateObj = k.in_time ? new Date(k.in_time) : new Date();
+              if (isNaN(dateObj.getTime())) dateObj = new Date();
+              const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/');
               const timeStr = k.in_time ? (typeof k.in_time === 'string' ? k.in_time.slice(0, 5) : new Date(k.in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })) : '12:00';
               const itemsList = (Array.isArray(k.kotItems) && k.kotItems.length > 0)
                 ? k.kotItems
@@ -356,11 +373,11 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
               itemsList.forEach((it) => {
                 rows.push({
                   c1: dateStr,
-                  c2: String(k.kot_number || k.custom_bill_number || `KOT-${k.kot_id || 1}`),
-                  c3: String(k.bill_number || 'BILL-1'),
+                  c2: String(k.kot_number || k.custom_bill_number || k.kot_id || 1).replace(/^KOT-/i, ''),
+                  c3: (k.bill_number || k.custom_bill_number) && !String(k.bill_number || k.custom_bill_number).toUpperCase().startsWith('KOT') ? String(k.bill_number || k.custom_bill_number) : '',
                   c4: timeStr,
                   c5: String(k.waiter || k.createdBy || 'Steward'),
-                  c6: String(k.table_name || 'Table 1'),
+                  c6: String(k.table_name || '1').replace(/^Table /i, ''),
                   c7: String(it.item_name || 'Item'),
                   c8: String(it.quantity || 1),
                   c9: formatIndianCurrency(it.item_price || 0),
@@ -377,13 +394,17 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           if (rows.length === 0 && (res?.items || cancelledItems || bills).length > 0) {
             const list = res?.items || cancelledItems || bills;
             list.forEach((b, idx) => {
+              let dateObj = b.created_time ? new Date(b.created_time) : new Date();
+              if (isNaN(dateObj.getTime())) dateObj = new Date();
+              const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '/');
+
               rows.push({
-                c1: '12-Aug-2026',
-                c2: String(b.kot_number || `KOT-${idx + 1}`),
-                c3: String(b.custom_bill_number || (b.bill_number ? `BILL-${b.bill_number}` : '') || `BILL-${idx + 1}`),
+                c1: dateStr,
+                c2: String(b.kot_number || (idx + 1)).replace(/^KOT-/i, ''),
+                c3: (b.bill_number || b.custom_bill_number) && !String(b.bill_number || b.custom_bill_number).toUpperCase().startsWith('KOT') ? String(b.bill_number || b.custom_bill_number) : '',
                 c4: b.created_time ? String(b.created_time).slice(0, 5) : '12:00',
                 c5: String(b.createdBy || 'Steward 1'),
-                c6: String(b.table_name || 'Table 1'),
+                c6: String(b.table_name || '1').replace(/^Table /i, ''),
                 c7: String(b.item_name || b.title || 'Restaurant Special Dish'),
                 c8: String(b.quantity || b.qty || 1),
                 c9: formatIndianCurrency(b.item_price || b.price || b.order_total || 0),
@@ -397,28 +418,66 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           }
           setLiveData(rows);
         } else if (reportId === 'nc-kot') {
-          let items = res?.items?.length ? res.items : (res?.cancelledItems?.length ? res.cancelledItems : (cancelledItems.length > 0 ? cancelledItems : (bills.length > 0 ? bills : [])));
+          // Use kotReportData if available, otherwise fallback
+          let items = kotReportData.length > 0 ? kotReportData : (res?.items?.length ? res.items : (res?.cancelledItems?.length ? res.cancelledItems : (cancelledItems.length > 0 ? cancelledItems : (bills.length > 0 ? bills : []))));
+          
+          // Filter to only include NC KOTs
+          items = items.filter(k => {
+            const extra = typeof k.extra_details === 'string' ? JSON.parse(k.extra_details || '{}') : (k.extra_details || {});
+            return (
+              extra?.isNC || k.isNC || k.ncType ||
+              String(k.remarks || k.comment || '').toUpperCase().includes('NC') ||
+              String(k.customer_name || '').toUpperCase().includes('NC') ||
+              String(k.kot_number || k.custom_bill_number || '').toUpperCase().startsWith('NC') ||
+              (k.items && k.items.some(item => String(item.itemName || '').toUpperCase().includes('NC') || Number(item.unitPrice || item.price || 0) === 0))
+            );
+          });
+
           if (!items || items.length === 0) {
             items = [
-              { kot_number: 'KOT-NC1', table_name: 'Table 2 VIP', title: 'Chef Special Dessert', reason: 'VIP Guest NC', price: 150, total: 150, createdBy: 'admin' },
-              { kot_number: 'KOT-NC2', table_name: 'Table 1', title: 'Complimentary Soft Drink', reason: 'Manager Courtesy', price: 80, total: 80, createdBy: 'admin' }
+              { kot_number: 'NC-KOT-01', table_name: 'Table 2 VIP', title: 'Chef Special Dessert', reason: 'VIP Guest NC', price: 150, total: 150, createdBy: 'admin' },
+              { kot_number: 'NC-KOT-02', table_name: 'Table 1', title: 'Complimentary Soft Drink', reason: 'Manager Courtesy', price: 80, total: 80, createdBy: 'admin' }
             ];
           }
-          const rows = items.map((it, idx) => ({
-            c1: String(idx + 1),
-            c2: String(it.kot_number || it.bill_number || `KOT-${idx + 1}`),
-            c3: String(it.table_name || 'NC Table'),
-            c4: '12-Aug-2026',
-            c5: String(it.item_name || it.title || 'Complimentary Item'),
-            c6: String(it.remarks || it.reason || 'NC KOT'),
-            c7: '',
-            c8: String(it.quantity || it.qty || 1),
-            c9: formatIndianCurrency(it.item_price || it.price || 0),
-            c10: formatIndianCurrency(it.amount || it.total || it.order_total || 0),
-            outlet: 'MAIN RESTAURANT',
-            ncType: 'Complementry (0.00%)',
-            rawAmount: Number(it.amount || it.total || it.order_total || 0)
-          }));
+          const rows = [];
+          items.forEach((it, idx) => {
+            const origKot = String(it.kot_number || it.custom_bill_number || it.bill_number || `KOT-${idx + 1}`);
+            const cleanKotNo = origKot.replace(/[^0-9]/g, '') || String(idx + 1);
+            const formattedKot = origKot.toUpperCase().startsWith('NC-KOT') ? origKot : `NC-KOT-${cleanKotNo.padStart(2, '0')}`;
+            
+            const extra = typeof it.extra_details === 'string' ? JSON.parse(it.extra_details || '{}') : (it.extra_details || {});
+            const ncTypeStr = extra?.ncType || it.ncType || 'Complementry (0.00%)';
+            
+            // Format date correctly
+            const dateStr = it.date || (it.created_time ? new Date(it.created_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-') : '12-Aug-2026');
+
+            // Find items for this KOT
+            const itemsList = (Array.isArray(it.items) && it.items.length > 0)
+              ? it.items
+              : (Array.isArray(it.kotItems) && it.kotItems.length > 0 ? it.kotItems : (it['kotItems.item_name'] ? [{ ...it, item_name: it['kotItems.item_name'] }] : []));
+
+            if (itemsList.length === 0) {
+              itemsList.push(it); // Fallback to itself if no items nested
+            }
+
+            itemsList.forEach((kotItem, itemIdx) => {
+              rows.push({
+                c1: String(idx + 1), // S.No per KOT
+                c2: formattedKot,
+                c3: String(it.table_name || it.tableId || 'NC').replace(/^Table\s*/i, ''),
+                c4: dateStr,
+                c5: String(kotItem.item_name || kotItem.itemName || kotItem.title || 'Complimentary Item'),
+                c6: String(it.remarks || it.reason || 'NC KOT'),
+                c7: String(kotItem.special_request || kotItem.note || ''),
+                c8: String(kotItem.quantity || kotItem.qty || 1),
+                c9: formatIndianCurrency(kotItem.item_price || kotItem.price || kotItem.unitPrice || 0),
+                c10: formatIndianCurrency(kotItem.amount || kotItem.total || (Number(kotItem.quantity || kotItem.qty || 1) * Number(kotItem.item_price || kotItem.price || kotItem.unitPrice || 0))),
+                outlet: 'MAIN RESTAURANT',
+                ncType: ncTypeStr,
+                rawAmount: Number(kotItem.amount || kotItem.total || (Number(kotItem.quantity || kotItem.qty || 1) * Number(kotItem.item_price || kotItem.price || kotItem.unitPrice || 0)))
+              });
+            });
+          });
           setLiveData(rows);
         } else if (reportId === 'pending-kot-report') {
           const rows = [];
@@ -1045,17 +1104,22 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
                     const ncTypeBlocks = ncTypes.flatMap((ncType) => {
                       const rows = grouped[outlet][date][ncType];
                       let ncTypeTotal = 0;
+                      let prevKot = null;
 
                       const detailRows = rows.map((row, idx) => {
                         ncTypeTotal += row.rawAmount || 0;
                         dateTotal += row.rawAmount || 0;
 
+                        const currentKot = row.c2;
+                        const showKot = currentKot !== prevKot;
+                        if (showKot) prevKot = currentKot;
+
                         return (
                           <tr key={`nc-row-${outlet}-${date}-${ncType}-${idx}`}>
-                            <td style={{ textAlign: 'center' }}>{row.c1}</td>
-                            <td style={{ textAlign: 'center' }}>{row.c2}</td>
-                            <td style={{ textAlign: 'center' }}>{row.c3}</td>
-                            <td style={{ textAlign: 'center' }}>{row.c4}</td>
+                            <td style={{ textAlign: 'center' }}>{showKot ? row.c1 : ''}</td>
+                            <td style={{ textAlign: 'center' }}>{showKot ? row.c2 : ''}</td>
+                            <td style={{ textAlign: 'center' }}>{showKot ? row.c3 : ''}</td>
+                            <td style={{ textAlign: 'center' }}>{showKot ? row.c4 : ''}</td>
                             <td style={{ paddingLeft: '12px' }}>{row.c5}</td>
                             <td style={{ paddingLeft: '12px' }}>{row.c6}</td>
                             <td style={{ paddingLeft: '12px' }}>{row.c7}</td>
