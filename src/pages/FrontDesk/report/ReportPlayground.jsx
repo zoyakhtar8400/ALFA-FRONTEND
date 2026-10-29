@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FaSearch, FaTimes, FaChartBar } from 'react-icons/fa';
 import BackButton from '../../../components/common/BackButton';
 import { PrintHeader, PrintFooter } from '../../../components/common/PrintComponent';
+import ColumnSelectionPrintModal from '../../../components/common/ColumnSelectionPrintModal';
 
 import ReportFilterPanel from '../../../components/common/report/ReportFilterPanel';
 import DateFilter from '../../../components/common/report/DateFilter';
@@ -521,6 +522,32 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
     return val;
   };
 
+  // Column Selection Print state
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [hiddenColIndices, setHiddenColIndices] = useState([]);
+
+  const selectableReportColumns = useMemo(() => {
+    return (selectedReport?.columns || []).map((col, idx) => ({
+      key: String(idx),
+      label: col
+    }));
+  }, [selectedReport?.columns]);
+
+  const handlePrintClick = () => {
+    setIsPrintModalOpen(true);
+  };
+
+  const handleConfirmPrint = (selectedKeys) => {
+    const allKeys = selectableReportColumns.map(c => c.key);
+    const hidden = allKeys.filter(k => !selectedKeys.includes(k)).map(Number);
+    setHiddenColIndices(hidden);
+    setIsPrintModalOpen(false);
+
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
   return (
     <div className="reports-layout" style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       <PrintHeader title={selectedReport.name} />
@@ -559,7 +586,7 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
         <ReportFilterPanel>
           {renderFilters(selectedReport.id)}
           <ActionButtons
-            onPrint={() => window.print()}
+            onPrint={handlePrintClick}
             onPDF={handlePDF}
             onExcel={handleExcel}
           />
@@ -668,7 +695,10 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
                       <thead>
                         <tr>
                           {selectedReport.columns?.map((colName, idx) => (
-                            <th key={idx}>
+                            <th
+                              key={idx}
+                              className={hiddenColIndices.includes(idx) ? 'print-col-hide' : ''}
+                            >
                               {colName}
                             </th>
                           ))}
@@ -680,7 +710,10 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
                             {selectedReport.columns?.map((col, colIdx) => {
                               const valKey = `c${colIdx + 1}`;
                               return (
-                                <td key={colIdx}>
+                                <td
+                                  key={colIdx}
+                                  className={hiddenColIndices.includes(colIdx) ? 'print-col-hide' : ''}
+                                >
                                   {renderCell(col, row[valKey])}
                                 </td>
                               );
@@ -843,8 +876,16 @@ const ReportPlayground = ({ selectedReport, onBack }) => {
             </div>
           )}
         </div>
-
       </div>
+
+      {/* Universal Column Selection Print Modal */}
+      <ColumnSelectionPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={selectableReportColumns}
+        onPrint={handleConfirmPrint}
+        title={`Print Columns - ${selectedReport?.name || 'Report'}`}
+      />
 
       <PrintFooter title={selectedReport.name} />
     </div>

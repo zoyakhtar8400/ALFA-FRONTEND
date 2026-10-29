@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import posApi from '../../../../api/posApi';
+import areaService from '../../../../services/areaService';
 
 export const useDeliveryMaster = (showToast) => {
   const [data, setData] = useState([]);
@@ -9,7 +10,9 @@ export const useDeliveryMaster = (showToast) => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [outletFilter, setOutletFilter] = useState('All');
   const [outletsList, setOutletsList] = useState([]);
-  
+  const [areaFilter, setAreaFilter] = useState('All');
+  const [areasList, setAreasList] = useState([]);
+
   // Modal open states
   const [modal, setModal] = useState({ open: false, isEdit: false, fields: {} });
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
@@ -20,6 +23,11 @@ export const useDeliveryMaster = (showToast) => {
       const list = res?.data || res?.stores || [];
       setOutletsList(list);
     }).catch(err => console.warn('Failed to fetch outlets in useDeliveryMaster', err));
+
+    areaService.getAreas().then(res => {
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setAreasList(list.map(a => a.name || a.area_name || a).filter(Boolean));
+    }).catch(err => console.warn('Failed to fetch areas in useDeliveryMaster', err));
   }, []);
 
   const fetchDeliveryBoys = useCallback(() => {
@@ -45,15 +53,18 @@ export const useDeliveryMaster = (showToast) => {
       const partnerStr = item.partner || '';
       const nameStr = item.name || '';
       const phoneStr = item.phone || '';
+      const areaStr = item.area || '';
       const matchSearch =
         partnerStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
         nameStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        areaStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
         phoneStr.includes(searchTerm);
       const matchStatus = statusFilter === 'All' || item.status === statusFilter;
       const matchOutlet = outletFilter === 'All' || String(item.store_id || 'STORE_1') === String(outletFilter);
-      return matchSearch && matchStatus && matchOutlet;
+      const matchArea = areaFilter === 'All' || String(item.area || '') === String(areaFilter);
+      return matchSearch && matchStatus && matchOutlet && matchArea;
     });
-  }, [data, searchTerm, statusFilter, outletFilter]);
+  }, [data, searchTerm, statusFilter, outletFilter, areaFilter]);
 
   const validate = (fields, skipDuplicateCheck = false) => {
     const partnerName = fields.partner || 'Direct Delivery';
@@ -70,8 +81,8 @@ export const useDeliveryMaster = (showToast) => {
       return false;
     }
     if (!skipDuplicateCheck) {
-      const duplicateItem = data.find(item => 
-        item.id !== fields.id && 
+      const duplicateItem = data.find(item =>
+        item.id !== fields.id &&
         String(item.partner || 'Direct Delivery').toLowerCase().trim() === partnerName.toLowerCase().trim() &&
         String(item.name || '').toLowerCase().trim() === fields.name.toLowerCase().trim()
       );
@@ -87,6 +98,7 @@ export const useDeliveryMaster = (showToast) => {
     const payload = {
       ...fields,
       partner: fields.partner || 'Direct Delivery',
+      area: fields.area || '',
       store_id: fields.store_id || 'STORE_1'
     };
     if (!validate(payload, skipDuplicateCheck)) return false;
@@ -115,6 +127,21 @@ export const useDeliveryMaster = (showToast) => {
     });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    let deletedCount = 0;
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await posApi.deleteDeliveryBoy(row.id);
+          deletedCount++;
+        } catch (e) { }
+      }
+    }
+    showToast(`Deleted ${deletedCount} delivery record(s) successfully.`);
+    fetchDeliveryBoys();
+    try { window.dispatchEvent(new Event('deliveryMasterRefreshed')); } catch (e) { }
+  };
+
   return {
     data: filteredData,
     rawCount: data.length,
@@ -126,6 +153,9 @@ export const useDeliveryMaster = (showToast) => {
     outletFilter,
     setOutletFilter,
     outletsList,
+    areaFilter,
+    setAreaFilter,
+    areasList,
     modal,
     setModal,
     deleteModal,
@@ -134,6 +164,7 @@ export const useDeliveryMaster = (showToast) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete
   };
 };
 

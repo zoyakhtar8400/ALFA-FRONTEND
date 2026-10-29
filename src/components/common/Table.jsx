@@ -11,8 +11,9 @@ import {
 import PrintStyles from './PrintStyles';
 import { handlePrint } from '../../utils/printUtil';
 import LoadingState from './LoadingState';
+import ColumnSelectionPrintModal from './ColumnSelectionPrintModal';
 
-const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
+const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions, hiddenPrintColKeys = [] }) => {
   return (
     <tr 
       tabIndex={0}
@@ -25,11 +26,16 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
         }
       }}
     >
-      <td style={{ textAlign: 'center', fontWeight: 600 }}>{indexOfFirstEntry + index + 1}</td>
+      <td
+        className={hiddenPrintColKeys?.includes('_sno') ? 'print-col-hide' : ''}
+        style={{ textAlign: 'center', fontWeight: 600 }}
+      >
+        {indexOfFirstEntry + index + 1}
+      </td>
       {columns.map((col) => {
         if (col.key === 'action') {
           return (
-            <td key={col.key}>
+            <td key={col.key} className="action-column no-print">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {actions.map((act, actIdx) => {
                   const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
@@ -49,8 +55,9 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
             </td>
           );
         }
+        const isHidden = hiddenPrintColKeys?.includes(col.key);
         return (
-          <td key={col.key}>
+          <td key={col.key} className={isHidden ? 'print-col-hide' : ''}>
             {col.render ? col.render(row[col.key], row) : row[col.key]}
           </td>
         );
@@ -76,6 +83,38 @@ const Table = ({
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
   const [localLoading, setLocalLoading] = useState(true);
+
+  // Column Selection Print state
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [hiddenPrintColKeys, setHiddenPrintColKeys] = useState([]);
+
+  const selectablePrintColumns = useMemo(() => {
+    const dataCols = (columns || [])
+      .filter(c => c.key !== 'action' && !c.isAction && (c.label || c.header || c.name))
+      .map(c => ({
+        key: c.key,
+        label: c.label || c.header || c.name || c.key
+      }));
+    return [
+      { key: '_sno', label: 'S.No' },
+      ...dataCols
+    ];
+  }, [columns]);
+
+  const handlePrintClick = useCallback(() => {
+    setIsPrintModalOpen(true);
+  }, []);
+
+  const handleConfirmPrint = useCallback((selectedKeys) => {
+    const allKeys = selectablePrintColumns.map(c => c.key);
+    const hidden = allKeys.filter(k => !selectedKeys.includes(k));
+    setHiddenPrintColKeys(hidden);
+    setIsPrintModalOpen(false);
+
+    setTimeout(() => {
+      handlePrint();
+    }, 150);
+  }, [selectablePrintColumns]);
 
   // Process data (Search & Sort)
   const processedData = useMemo(() => {
@@ -258,7 +297,7 @@ const Table = ({
           <button className="table-btn-action" onClick={handleExportCSV}>
             <FaFileExport size={13} /><span>Export</span>
           </button>
-          <button className="table-btn-action" onClick={handlePrint}>
+          <button className="table-btn-action" onClick={handlePrintClick}>
             <FaPrint size={13} /><span>Print</span>
           </button>
         </div>
@@ -269,11 +308,17 @@ const Table = ({
         <table className="custom-table">
           <thead>
             <tr>
-              <th style={{ width: '60px' }}>S.No</th>
+              <th
+                className={hiddenPrintColKeys.includes('_sno') ? 'print-col-hide' : ''}
+                style={{ width: '60px' }}
+              >
+                S.No
+              </th>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key, col.sortable !== false)}
+                  className={`${col.key === 'action' ? 'action-column no-print' : ''} ${hiddenPrintColKeys.includes(col.key) ? 'print-col-hide' : ''}`.trim()}
                   style={{ cursor: col.sortable !== false ? 'pointer' : 'default' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -304,6 +349,7 @@ const Table = ({
                   indexOfFirstEntry={indexOfFirstEntry}
                   columns={columns}
                   actions={actions}
+                  hiddenPrintColKeys={hiddenPrintColKeys}
                 />
               ))
             ) : (
@@ -356,6 +402,15 @@ const Table = ({
       <div className="print-footer" style={{ display: 'none' }}>
         Printed By: Admin on {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
       </div>
+
+      {/* Universal Column Selection Print Modal */}
+      <ColumnSelectionPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={selectablePrintColumns}
+        onPrint={handleConfirmPrint}
+        title={`Print Columns - ${title || 'Records'}`}
+      />
 
     </div>
   );

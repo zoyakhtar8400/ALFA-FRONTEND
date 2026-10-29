@@ -26,72 +26,132 @@ export const useItemMenu = (activeTab, showToast) => {
       posApi.getOutlets(),
       posApi.getItemTaxCategories()
     ]).then(([pgRes, catRes, menuRes, outletsRes, taxesRes]) => {
-      const groups = Array.isArray(pgRes?.data?.productGroups) ? pgRes.data.productGroups : (Array.isArray(pgRes?.data) ? pgRes.data : []);
-      const categories = Array.isArray(catRes?.data?.categories) ? catRes.data.categories : (Array.isArray(catRes?.data) ? catRes.data : []);
-      const items = Array.isArray(menuRes?.data?.menuItems) ? menuRes.data.menuItems : (Array.isArray(menuRes?.data) ? menuRes.data : []);
-      const stores = Array.isArray(outletsRes?.data) ? outletsRes.data : (Array.isArray(outletsRes) ? outletsRes : []);
-      const taxes = Array.isArray(taxesRes?.data) ? taxesRes.data : [];
+      const extractArray = (res, ...keys) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (res.data) {
+          if (Array.isArray(res.data)) return res.data;
+          for (const k of keys) {
+            if (Array.isArray(res.data[k])) return res.data[k];
+          }
+          if (res.data.data && Array.isArray(res.data.data)) return res.data.data;
+        }
+        for (const k of keys) {
+          if (Array.isArray(res[k])) return res[k];
+        }
+        return [];
+      };
+
+      const groups = extractArray(pgRes, 'productGroups');
+      const categories = extractArray(catRes, 'categories');
+      const items = extractArray(menuRes, 'menuItems', 'items', 'data');
+      const stores = extractArray(outletsRes, 'outlets', 'stores', 'data');
+      const taxes = extractArray(taxesRes, 'taxCategories', 'taxes', 'data');
+
+      console.log('🔍 [useItemMenu] Extracted items count:', items?.length, 'menuRes keys:', Object.keys(menuRes || {}), 'data is Array:', Array.isArray(menuRes?.data), 'status:', menuRes?.status, 'message:', menuRes?.message);
+
+      const safeStr = (val, fallback = '') => {
+        if (val === null || val === undefined) return fallback;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+        try {
+          return val.store_id || val.id || val.name || JSON.stringify(val);
+        } catch (e) {
+          return fallback;
+        }
+      };
 
       const mappedOutlets = stores.map((s, idx) => ({
-        id: s.id,
-        store_id: s.store_id || `STORE_${s.id || idx + 1}`,
-        name: s.store_name || s.name || `Outlet ${s.id || idx + 1}`
+        id: s?.id,
+        store_id: safeStr(s?.store_id) || `STORE_${s?.id || idx + 1}`,
+        name: s?.store_name || s?.name || `Outlet ${s?.id || idx + 1}`
       }));
       setOutlets(mappedOutlets);
       
       let mappedTaxes = taxes.map((t, idx) => ({
-        id: t.id || idx + 1,
-        name: t.name || 'GST Category',
-        percentage: t.percentage || 5
+        id: t?.id || idx + 1,
+        name: t?.name || 'GST Category',
+        percentage: Number(t?.percentage) || 5
       }));
-      if (!mappedTaxes.some(t => String(t.percentage) === '5' || t.name.includes('5'))) {
+      if (!mappedTaxes.some(t => safeStr(t?.percentage) === '5' || safeStr(t?.name).includes('5'))) {
         mappedTaxes.unshift({ id: 'fallback-gst-5', name: 'GST', percentage: 5 });
       }
       setTaxCategories(mappedTaxes);
 
       const mappedProductGroups = groups.map((g, idx) => ({
-        id: g.id || g.product_group_id || idx + 1,
-        name: g.name || g.product_group_name || `Main Group ${idx + 1}`
+        id: g?.id || g?.product_group_id || idx + 1,
+        name: g?.name || g?.product_group_name || `Main Group ${idx + 1}`
       }));
 
       const mappedCategories = categories.map((c, idx) => ({
-        id: c.id || c.category_refid || idx + 1,
-        name: c.name || c.category_name || `Category ${idx + 1}`,
-        mainGroup: c.mainGroup || 'Food',
-        code: c.hsnCode || '2106'
+        id: c?.id || c?.category_refid || idx + 1,
+        name: c?.name || c?.category_name || `Category ${idx + 1}`,
+        mainGroup: c?.mainGroup || 'Food',
+        code: c?.hsnCode || '2106'
       }));
 
       const mappedMenuItems = items.map((m, idx) => {
-        const itemStoreId = m.store_id || (mappedOutlets.length > 0 ? mappedOutlets[0].store_id : 'STORE_1');
-        const outletObj = mappedOutlets.find(o => String(o.store_id) === String(itemStoreId));
-        const taxName = m.tax_name && m.tax_name !== 'Default 5%' ? m.tax_name : 'GST';
+        const itemStoreId = safeStr(m?.store_id) || (mappedOutlets.length > 0 ? mappedOutlets[0].store_id : 'STORE_1');
+        const outletObj = mappedOutlets.find(o => safeStr(o.store_id) === itemStoreId);
+        const taxName = m?.tax_name && m.tax_name !== 'Default 5%' ? m.tax_name : 'GST';
         const matchedTax = mappedTaxes.find(t => t.name === taxName);
         const taxPercent = matchedTax ? matchedTax.percentage : 5;
         
+        let storedBilled = [];
+        try {
+          storedBilled = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('alfa_billed_temp_items') || '[]') : [];
+        } catch (e) {
+          storedBilled = [];
+        }
+        const isBilled = Boolean(m?.is_billed || (Array.isArray(storedBilled) && storedBilled.some(bId => safeStr(bId) === safeStr(m?.id || m?.item_id))));
+
+        let rawVariants = m?.variants || m?.discounted_items || m?.portions || [];
+        if (typeof rawVariants === 'string') {
+          try {
+            rawVariants = JSON.parse(rawVariants);
+          } catch (e) {
+            rawVariants = [];
+          }
+        }
+        if (!Array.isArray(rawVariants)) rawVariants = [];
+
+        const portionsList = rawVariants.map(v => ({
+          id: v?.id || `v_${v?.name}`,
+          name: v?.name || v?.portion_name || v?.title || 'Portion',
+          serving: v?.serving || v?.description || '',
+          price: Number(v?.price || v?.sale_price || 0),
+          code: v?.code || '',
+          active: v?.active !== false
+        }));
+
         return {
-          id: m.id || m.item_id || idx + 1,
-          name: m.name || m.title || `Menu Item ${idx + 1}`,
-          dispCode: m.short_code || String(m.id || idx + 100),
-          itemGroup: m.category || 'General',
+          id: m?.id || m?.item_id || idx + 1,
+          name: m?.name || m?.title || `Menu Item ${idx + 1}`,
+          dispCode: safeStr(m?.short_code) || safeStr(m?.id || idx + 100),
+          itemGroup: m?.category || 'General',
           mainGroup: 'Food',
           unitType: 'Plate',
           outlet: itemStoreId,
           outletName: outletObj ? outletObj.name : 'Main Restaurant',
-          price: Number(m.price || m.sale_price || 0),
-          category: m.foodType || 'Veg',
-          rateEdit: m.is_open_item === 1 ? 'Yes' : 'No',
+          price: Number(m?.price || m?.sale_price || 0),
+          category: m?.foodType || 'Veg',
+          rateEdit: m?.is_open_item === 1 ? 'Yes' : 'No',
           discApp: 'Yes',
           kitchen: 'Main Kitchen',
-          status: m.active !== 0 ? 'Active' : 'Inactive',
+          status: m?.active !== 0 ? 'Active' : 'Inactive',
           hsnCode: '2106',
           taxCategory: taxName,
-          taxDisplay: `${taxName} (${taxPercent}%)`
+          taxDisplay: `${taxName} (${taxPercent}%)`,
+          is_open_item: m?.is_open_item || 0,
+          is_billed: isBilled ? 1 : 0,
+          portions: portionsList,
+          variants: portionsList
         };
       });
 
       setMainGroups(mappedProductGroups);
       setItemGroups(mappedCategories);
-      setMenuItems(mappedMenuItems);
+      setMenuItems(mappedMenuItems.filter(m => !(m.is_open_item === 1 && m.is_billed === 1)));
     }).catch(err => {
       console.error('Error fetching menu catalog:', err);
     }).finally(() => setLoading(false));
@@ -202,7 +262,9 @@ export const useItemMenu = (activeTab, showToast) => {
         category_ref_ids: matchedCat ? matchedCat.id : undefined,
         kitchen_dept: fields.kitchen === 'Main Kitchen' ? 1 : (fields.kitchen === 'Bar Kitchen' ? 2 : (fields.kitchen === 'Chinese Kitchen' ? 3 : 4)),
         tax_name: taxName,
-        tax_per: taxPer
+        tax_per: taxPer,
+        portions: fields.portions || fields.variants || [],
+        variants: fields.portions || fields.variants || []
       }).then(() => {
         showToast(modal.isEdit ? 'Menu item updated in PostgreSQL.' : 'Menu item created in PostgreSQL.');
         fetchMenuData();
@@ -246,6 +308,48 @@ export const useItemMenu = (activeTab, showToast) => {
     }
   };
 
+  const handleBulkDelete = async (selectedRows, selectedIds) => {
+    if (activeTab === 'menu-item') {
+      const idsToDelete = (selectedIds && selectedIds.length > 0)
+        ? selectedIds
+        : (selectedRows || []).map(r => r.id).filter(Boolean);
+      try {
+        const res = await posApi.bulkDeleteMenuItems(idsToDelete);
+        showToast(res?.data?.message || res?.message || `Deleted ${idsToDelete.length} menu items successfully.`);
+        fetchMenuData();
+        return;
+      } catch (err) {
+        console.warn('Fast bulk delete failed, falling back to sequential delete:', err);
+      }
+    }
+    let count = 0;
+    for (const row of selectedRows) {
+      if (!row.id) continue;
+      try {
+        if (activeTab === 'main-group') {
+          await posApi.deleteProductGroup(row.id);
+        } else if (activeTab === 'item-group') {
+          await posApi.deleteCategory(row.id);
+        } else if (activeTab === 'menu-item') {
+          await posApi.deleteMenuItem(row.id);
+        }
+        count++;
+      } catch (e) { }
+    }
+    showToast(`Deleted ${count} record(s) successfully.`);
+    fetchMenuData();
+  };
+
+  const handleClearAllMenu = async (store_id) => {
+    try {
+      const res = await posApi.clearAllMenuItems(store_id);
+      showToast(res?.data?.message || res?.message || 'All menu items successfully cleared from PostgreSQL database.');
+      fetchMenuData();
+    } catch (err) {
+      showToast(err?.response?.data?.message || err?.message || 'Failed to clear overall menu items');
+    }
+  };
+
   return {
     data: filteredData,
     loading,
@@ -265,6 +369,9 @@ export const useItemMenu = (activeTab, showToast) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete,
+    handleClearAllMenu,
+    fetchMenuData,
     outlets,
     taxCategories
   };

@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { SOCKET_URL } from '../config/apiConfig';
+import { getServerUrl } from '../config/apiConfig';
 
 let socket = null;
 
@@ -7,13 +7,14 @@ export const socketService = {
   connect() {
     if (!socket) {
       const token = localStorage.getItem('alfa_token');
-      socket = io(SOCKET_URL, {
+      const targetUrl = getServerUrl();
+      socket = io(targetUrl, {
         auth: { token },
         transports: ['websocket', 'polling'],
       });
 
       socket.on('connect', () => {
-        console.log('Socket.io connected:', socket.id);
+        console.log('Socket.io connected:', socket.id, 'to:', targetUrl);
       });
 
       socket.on('disconnect', () => {

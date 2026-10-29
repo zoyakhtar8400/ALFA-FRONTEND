@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@mui/material';
 import { FaArrowLeft } from 'react-icons/fa';
 
 const BackButton = ({ onClick, label = 'Back' }) => {
@@ -9,37 +8,44 @@ const BackButton = ({ onClick, label = 'Back' }) => {
   const handleBack = () => {
     if (onClick) {
       onClick();
-    } else {
+    } else if (
+      window.location.pathname.includes('/master') ||
+      window.location.pathname.includes('/masters')
+    ) {
+      navigate('/pos/master');
+    } else if (window.history.length > 1) {
       navigate(-1);
+    } else {
+      navigate('/pos/master');
     }
   };
 
   return (
-    <Button
-      variant="outlined"
+    <button
+      type="button"
       onClick={handleBack}
       className="no-print"
-      startIcon={<FaArrowLeft size={12} />}
-      sx={{
-        borderRadius: '20px',
-        borderColor: 'var(--border)',
-        color: 'var(--text-secondary)',
-        textTransform: 'none',
-        fontWeight: 'bold',
-        fontSize: '0.85rem',
-        padding: '6px 18px',
-        fontFamily: 'var(--font-family)',
-        backgroundColor: 'var(--surface)',
-        '&:hover': {
-          borderColor: 'var(--primary)',
-          backgroundColor: 'var(--primary-light)',
-          color: 'var(--primary)',
-        },
-        transition: 'var(--transition)'
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 14px',
+        fontSize: '13px',
+        fontWeight: 600,
+        color: '#334155',
+        background: '#ffffff',
+        border: '1px solid #cbd5e1',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        transition: 'all 0.15s ease'
       }}
+      onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+      onMouseOut={(e) => { e.currentTarget.style.background = '#ffffff'; }}
     >
-      {label}
-    </Button>
+      <FaArrowLeft style={{ fontSize: '11px' }} />
+      <span>{label}</span>
+    </button>
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaSearch } from 'react-icons/fa';
+import { FaSearch, FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
 
 const MenuPanel = ({
   searchInputRef,
@@ -13,7 +13,10 @@ const MenuPanel = ({
   onPreviousBookingsClick,
   toast,
   isBillingDesk = false,
-  loadingMenu = false
+  loadingMenu = false,
+  onOpenAddItem,
+  onEditTempItem,
+  onDeleteTempItem
 }) => {
   return (
     <div className="pos-menu-section" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#ffffff', borderRight: '1px solid #cbd5e1' }}>
@@ -76,10 +79,10 @@ const MenuPanel = ({
           color: #1e293b;
         }
         .category-btn.active-category {
-          background: #ffffff;
-          color: #2563eb;
-          border-left-color: #2563eb;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.05), 0 1px 3px rgba(37, 99, 235, 0.02);
+          background: #fff1f2;
+          color: #c92534;
+          border-left: 4px solid #c92534;
+          font-weight: 900;
         }
 
         .grid-item-card {
@@ -117,7 +120,7 @@ const MenuPanel = ({
           box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.15);
         }
         .grid-item-card:focus-visible {
-          outline: 2px solid #2563eb;
+          outline: 2px solid #29b49b;
           outline-offset: 2px;
         }
 
@@ -154,28 +157,54 @@ const MenuPanel = ({
           </h2>
           <span style={{
             fontSize: '9px', fontWeight: '800', padding: '2px 8px', borderRadius: '6px',
-            background: isBillingDesk ? '#ecfdf5' : '#eff6ff',
-            color: isBillingDesk ? '#047857' : '#2563eb'
+            background: isBillingDesk ? 'rgba(27, 122, 109, 0.08)' : 'rgba(41, 180, 155, 0.1)',
+            color: isBillingDesk ? '#1b7a6d' : '#0f766e'
           }}>
             {isBillingDesk ? 'Settlement' : 'Sales Engine'}
           </span>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* + Add Item Button */}
+          <button
+            type="button"
+            onClick={onOpenAddItem}
+            title="Create Temporary Item for Billing"
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: '1.5px solid #0d9488',
+              background: '#f0fdfa',
+              color: '#0d9488',
+              fontSize: '0.78rem',
+              fontWeight: '800',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#0d9488'; e.currentTarget.style.color = '#ffffff'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#f0fdfa'; e.currentTarget.style.color = '#0d9488'; }}
+          >
+            <FaPlus size={10} /> Add Item
+          </button>
+
           <button
             onClick={onPreviousBookingsClick}
-            style={{ 
-              padding: '6px 12px', 
-              borderRadius: '6px', 
-              border: '1px solid #e2e8f0', 
-              background: '#ffffff', 
-              color: '#475569', 
-              fontSize: '0.78rem', 
-              fontWeight: '700', 
-              cursor: 'pointer', 
-              whiteSpace: 'nowrap', 
-              display: 'flex', 
-              alignItems: 'center', 
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              background: '#ffffff',
+              color: '#475569',
+              fontSize: '0.78rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
               gap: '6px',
               transition: 'background 0.2s'
             }}
@@ -184,41 +213,52 @@ const MenuPanel = ({
           >
             📋 Bookings
           </button>
-          
-          <div style={{ display: 'flex', border: '1.5px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', background: '#ffffff', height: '32px', alignItems: 'center' }}>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search menu..."
-              value={searchItem}
-              onChange={e => setSearchItem(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (filteredGridItems.length > 0) {
-                    handleGridItemClick(filteredGridItems[0]);
-                    setSearchItem('');
-                    if (toast) toast(`Added: ${filteredGridItems[0].name}`);
+
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', border: '1.5px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', background: '#ffffff', height: '32px', alignItems: 'center' }}>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search Item"
+                value={searchItem}
+                onChange={e => setSearchItem(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (filteredGridItems.length > 0) {
+                      handleGridItemClick(filteredGridItems[0]);
+                      setSearchItem('');
+                      if (toast) toast(`Added: ${filteredGridItems[0].name}`);
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const firstGridBtn = document.querySelector('.grid-item-card[data-index="0"]');
+                    if (firstGridBtn) firstGridBtn.focus();
+                  } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const activeCat = document.querySelector('.category-sidebar-desktop button.active-category');
+                    if (activeCat) activeCat.focus();
+                    else {
+                      const firstCat = document.querySelector('.category-sidebar-desktop button');
+                      if (firstCat) firstCat.focus();
+                    }
                   }
-                } else if (e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  const firstGridBtn = document.querySelector('.grid-item-card[data-index="0"]');
-                  if (firstGridBtn) firstGridBtn.focus();
-                } else if (e.key === 'ArrowLeft') {
-                  e.preventDefault();
-                  const activeCat = document.querySelector('.category-sidebar-desktop button.active-category');
-                  if (activeCat) activeCat.focus();
-                  else {
-                    const firstCat = document.querySelector('.category-sidebar-desktop button');
-                    if (firstCat) firstCat.focus();
-                  }
-                }
-              }}
-              style={{ border: 'none', padding: '6px 10px', fontSize: '0.78rem', outline: 'none', width: '130px', fontWeight: 600 }}
-            />
-            <button style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '0 10px', height: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              <FaSearch size={10} />
-            </button>
+                }}
+                style={{ border: 'none', padding: '6px 10px', fontSize: '0.78rem', outline: 'none', width: '130px', fontWeight: 600 }}
+              />
+              <button style={{ border: 'none', background: '#f1f5f9', color: '#64748b', padding: '0 8px', height: '100%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                <FaSearch size={10} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', border: '1.5px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', background: '#ffffff', height: '32px', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Short Code"
+                onChange={e => setSearchItem(e.target.value)}
+                style={{ border: 'none', padding: '6px 8px', fontSize: '0.78rem', outline: 'none', width: '80px', fontWeight: 600 }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -279,9 +319,9 @@ const MenuPanel = ({
                 }}
               >
                 <span>{cat}</span>
-                <span style={{ 
-                  width: '6px', height: '6px', borderRadius: '50%', 
-                  background: isSelected ? '#2563eb' : 'transparent' 
+                <span style={{
+                  width: '6px', height: '6px', borderRadius: '50%',
+                  background: isSelected ? '#2563eb' : 'transparent'
                 }} />
               </button>
             );
@@ -344,43 +384,134 @@ const MenuPanel = ({
                   {/* Top: Veg / Non Veg FSSAI Symbol & variants status badge */}
                   <div style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      {/* FSSAI Square Icon */}
-                      <span style={{ 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '12px',
-                        height: '12px',
-                        border: `1.5px solid ${item.isVeg ? '#10b981' : '#ef4444'}`,
-                        borderRadius: '2px',
-                        padding: '1px',
-                        flexShrink: 0
-                      }}>
+                      {/* FSSAI Square Icon & TEMP badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{
-                          width: '5px',
-                          height: '5px',
-                          borderRadius: '50%',
-                          background: item.isVeg ? '#10b981' : '#ef4444'
-                        }} />
-                      </span>
-                      {item.variants && item.variants.length > 0 && (
-                        <span style={{ fontSize: '7px', background: '#eff6ff', color: '#2563eb', padding: '2px 5px', borderRadius: '4px', fontWeight: 800 }}>
-                          VARIANTS
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '12px',
+                          height: '12px',
+                          border: `1.5px solid ${item.isVeg ? '#10b981' : '#ef4444'}`,
+                          borderRadius: '2px',
+                          padding: '1px',
+                          flexShrink: 0
+                        }}>
+                          <span style={{
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            background: item.isVeg ? '#10b981' : '#ef4444'
+                          }} />
                         </span>
-                      )}
+                        {(item.is_open_item === 1 || item.is_open_item === '1' || item.is_open_item === true) && (
+                          <span style={{
+                            fontSize: '6.5px',
+                            fontWeight: 900,
+                            background: '#fef3c7',
+                            color: '#b45309',
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            border: '1px solid #fde68a',
+                            lineHeight: 1
+                          }}>
+                            TEMP
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Right side: Edit & Delete for temp item (only before billing is completed), or VARIANTS badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        {(item.is_open_item === 1 || item.is_open_item === '1' || item.is_open_item === true) && !(item.is_billed === 1 || item.is_billed === '1' || item.is_billed === true) && (
+                          <div style={{ display: 'inline-flex', gap: '3px' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditTempItem?.(item);
+                              }}
+                              title="Edit Temporary Item"
+                              aria-label="Edit Temporary Item"
+                              style={{
+                                background: '#f8fafc',
+                                border: '1px solid #cbd5e1',
+                                color: '#475569',
+                                borderRadius: '3px',
+                                padding: '2px 4px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.color = '#0284c7'; e.currentTarget.style.borderColor = '#0284c7'; }}
+                              onMouseLeave={e => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                            >
+                              <FaEdit size={8.5} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteTempItem?.(item);
+                              }}
+                              title="Delete Temporary Item"
+                              aria-label="Delete Temporary Item"
+                              style={{
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                color: '#ef4444',
+                                borderRadius: '3px',
+                                padding: '2px 4px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = '#ffffff'; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444'; }}
+                            >
+                              <FaTrash size={8.5} />
+                            </button>
+                          </div>
+                        )}
+                        {item.variants && item.variants.length > 0 && (
+                          <span
+                            title={item.variants.map(v => `${v.name}${v.serving ? ` (${v.serving})` : ''}: ₹${v.price}`).join(', ')}
+                            style={{
+                              fontSize: '7px',
+                              background: '#e0f2fe',
+                              color: '#0369a1',
+                              border: '1px solid #bae6fd',
+                              padding: '2px 5px',
+                              borderRadius: '4px',
+                              fontWeight: 800,
+                              letterSpacing: '0.02em'
+                            }}
+                          >
+                            {item.variants.some(v => /half|full/i.test(v.name)) ? 'HALF / FULL' : 'VARIANTS'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#1e293b', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {item.name}
                     </div>
                   </div>
 
-                  {/* Bottom: Price indicator */}
+                  {/* Bottom: Price indicator, Unit & Addons / Variants */}
                   <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#0f172a' }}>
-                      ₹{item.price ? Math.round(item.price) : 0}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '900', color: '#0f172a' }}>
+                        ₹{item.price ? Math.round(item.price) : 0}
+                      </span>
+                      {item.unit && (
+                        <span style={{ fontSize: '7.5px', color: '#64748b', fontWeight: 700 }}>
+                          /{item.unit}
+                        </span>
+                      )}
+                    </div>
                     {item.variants && item.variants.length > 0 && (
-                      <span style={{ fontSize: '7.5px', color: '#64748b', fontWeight: 700 }}>
+                      <span style={{ fontSize: '7.5px', color: '#0e7490', background: '#ecfeff', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
                         {item.variants.length} sizes
                       </span>
                     )}

@@ -99,6 +99,21 @@ export const useNCTypeMaster = (showToast) => {
     });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    let deletedCount = 0;
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await posApi.deleteNCType(row.id);
+          deletedCount++;
+        } catch (e) { }
+      }
+    }
+    showToast(`Deleted ${deletedCount} NC Type(s) successfully.`);
+    fetchNCTypes();
+    try { window.dispatchEvent(new Event('ncTypesMasterRefreshed')); } catch (e) { }
+  };
+
   return {
     data: filteredData,
     rawCount: data.length,
@@ -117,7 +132,8 @@ export const useNCTypeMaster = (showToast) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   };
 };
 

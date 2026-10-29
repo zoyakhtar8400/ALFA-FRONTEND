@@ -10,7 +10,7 @@ const InvoicePreviewModal = ({ isOpen, onClose, htmlContent, onPrint }) => {
       backgroundColor: 'rgba(15, 23, 42, 0.4)',
       display: 'flex', justifyContent: 'center', alignItems: 'center',
       zIndex: 99999,
-      fontFamily: 'system-ui, -apple-system, sans-serif'
+      fontFamily: 'var(--font-family, system-ui)'
     }}>
       <div style={{
         background: '#ffffff',

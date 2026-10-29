@@ -23,7 +23,7 @@ const BanquetSummary = ({ showToast }) => {
     }}>
       {/* Title */}
       <div>
-        <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#244E5F', margin: 0 }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
           Banquets & Event Halls Bookings
         </h3>
         <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>
@@ -91,9 +91,9 @@ const BanquetSummary = ({ showToast }) => {
             <tbody>
               {BANQUET_DETAILS.map((b, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background-color 100ms' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => showToast && showToast(`Banquet Booking: ${b.bookNo}`)}>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: '#244E5F' }}>{b.venueName}</td>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{b.venueName}</td>
                   <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>
-                    <div style={{ fontWeight: '600', color: '#418A8B' }}>{b.bookNo}</div>
+                    <div style={{ fontWeight: '600', color: 'var(--primary)' }}>{b.bookNo}</div>
                     <div style={{ fontSize: '10px', color: '#94a3b8' }}>Booked: {b.date}</div>
                   </td>
                   <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>

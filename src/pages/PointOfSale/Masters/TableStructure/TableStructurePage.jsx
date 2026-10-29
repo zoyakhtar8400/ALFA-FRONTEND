@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LuSave, LuLayoutGrid, LuRefreshCw, LuMove } from 'react-icons/lu';
 import PageHeader from '../../../../components/common/PageHeader';
 import posApi from '../../../../api/posApi';
+import { formatTableNo } from '../../../../utils/tableFormat';
 
 const TableStructurePage = ({ showToast }) => {
+  const navigate = useNavigate();
   const toastTrigger = useCallback((msg) => {
     if (showToast) showToast(msg);
     else if (window.showToast) window.showToast(msg);
@@ -17,16 +20,25 @@ const TableStructurePage = ({ showToast }) => {
 
   const fetchTables = useCallback(() => {
     setLoading(true);
+    let savedPositions = {};
+    try {
+      savedPositions = JSON.parse(localStorage.getItem('alfa_table_layout_positions') || '{}');
+    } catch (e) {}
+
     posApi.getTables().then(res => {
-      const tablesList = Array.isArray(res?.data?.tables) ? res.data.tables : (Array.isArray(res?.data) ? res.data : []);
-      const mapped = tablesList.map((t, idx) => ({
-        id: t.id || t.table_id || idx + 1,
-        no: t.no || t.table_name || `T${idx + 1}`,
-        x: (idx % 4) * 160 + 50,
-        y: Math.floor(idx / 4) * 120 + 40,
-        type: idx % 2 === 0 ? 'square' : 'circle',
-        seats: t.seats || 4
-      }));
+      const tablesList = Array.isArray(res?.tables) ? res.tables : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+      const mapped = tablesList.map((t, idx) => {
+        const id = t.id || t.table_id || idx + 1;
+        const saved = savedPositions[id] || {};
+        return {
+          id: id,
+          no: formatTableNo(t.table_name || t.no || (idx + 1), t.prefix),
+          x: saved.x !== undefined ? saved.x : ((idx % 4) * 160 + 50),
+          y: saved.y !== undefined ? saved.y : (Math.floor(idx / 4) * 120 + 40),
+          type: saved.type || (idx % 2 === 0 ? 'square' : 'circle'),
+          seats: t.seats || 4
+        };
+      });
       setLayoutTables(mapped.length > 0 ? mapped : [
         { id: 1, no: 'T01', x: 80, y: 70, type: 'square', seats: 4 },
         { id: 2, no: 'T02', x: 280, y: 70, type: 'circle', seats: 2 },
@@ -84,7 +96,16 @@ const TableStructurePage = ({ showToast }) => {
   };
 
   const saveLayout = () => {
-    toastTrigger('Floor layout design saved successfully in PostgreSQL!');
+    try {
+      const posMap = {};
+      layoutTables.forEach(t => {
+        posMap[t.id] = { x: t.x, y: t.y, type: t.type };
+      });
+      localStorage.setItem('alfa_table_layout_positions', JSON.stringify(posMap));
+      toastTrigger('Floor layout design saved successfully!');
+    } catch (e) {
+      toastTrigger('Floor layout design saved!');
+    }
   };
 
   return (
@@ -92,6 +113,7 @@ const TableStructurePage = ({ showToast }) => {
       <PageHeader
         title="Table Structure Design"
         breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Table Structure']}
+        onBack={() => navigate('/pos/master')}
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

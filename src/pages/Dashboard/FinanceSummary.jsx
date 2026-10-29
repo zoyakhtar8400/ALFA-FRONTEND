@@ -27,13 +27,13 @@ const FinanceSummary = memo(({ stats, tables = [], showToast }) => {
 
   const financeCards = [
     { label: "Today's Revenue",    value: `₹${Number(todayRev).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Real-time revenue today', icon: LuTrendingUp,  color: '#16a34a', bg: '#f0fdf4' },
-    { label: 'Monthly Revenue',    value: `₹${Number(monthRev).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Current month total',     icon: LuTrendingUp,  color: '#0369a1', bg: '#eff6ff' },
+    { label: 'Monthly Revenue',    value: `₹${Number(monthRev).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Current month total',     icon: LuTrendingUp,  color: '#1b7a6d', bg: '#f0fdfa' },
     { label: 'Cash Collection',    value: `₹${Number(cashColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Physical cash received',  icon: LuBanknote,    color: '#15803d', bg: '#f0fdf4' },
     { label: 'UPI / Online',       value: `₹${Number(upiColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,  sub: 'PhonePe, GPay, UPI',       icon: LuSmartphone,  color: '#0d9488', bg: '#f0fdfa' },
-    { label: 'Card Payments',      value: `₹${Number(cardColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Credit / Debit cards',    icon: LuCreditCard,  color: '#4f46e5', bg: '#eef2ff' },
+    { label: 'Card Payments',      value: `₹${Number(cardColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: 'Credit / Debit cards',    icon: LuCreditCard,  color: '#112936', bg: '#f1f5f9' },
     { label: 'Restaurant Revenue', value: `₹${Number(restRev).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,  sub: `${activeBillsCount} active table orders`, icon: LuPercent, color: '#d97706', bg: '#fffbeb' },
     { label: 'Total Orders',       value: `${totalBills}`,                                                                                          sub: `${totalBills} total bills recorded`, icon: LuClock, color: '#0284c7', bg: '#e0f2fe' },
-    { label: 'Pending Dues',       value: `₹${Number(dueColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,   sub: 'Credit / ledger dues',     icon: LuShieldAlert, color: '#b91c1c', bg: '#fef2f2' },
+    { label: 'Pending Dues',       value: `₹${Number(dueColl).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,   sub: 'Credit / ledger dues',     icon: LuShieldAlert, color: '#c92534', bg: '#fef2f2' },
   ];
 
   return (

@@ -24,15 +24,12 @@ const SummaryCards = memo(({ rooms = [], tables = [], stats, showToast }) => {
   const totalTablesDisplay = stats?.totalTablesCount !== undefined ? stats.totalTablesCount : (tables.length || 12);
 
   const cards = [
-    { label: "Active Dining Tables", value: `${activeTablesDisplay}/${totalTablesDisplay}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#6366f1', sub: 'running tables' },
-    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTablesDisplay} active orders`, up: true, icon: LuTrendingUp, accent: '#10b981', sub: 'live orders' },
-    { label: "Menu Catalog Items",   value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#8b5cf6', sub: 'live active items' },
-    { label: "Recorded Orders",      value: `${(stats?.totalOrdersCount || 0) + activeTablesDisplay}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#f43f5e', sub: 'total bills' },
-    { label: "Cash Collection",      value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#f59e0b', sub: 'cash drawer' },
-    { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#06b6d4', sub: 'UPI payments' },
-    // Room stats — disabled (uncomment to re-enable)
-    // { label: "Available Rooms",  value: String(clean),    trend: `${rooms.length} total rooms`, up: true, icon: LuBed,   accent: '#0369a1', sub: 'clean rooms' },
-    // { label: "Occupied Rooms",   value: String(occupied), trend: rooms.length ? `${((occupied/rooms.length)*100).toFixed(0)}% occ.` : '0%', up: occupied > 0, icon: LuUsers, accent: '#7c3aed', sub: 'in-house guests' },
+    { label: "Active Dining Tables", value: `${activeTablesDisplay}/${totalTablesDisplay}`, trend: `${availableTables} available`, up: true, icon: LuTrendingUp, accent: '#1b7a6d', sub: 'running tables' },
+    { label: "Live Dining Revenue",  value: `₹${totalTableSales.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, trend: `${activeTablesDisplay} active orders`, up: true, icon: LuTrendingUp, accent: '#16a34a', sub: 'live orders' },
+    { label: "Menu Catalog Items",   value: `${stats?.totalMenuItems || 258}`, trend: 'PostgreSQL Catalog', up: true, icon: LuClock, accent: '#112936', sub: 'live active items' },
+    { label: "Recorded Orders",      value: `${(stats?.totalOrdersCount || 0) + activeTablesDisplay}`, trend: 'Settled & Active', up: true, icon: LuCalendarCheck, accent: '#c92534', sub: 'total bills' },
+    { label: "Cash Collection",      value: `₹${Number(stats?.cashCollection || 0).toLocaleString('en-IN')}`, trend: 'Physical drawer', up: true, icon: LuTrendingUp, accent: '#d97706', sub: 'cash drawer' },
+    { label: "UPI / Digital Sales",  value: `₹${Number(stats?.upiCollection || 0).toLocaleString('en-IN')}`, trend: 'Digital QR / UPI', up: true, icon: LuTrendingUp, accent: '#0284c7', sub: 'UPI payments' },
   ];
 
   return (

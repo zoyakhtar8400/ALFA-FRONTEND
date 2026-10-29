@@ -60,7 +60,8 @@ const PaymentMasterPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = usePaymentMaster(toastTrigger);
 
   const handleOpenAdd = () => {
@@ -82,6 +83,7 @@ const PaymentMasterPage = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Payment Mode"
         searchPlaceholder="Search Payment Mode..."

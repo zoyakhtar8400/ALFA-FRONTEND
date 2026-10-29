@@ -3,14 +3,14 @@ import { LuCalendarPlus, LuUserPlus, LuLogIn, LuLogOut, LuReceipt, LuUtensils, L
 import { useNavigate } from 'react-router-dom';
 
 const ACTIONS = [
-  { label: 'New Reservation', icon: LuCalendarPlus, color: '#418A8B', bg: '#f0fdfa', path: '/front-desk/reservations/new' },
-  { label: 'Walk-In',         icon: LuUserPlus,     color: '#4A9993', bg: '#ecfdf5', path: '/front-desk/walk-in' },
+  { label: 'New Reservation', icon: LuCalendarPlus, color: '#1b7a6d', bg: '#f0fdfa', path: '/front-desk/reservations/new' },
+  { label: 'Walk-In',         icon: LuUserPlus,     color: '#29b49b', bg: '#ecfdf5', path: '/front-desk/walk-in' },
   { label: 'Check-In',        icon: LuLogIn,        color: '#16a34a', bg: '#f0fdf4', path: '/front-desk/check-in' },
-  { label: 'Check-Out',       icon: LuLogOut,       color: '#dc2626', bg: '#fef2f2', path: '/front-desk/check-out' },
+  { label: 'Check-Out',       icon: LuLogOut,       color: '#c92534', bg: '#fef2f2', path: '/front-desk/check-out' },
   { label: 'POS Billing',     icon: LuReceipt,      color: '#d97706', bg: '#fffbeb', path: '/restaurant/pos' },
-  { label: 'Restaurant',      icon: LuUtensils,     color: '#0369a1', bg: '#eff6ff', path: '/restaurant' },
-  { label: 'Housekeeping',    icon: LuClipboardList,color: '#7c3aed', bg: '#f5f3ff', path: '/housekeeping' },
-  { label: 'Banquet',         icon: LuHotel,        color: '#244E5F', bg: '#f0fdfa', path: '/banquet' },
+  { label: 'Restaurant',      icon: LuUtensils,     color: '#0284c7', bg: '#eff6ff', path: '/restaurant' },
+  { label: 'Housekeeping',    icon: LuClipboardList,color: '#112936', bg: '#f1f5f9', path: '/housekeeping' },
+  { label: 'Banquet',         icon: LuHotel,        color: '#112936', bg: '#f0fdfa', path: '/banquet' },
   { label: 'Reports',         icon: LuChartBar,     color: '#15803d', bg: '#f0fdf4', path: '/reports' },
   { label: 'Guest History',   icon: LuHistory,      color: '#64748b', bg: '#f8fafc', path: '/front-desk/guest-history' },
 ];

@@ -34,6 +34,7 @@ const TableMasterPage = ({ showToast }) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete,
     handleBulkSave
   } = useTableMaster(toastTrigger);
 
@@ -49,10 +50,9 @@ const TableMasterPage = ({ showToast }) => {
         return outlet?.store_name || outlet?.name || v || 'Main Restaurant';
       }
     },
-    { key: 'department', label: 'Section', sortable: true },
     { key: 'pax', label: 'PAX', sortable: true, render: (v) => (v !== undefined && v !== null && v !== '') ? `${v} Pax` : '' },
     { key: 'area', label: 'Area', sortable: true, render: (v, row) => row.area || row.floor || '' },
-    { key: 'status', label: 'Status', sortable: true }
+    { key: 'status', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Active' }
   ];
 
   const handleOpenAdd = () => {
@@ -73,6 +73,7 @@ const TableMasterPage = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Table"
         searchPlaceholder="Search table name or department..."
@@ -92,6 +93,7 @@ const TableMasterPage = ({ showToast }) => {
         areaFilter={areaFilter}
         setAreaFilter={setAreaFilter}
         areasList={areasList}
+        onBulkDelete={handleBulkDelete}
       />
 
       {modal.open && (

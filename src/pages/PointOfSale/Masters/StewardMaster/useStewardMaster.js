@@ -8,7 +8,7 @@ export const useStewardMaster = (showToast) => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [outletFilter, setOutletFilter] = useState('All');
   const [outletsList, setOutletsList] = useState([]);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -63,8 +63,9 @@ export const useStewardMaster = (showToast) => {
     // Search filter
     if (searchTerm.trim() !== '') {
       const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(row => 
-        String(row.name || '').toLowerCase().includes(lowerSearch)
+      result = result.filter(row =>
+        String(row.name || '').toLowerCase().includes(lowerSearch) ||
+        String(row.area || '').toLowerCase().includes(lowerSearch)
       );
     }
 
@@ -117,6 +118,7 @@ export const useStewardMaster = (showToast) => {
     const payload = {
       id: modal.mode === 'edit' ? modal.row?.id : undefined,
       name: trimmedName,
+      area: formData.area || '',
       store_id: formData.store_id || 'STORE_1',
       active: formData.active !== false ? 'Yes' : 'No'
     };
@@ -147,6 +149,21 @@ export const useStewardMaster = (showToast) => {
     });
   }, [deleteModal, showToast, fetchStewards]);
 
+  const handleBulkDelete = useCallback(async (selectedRows) => {
+    try {
+      for (const row of selectedRows) {
+        if (row.id) {
+          await posApi.deleteSteward(row.id);
+        }
+      }
+      if (showToast) showToast(`Deleted ${selectedRows.length} steward(s) successfully.`);
+      fetchStewards();
+      try { window.dispatchEvent(new Event('stewardsMasterRefreshed')); } catch (e) { }
+    } catch (err) {
+      if (showToast) showToast('Failed to delete selected stewards');
+    }
+  }, [showToast, fetchStewards]);
+
   return {
     data: processedData,
     rawCount: data.length,
@@ -175,8 +192,9 @@ export const useStewardMaster = (showToast) => {
     openEdit,
     openDelete,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   };
 };
-
 export default useStewardMaster;
+

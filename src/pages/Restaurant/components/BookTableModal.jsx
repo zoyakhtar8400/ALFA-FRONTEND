@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaCalendarAlt, FaUser, FaUsers, FaPhone, FaGlassCheers, FaClock } from 'react-icons/fa';
+import { formatTableLabel } from '../../../utils/tableFormat';
 
 const BookTableModal = ({ isOpen, onClose, tables, onBook, initialTableId = '', initialDate = '' }) => {
   const todayStr = new Date().toISOString().split('T')[0];
@@ -43,11 +44,11 @@ const BookTableModal = ({ isOpen, onClose, tables, onBook, initialTableId = '', 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedTableId) {
-      alert("Please select a table.");
+      if (window.showToast) window.showToast('Please select a table to proceed.', 'warning');
       return;
     }
     if (!customerName.trim()) {
-      alert("Please enter customer name.");
+      if (window.showToast) window.showToast('Please enter the customer name.', 'warning');
       return;
     }
 
@@ -86,7 +87,7 @@ const BookTableModal = ({ isOpen, onClose, tables, onBook, initialTableId = '', 
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.3)', backdropFilter: 'blur(2px)', zIndex: 999 }} />
 
       {/* Modal box */}
-      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: '#fff', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)', width: '480px', maxWidth: '95%', padding: '24px', zIndex: 1000, fontFamily: 'system-ui', color: '#0f172a' }}>
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: '#fff', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)', width: '480px', maxWidth: '95%', padding: '24px', zIndex: 1000, fontFamily: 'var(--font-family, system-ui)', color: '#0f172a' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -156,7 +157,7 @@ const BookTableModal = ({ isOpen, onClose, tables, onBook, initialTableId = '', 
                   <option value="">Choose a blank table...</option>
                   {blankTables.map(t => (
                     <option key={t.id} value={t.id}>
-                      Table T{t.no} (Blank) - {t.seats} Pax {t.floor ? `· ${t.floor}` : ''}
+                      {formatTableLabel(t.table_name || t.no)} (Blank) - {t.seats} Pax {t.floor ? `· ${t.floor}` : ''}
                     </option>
                   ))}
                 </>

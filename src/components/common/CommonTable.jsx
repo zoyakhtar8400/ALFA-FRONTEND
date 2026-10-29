@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { FaFileExport, FaEdit, FaTrash, FaSync, FaEye } from 'react-icons/fa';
 import { handlePrint as globalHandlePrint } from '../../utils/printUtil';
 import PageHeader from './PageHeader';
@@ -8,16 +8,32 @@ import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import { PrintHeader } from './PrintComponent';
 import CommonActionToolbar from './CommonActionToolbar';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
+import ColumnSelectionPrintModal from './ColumnSelectionPrintModal';
 
 /**
  * TableRow component memoized using React.memo to prevent unnecessary row re-renders.
  */
-const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }) => {
+const TableRow = React.memo(({
+  row,
+  index,
+  indexOfFirstEntry,
+  columns,
+  actions,
+  selectable,
+  isSelected,
+  onToggleSelect,
+  rowId,
+  hiddenPrintColKeys = []
+}) => {
   return (
     <tr
       tabIndex={0}
-      className="focusable-row outline-none transition-colors hover:bg-slate-50/80"
-      style={{ borderBottom: '1px solid #f8fafc' }}
+      className={`focusable-row outline-none transition-colors ${isSelected ? 'bg-teal-50/70' : 'hover:bg-slate-50/80'}`}
+      style={{
+        borderBottom: '1px solid #f8fafc',
+        backgroundColor: isSelected ? '#f0fdfa' : undefined
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           if (actions && actions.length > 0) {
@@ -26,16 +42,39 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
         }
       }}
     >
-      <td style={{ textAlign: 'center', fontWeight: 700, padding: '14px 18px', fontSize: '13px', color: '#64748b' }}>
+      {selectable && (
+        <td className="no-print" style={{ width: '44px', textAlign: 'center', padding: '14px 10px' }} onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={!!isSelected}
+            onChange={() => onToggleSelect(rowId)}
+            style={{
+              width: '16px',
+              height: '16px',
+              cursor: 'pointer',
+              accentColor: '#0d9488',
+              borderRadius: '4px'
+            }}
+            aria-label={`Select row ${indexOfFirstEntry + index + 1}`}
+          />
+        </td>
+      )}
+
+      <td
+        className={hiddenPrintColKeys?.includes('_sno') ? 'print-col-hide' : ''}
+        style={{ textAlign: 'center', fontWeight: 700, padding: '14px 18px', fontSize: '13px', color: '#64748b' }}
+      >
         {indexOfFirstEntry + index + 1}
       </td>
 
       {columns.map((col) => {
         if (col.key === 'action') {
           return (
-            <td key={col.key} className="action-column" style={{ padding: '14px 18px' }} onClick={(e) => e.stopPropagation()}>
+            <td key={col.key} className="action-column no-print" style={{ padding: '14px 18px' }} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-2">
                 {actions && actions.map((act, actIdx) => {
+                  if (typeof act.hide === 'function' && act.hide(row)) return null;
+                  if (typeof act.show === 'function' && !act.show(row)) return null;
                   const isDelete = act.isDanger || act.label.toLowerCase() === 'delete';
                   const IconComponent = act.icon || (isDelete ? <FaTrash size={14} /> : <FaEdit size={14} />);
                   const href = act.getHref ? act.getHref(row) : null;
@@ -73,17 +112,27 @@ const TableRow = React.memo(({ row, index, indexOfFirstEntry, columns, actions }
           );
         }
 
+        const isHidden = hiddenPrintColKeys?.includes(col.key);
+
         // Apply StatusBadge if renderStatus is true
         if (col.renderStatus) {
           return (
-            <td key={col.key} style={{ padding: '14px 18px' }}>
+            <td
+              key={col.key}
+              className={isHidden ? 'print-col-hide' : ''}
+              style={{ padding: '14px 18px' }}
+            >
               <StatusBadge value={row[col.key]} activeValue={col.activeValue} />
             </td>
           );
         }
 
         return (
-          <td key={col.key} style={{ padding: '14px 18px', fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+          <td
+            key={col.key}
+            className={isHidden ? 'print-col-hide' : ''}
+            style={{ padding: '14px 18px', fontSize: '13px', fontWeight: 600, color: '#334155' }}
+          >
             {col.render ? col.render(row[col.key], row) : row[col.key]}
           </td>
         );
@@ -112,14 +161,16 @@ const CommonTable = ({
   onlyTable = false,
   emptyMessage = 'No matching records found',
   extraButtons = [],
-  showBack = false,
+  showBack = true,
   onBack = null,
   outletFilter = 'All',
   setOutletFilter = null,
   outletsList = [],
   areaFilter = 'All',
   setAreaFilter = null,
-  areasList = []
+  areasList = [],
+  selectable = true,
+  onBulkDelete = null
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -130,6 +181,30 @@ const CommonTable = ({
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [localLoading, setLocalLoading] = useState(false);
+
+  // Selection states
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
+  const selectAllCheckboxRef = useRef(null);
+
+  const getRowId = useCallback((row, fallbackIndex) => {
+    if (!row) return String(fallbackIndex);
+    if (row.id !== undefined && row.id !== null) return String(row.id);
+    if (row._id !== undefined && row._id !== null) return String(row._id);
+    if (row.product_group_id !== undefined && row.product_group_id !== null) return String(row.product_group_id);
+    if (row.category_refid !== undefined && row.category_refid !== null) return String(row.category_refid);
+    if (row.table_id !== undefined && row.table_id !== null) return String(row.table_id);
+    if (row.table_no !== undefined && row.table_no !== null) return `tbl_${row.table_no}`;
+    if (row.item_id !== undefined && row.item_id !== null) return String(row.item_id);
+    if (row.code !== undefined && row.code !== null) return `code_${row.code}`;
+    if (row.name !== undefined && row.name !== null) return `name_${row.name}`;
+    return String(fallbackIndex);
+  }, []);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [searchTerm, statusFilter, refreshKey, outletFilter, areaFilter]);
 
   // Automatically append Action column if actions are provided but no 'action' key exists in columns
   const effectiveColumns = useMemo(() => {
@@ -320,10 +395,38 @@ const CommonTable = ({
     showToast('Exported ALFA HMS Excel Report successfully!');
   }, [data, columns, title, showToast, processedData]);
 
-  // Handle Print
+  // Print Column Selection state
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [hiddenPrintColKeys, setHiddenPrintColKeys] = useState([]);
+
+  const selectablePrintColumns = useMemo(() => {
+    const dataCols = (effectiveColumns || columns || [])
+      .filter(c => c.key !== 'action' && !c.isAction && (c.label || c.header || c.name))
+      .map(c => ({
+        key: c.key,
+        label: c.label || c.header || c.name || c.key
+      }));
+    return [
+      { key: '_sno', label: 'Sr. No. (#)' },
+      ...dataCols
+    ];
+  }, [effectiveColumns, columns]);
+
+  // Handle Print - Opens column selection modal
   const handlePrint = useCallback(() => {
-    globalHandlePrint();
+    setIsPrintModalOpen(true);
   }, []);
+
+  const handleConfirmPrint = useCallback((selectedKeys) => {
+    const allKeys = selectablePrintColumns.map(c => c.key);
+    const hidden = allKeys.filter(k => !selectedKeys.includes(k));
+    setHiddenPrintColKeys(hidden);
+    setIsPrintModalOpen(false);
+
+    setTimeout(() => {
+      globalHandlePrint();
+    }, 150);
+  }, [selectablePrintColumns]);
 
   // Handle Refresh
   const handleRefresh = useCallback(() => {
@@ -349,6 +452,69 @@ const CommonTable = ({
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
   const currentEntries = processedData.slice(indexOfFirstEntry, indexOfLastEntry);
+
+  const allProcessedIds = useMemo(() => {
+    return processedData.map((row, idx) => getRowId(row, idx));
+  }, [processedData, getRowId]);
+
+  const isAllSelected = useMemo(() => {
+    return allProcessedIds.length > 0 && selectedIds.length >= allProcessedIds.length;
+  }, [allProcessedIds, selectedIds]);
+
+  const isIndeterminate = useMemo(() => {
+    return selectedIds.length > 0 && !isAllSelected;
+  }, [selectedIds, isAllSelected]);
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allProcessedIds);
+    }
+  }, [isAllSelected, allProcessedIds]);
+
+  const handleToggleRow = useCallback((rowId) => {
+    setSelectedIds(prev =>
+      prev.includes(rowId) ? prev.filter(id => id !== rowId) : [...prev, rowId]
+    );
+  }, []);
+
+  const handleConfirmBulkDelete = async () => {
+    const selectedRows = processedData.filter((row, idx) => selectedIds.includes(getRowId(row, idx)));
+    const count = selectedIds.length;
+    
+    try {
+      if (typeof onBulkDelete === 'function') {
+        await onBulkDelete(selectedRows, selectedIds);
+      } else {
+        const deleteAction = actions.find(a => a.isDanger || (a.label && a.label.toLowerCase() === 'delete'));
+        if (deleteAction) {
+          if (typeof deleteAction.onBulkDelete === 'function') {
+            await deleteAction.onBulkDelete(selectedRows, selectedIds);
+          } else if (typeof deleteAction.onDelete === 'function') {
+            for (const row of selectedRows) {
+              await deleteAction.onDelete(row);
+            }
+          } else {
+            console.warn('CommonTable: onBulkDelete handler not provided by parent component.');
+          }
+        }
+      }
+      showToast(`Deleted ${count} item(s) successfully.`);
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Error deleting selected items.');
+    } finally {
+      setSelectedIds([]);
+      setBulkDeleteModalOpen(false);
+    }
+  };
 
   const isTableLoading = isLoading || localLoading;
 
@@ -432,6 +598,101 @@ const CommonTable = ({
         )}
       </div>
 
+      {/* Selection & Bulk Action Bar */}
+      {selectable && selectedIds.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '10px',
+          padding: '8px 16px',
+          marginTop: '10px',
+          marginBottom: '2px',
+          boxShadow: '0 1px 3px rgba(239, 68, 68, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{
+              background: '#dc2626',
+              color: '#ffffff',
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '2px 8px',
+              borderRadius: '999px'
+            }}>
+              {selectedIds.length}
+            </span>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b' }}>
+              {isAllSelected
+                ? `All ${selectedIds.length} records selected across all pages`
+                : `${selectedIds.length} records selected`}
+            </span>
+            {!isAllSelected && allProcessedIds.length > selectedIds.length && (
+              <button
+                type="button"
+                onClick={() => setSelectedIds(allProcessedIds)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#b91c1c',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '2px 6px'
+                }}
+                className="hover:text-red-950"
+              >
+                Select all {allProcessedIds.length} records across all pages
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#475569',
+                cursor: 'pointer'
+              }}
+              className="hover:bg-slate-50"
+            >
+              Clear Selection
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkDeleteModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#dc2626',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: '#ffffff',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(220, 38, 38, 0.2)'
+              }}
+              className="hover:bg-red-700"
+            >
+              <FaTrash size={11} />
+              <span>Delete Selected ({selectedIds.length})</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table Container styled identical to View KOT list */}
       <div style={{ position: 'relative', background: '#fff', borderRadius: '14px', border: '1px solid #e2e8f0', overflowX: 'auto', overflowY: 'visible', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginTop: '12px', minHeight: '180px', WebkitOverflowScrolling: 'touch' }}>
         <style dangerouslySetInnerHTML={{
@@ -467,12 +728,36 @@ const CommonTable = ({
           <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ width: '50px', textAlign: 'center', padding: '13px 18px', fontSize: '12px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
+                {selectable && (
+                  <th className="no-print" style={{ width: '44px', textAlign: 'center', padding: '13px 10px' }}>
+                    <input
+                      type="checkbox"
+                      ref={selectAllCheckboxRef}
+                      checked={isAllSelected}
+                      onChange={handleToggleSelectAll}
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        cursor: 'pointer',
+                        accentColor: '#0d9488',
+                        borderRadius: '4px'
+                      }}
+                      title="Select all records across all pages"
+                      aria-label="Select all records across all pages"
+                    />
+                  </th>
+                )}
+                <th
+                  className={hiddenPrintColKeys.includes('_sno') ? 'print-col-hide' : ''}
+                  style={{ width: '50px', textAlign: 'center', padding: '13px 18px', fontSize: '12px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                >
+                  #
+                </th>
                 {effectiveColumns.map((col) => (
                   <th
                     key={col.key}
                     onClick={() => handleSort(col.key, col.sortable !== false)}
-                    className={col.sortable !== false ? 'cursor-pointer select-none' : ''}
+                    className={`${col.sortable !== false ? 'cursor-pointer select-none' : ''} ${col.key === 'action' ? 'action-column no-print' : ''} ${hiddenPrintColKeys.includes(col.key) ? 'print-col-hide' : ''}`.trim()}
                     style={{ padding: '13px 18px', fontSize: '12px', fontWeight: '700', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.5px' }}
                   >
                     <div className="flex items-center gap-1">
@@ -488,16 +773,25 @@ const CommonTable = ({
               </tr>
             </thead>
             <tbody>
-              {currentEntries.map((row, index) => (
-                <TableRow
-                  key={row.id || index}
-                  row={row}
-                  index={index}
-                  indexOfFirstEntry={indexOfFirstEntry}
-                  columns={effectiveColumns}
-                  actions={actions}
-                />
-              ))}
+              {currentEntries.map((row, index) => {
+                const rowId = getRowId(row, indexOfFirstEntry + index);
+                const isSelected = selectedIds.includes(rowId);
+                return (
+                  <TableRow
+                    key={rowId}
+                    row={row}
+                    index={index}
+                    indexOfFirstEntry={indexOfFirstEntry}
+                    columns={effectiveColumns}
+                    actions={actions}
+                    selectable={selectable}
+                    isSelected={isSelected}
+                    onToggleSelect={handleToggleRow}
+                    rowId={rowId}
+                    hiddenPrintColKeys={hiddenPrintColKeys}
+                  />
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -513,6 +807,24 @@ const CommonTable = ({
           onItemsPerPageChange={setEntriesPerPage}
         />
       )}
+
+      {/* Built-in Delete Confirmation Modal for Bulk Delete */}
+      <DeleteConfirmationModal
+        isOpen={bulkDeleteModalOpen}
+        onClose={() => setBulkDeleteModalOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+        itemName={`${selectedIds.length} selected record(s)`}
+        message={`Are you sure you want to delete ${selectedIds.length} selected record(s)? This action cannot be undone.`}
+      />
+
+      {/* Universal Column Selection Print Modal */}
+      <ColumnSelectionPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={selectablePrintColumns}
+        onPrint={handleConfirmPrint}
+        title={`Print Columns - ${title || 'Records'}`}
+      />
     </div>
   );
 };

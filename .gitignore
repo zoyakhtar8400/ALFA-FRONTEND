@@ -12,6 +12,25 @@ dist
 dist-ssr
 *.local
 
+# Build & Release outputs
+release-builds/
+release-builds/**
+staging_asar/
+*.asar
+*.exe
+*.zip
+*.pdf
+
+# Scratch & Temporary files
+scratch/
+packaging-log.txt
+*.tmp
+
+# Environment & Secrets (ignored)
+.env
+.env.*
+*.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

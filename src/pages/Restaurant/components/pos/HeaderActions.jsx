@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { FaUtensils, FaUser, FaUsers, FaCommentAlt, FaUserTie, FaTruck, FaTag } from 'react-icons/fa';
+import { FaUtensils, FaUsers, FaUser, FaCommentAlt, FaUserTie, FaTruck, FaTag } from 'react-icons/fa';
 import posApi from '../../../../api/posApi';
 import { useRestaurant } from '../../../../context/RestaurantContext';
+import { formatTableNo } from '../../../../utils/tableFormat';
 
 const formatTableNoDisplay = (tableVal) => {
   if (!tableVal) return 'Table';
-  return String(tableVal).trim();
+  return formatTableNo(tableVal);
 };
 
 const resolveStoreId = (val, outletsList = []) => {
   if (!val || val === 'All' || val === 'ALL') return 'All';
   const str = String(val).trim();
-  
+
   if (Array.isArray(outletsList) && outletsList.length > 0) {
-    const matched = outletsList.find(o => 
+    const matched = outletsList.find(o =>
       String(o.store_id || '').toLowerCase() === str.toLowerCase() ||
       String(o.id || '') === str ||
       `store_${o.id}`.toLowerCase() === str.toLowerCase() ||
@@ -137,18 +138,13 @@ const HeaderActions = ({
     };
   }, [activeStoreId, activeOutletId, allOutlets]);
 
-  const isCustomerLinked = Boolean(customerName || (mobileNumber && mobileNumber !== '—'));
-  const customerLabel = isCustomerLinked
-    ? `${customerName || 'Customer'}${mobileNumber && mobileNumber !== '—' ? ` (${mobileNumber})` : ''}`
-    : 'Customer';
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-      {/* Row 1: Table, Customer, PAX, Remarks */}
+      {/* Row 1: Table, PAX, Remarks, Section Pill */}
       <div style={{
         display: 'flex',
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'stretch',
         width: '100%',
         gap: '6px',
         boxSizing: 'border-box'
@@ -161,63 +157,31 @@ const HeaderActions = ({
               flex: '1 1 0',
               minWidth: 0,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '4px',
-              padding: '6px 4px',
+              padding: '4px 2px',
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
               background: '#ffffff',
-              color: '#0e7490',
-              fontWeight: 800,
-              fontSize: '0.68rem',
               cursor: 'pointer',
               transition: 'all 0.15s',
               boxSizing: 'border-box',
-              height: '36px'
+              height: '44px'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
             onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
             title="Select Assigned Table"
           >
-            <FaUtensils size={11} style={{ flexShrink: 0 }} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <FaUtensils size={12} color="#475569" style={{ flexShrink: 0 }} />
+            <span style={{
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              color: '#c92534', fontWeight: 900, fontSize: '0.8rem', lineHeight: 1.1, marginTop: '2px'
+            }}>
               {formatTableNoDisplay(assignedTableNo)}
             </span>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={onCustomerClick}
-          style={{
-            flex: '1 1 0',
-            minWidth: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-            padding: '6px 4px',
-            border: isCustomerLinked ? '1px solid #0e7490' : '1px solid #cbd5e1',
-            borderRadius: '6px',
-            background: isCustomerLinked ? '#f0f9ff' : '#ffffff',
-            color: '#0e7490',
-            fontWeight: 800,
-            fontSize: '0.68rem',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-            boxSizing: 'border-box',
-            height: '36px'
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
-          onMouseLeave={e => e.currentTarget.style.background = isCustomerLinked ? '#f0f9ff' : '#ffffff'}
-          title="Attach Customer Information"
-        >
-          <FaUser size={11} style={{ flexShrink: 0 }} />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {customerLabel}
-          </span>
-        </button>
 
         {serviceType === 'Dine In' && (
           <button
@@ -227,31 +191,64 @@ const HeaderActions = ({
               flex: '1 1 0',
               minWidth: 0,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '4px',
-              padding: '6px 4px',
+              padding: '4px 2px',
               border: '1px solid #cbd5e1',
               borderRadius: '6px',
               background: '#ffffff',
-              color: '#0e7490',
-              fontWeight: 800,
-              fontSize: '0.68rem',
               cursor: 'pointer',
               transition: 'all 0.15s',
               boxSizing: 'border-box',
-              height: '36px'
+              height: '44px'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
             onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
             title="Guest PAX Count"
           >
-            <FaUsers size={11} style={{ flexShrink: 0 }} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {paxCount > 0 ? `PAX:${paxCount}` : 'PAX:1'}
+            <FaUsers size={13} color="#475569" style={{ flexShrink: 0 }} />
+            <span style={{
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              color: '#c92534', fontWeight: 900, fontSize: '0.8rem', lineHeight: 1.1, marginTop: '2px'
+            }}>
+              {paxCount > 0 ? paxCount : 1}
             </span>
           </button>
         )}
+
+        {/* Customer Info Button beside PAX */}
+        <button
+          type="button"
+          onClick={onCustomerClick}
+          style={{
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px 2px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '6px',
+            background: customerName ? '#f0fdfa' : '#ffffff',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            boxSizing: 'border-box',
+            height: '44px'
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+          onMouseLeave={e => e.currentTarget.style.background = customerName ? '#f0fdfa' : '#ffffff'}
+          title={customerName ? `Customer: ${customerName} (${mobileNumber || ''})` : "Customer Info"}
+        >
+          <FaUser size={12} color={customerName ? '#0e7490' : '#475569'} style={{ flexShrink: 0 }} />
+          <span style={{
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            color: customerName ? '#0e7490' : '#475569', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.1, marginTop: '2px', maxWidth: '100%'
+          }}>
+            {customerName || 'Customer'}
+          </span>
+        </button>
 
         <button
           type="button"
@@ -260,32 +257,34 @@ const HeaderActions = ({
             flex: '1 1 0',
             minWidth: 0,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '6px 4px',
+            padding: '4px 2px',
             border: '1px solid #cbd5e1',
             borderRadius: '6px',
             background: '#ffffff',
-            color: '#0e7490',
-            fontWeight: 800,
-            fontSize: '0.68rem',
             cursor: 'pointer',
             transition: 'all 0.15s',
             position: 'relative',
             boxSizing: 'border-box',
-            height: '36px'
+            height: '44px'
           }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
           onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
           title="Add Order / Kitchen Remarks"
         >
-          <FaCommentAlt size={11} style={{ flexShrink: 0 }} />
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Remarks</span>
+          <FaCommentAlt size={12} color={hasRemarks ? '#c92534' : '#64748b'} style={{ flexShrink: 0 }} />
+          <span style={{
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            color: '#475569', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.1, marginTop: '2px'
+          }}>
+            Remarks
+          </span>
           {hasRemarks && (
             <span style={{
-              position: 'absolute', top: '3px', right: '4px',
-              width: '5px', height: '5px', background: '#ef4444',
+              position: 'absolute', top: '5px', right: '8px',
+              width: '6px', height: '6px', background: '#ef4444',
               borderRadius: '50%'
             }} />
           )}
@@ -293,26 +292,31 @@ const HeaderActions = ({
       </div>
 
       {/* Row 2: Waiter, Delivery, NC Type Dropdowns */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', minWidth: 0 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: serviceType === 'Dine In' ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+        gap: '8px',
+        minWidth: 0
+      }}>
         {/* 1. Waiter */}
         {serviceType === 'Dine In' && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '4px',
-            padding: '3px 6px', border: '1px solid #cbd5e1', borderRadius: '6px',
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '4px 8px', border: '1.5px solid #cbd5e1', borderRadius: '7px',
             background: '#ffffff', minWidth: 0, overflow: 'hidden'
           }}>
-            <FaUserTie size={11} color="#0e7490" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap', flexShrink: 0 }}>Waiter:</span>
+            <FaUserTie size={14} color="#1b7a6d" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#1b7a6d', whiteSpace: 'nowrap', flexShrink: 0 }}>Waiter:</span>
             <select
               id="pos-waiter-select"
               value={waiter || ''}
               onChange={e => onWaiterChange && onWaiterChange(e.target.value)}
               disabled={isPaid}
               style={{
-                flex: 1, minWidth: 0, width: '100%', height: '24px', borderRadius: '4px',
+                flex: 1, minWidth: 0, width: '100%', height: '30px', borderRadius: '4px',
                 border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
-                fontSize: '0.7rem', fontWeight: 700, color: waiter ? '#0f172a' : '#94a3b8',
-                outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '2px',
+                fontSize: '0.86rem', fontWeight: 700, color: waiter ? '#0f172a' : '#94a3b8',
+                outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px',
                 textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
               }}
             >
@@ -325,51 +329,53 @@ const HeaderActions = ({
         )}
 
         {/* 2. Delivery */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '4px',
-          padding: '3px 6px', border: '1px solid #cbd5e1', borderRadius: '6px',
-          background: '#ffffff', minWidth: 0, overflow: 'hidden'
-        }}>
-          <FaTruck size={11} color="#0e7490" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap', flexShrink: 0 }}>Delivery:</span>
-          <select
-            id="pos-delivery-select"
-            value={deliveryBoy || ''}
-            onChange={e => onDeliveryBoyChange && onDeliveryBoyChange(e.target.value)}
-            disabled={isPaid}
-            style={{
-              flex: 1, minWidth: 0, width: '100%', height: '24px', borderRadius: '4px',
-              border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
-              fontSize: '0.7rem', fontWeight: 700, color: deliveryBoy ? '#0f172a' : '#94a3b8',
-              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '2px',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
-            }}
-          >
-            <option value="">— Delivery —</option>
-            {deliveryBoysList.map((b, idx) => (
-              <option key={`delivery-${b}-${idx}`} value={b}>{b}</option>
-            ))}
-          </select>
-        </div>
+        {serviceType !== 'Takeaway' && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '4px 8px', border: '1.5px solid #cbd5e1', borderRadius: '7px',
+            background: '#ffffff', minWidth: 0, overflow: 'hidden'
+          }}>
+            <FaTruck size={14} color="#1b7a6d" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#1b7a6d', whiteSpace: 'nowrap', flexShrink: 0 }}>Delivery:</span>
+            <select
+              id="pos-delivery-select"
+              value={deliveryBoy || ''}
+              onChange={e => onDeliveryBoyChange && onDeliveryBoyChange(e.target.value)}
+              disabled={isPaid}
+              style={{
+                flex: 1, minWidth: 0, width: '100%', height: '30px', borderRadius: '4px',
+                border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
+                fontSize: '0.86rem', fontWeight: 700, color: deliveryBoy ? '#0f172a' : '#94a3b8',
+                outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px',
+                textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
+              }}
+            >
+              <option value="">— Delivery —</option>
+              {deliveryBoysList.map((b, idx) => (
+                <option key={`delivery-${b}-${idx}`} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* 3. NC Type */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '4px',
-          padding: '3px 6px', border: '1px solid #cbd5e1', borderRadius: '6px',
+          display: 'flex', alignItems: 'center', gap: '6px',
+          padding: '4px 8px', border: '1.5px solid #cbd5e1', borderRadius: '7px',
           background: '#ffffff', minWidth: 0, overflow: 'hidden'
         }}>
-          <FaTag size={11} color="#0e7490" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#0e7490', whiteSpace: 'nowrap', flexShrink: 0 }}>NC Type:</span>
+          <FaTag size={14} color="#1b7a6d" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#1b7a6d', whiteSpace: 'nowrap', flexShrink: 0 }}>NC Type:</span>
           <select
             id="pos-nctype-select"
             value={ncType || ''}
             onChange={e => onNcTypeChange && onNcTypeChange(e.target.value)}
             disabled={isPaid}
             style={{
-              flex: 1, minWidth: 0, width: '100%', height: '24px', borderRadius: '4px',
+              flex: 1, minWidth: 0, width: '100%', height: '30px', borderRadius: '4px',
               border: '1px solid #e2e8f0', background: isPaid ? '#f1f5f9' : '#fff',
-              fontSize: '0.7rem', fontWeight: 700, color: ncType ? '#0f172a' : '#94a3b8',
-              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '2px',
+              fontSize: '0.86rem', fontWeight: 700, color: ncType ? '#0f172a' : '#94a3b8',
+              outline: 'none', cursor: isPaid ? 'not-allowed' : 'pointer', paddingLeft: '4px',
               textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'
             }}
           >

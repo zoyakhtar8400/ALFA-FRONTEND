@@ -5,13 +5,6 @@ import DuplicateConfirmationModal from '../../../../components/common/DuplicateC
 import DeliveryMasterForm from './DeliveryMasterForm';
 import { useDeliveryMaster } from './useDeliveryMaster';
 
-const columns = [
-  { key: 'partner', label: 'Partner Name', sortable: true },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'phone', label: 'Phone', sortable: true },
-  { key: 'status', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Active' }
-];
-
 const DeliveryMasterPage = ({ showToast }) => {
   const toastTrigger = useCallback((msg) => {
     if (showToast) showToast(msg);
@@ -27,6 +20,9 @@ const DeliveryMasterPage = ({ showToast }) => {
     outletFilter,
     setOutletFilter,
     outletsList,
+    areaFilter,
+    setAreaFilter,
+    areasList,
     modal,
     setModal,
     deleteModal,
@@ -34,13 +30,24 @@ const DeliveryMasterPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useDeliveryMaster(toastTrigger);
 
   const columns = [
     { key: 'partner', label: 'Partner Name', sortable: true },
     { key: 'name', label: 'Name', sortable: true },
     { key: 'phone', label: 'Phone', sortable: true },
+    {
+      key: 'area',
+      label: 'Assigned Area',
+      sortable: true,
+      render: (v) => (
+        <span className="font-semibold text-slate-700">
+          {v || <span className="text-slate-400 font-normal">All Areas</span>}
+        </span>
+      )
+    },
     {
       key: 'store_id',
       label: 'Outlet',
@@ -81,10 +88,14 @@ const DeliveryMasterPage = ({ showToast }) => {
         outletFilter={outletFilter}
         setOutletFilter={setOutletFilter}
         outletsList={outletsList}
+        areaFilter={areaFilter}
+        setAreaFilter={setAreaFilter}
+        areasList={areasList}
         actions={[
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Delivery"
         searchPlaceholder="Search delivery boy or partner..."

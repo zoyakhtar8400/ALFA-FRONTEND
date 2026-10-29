@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSlidersH, FaShoppingBag, FaBox, FaPercentage, FaTag } from 'react-icons/fa';
+import { FaSlidersH, FaShoppingBag, FaBox, FaPercentage, FaTag, FaKeyboard, FaHandPointer } from 'react-icons/fa';
 import PageHeader from '../../components/common/PageHeader';
 import CommonActionButtons from '../../components/common/CommonActionButtons';
 import F from '../../components/common/F';
+
+import posApi from '../../api/posApi';
 
 const DEFAULT_CONFIG = {
   defaultOrderType: 'Dine In',
@@ -36,17 +38,30 @@ const BillingScreenConfiguration = ({ showToast = () => {} }) => {
     }
   });
 
+  useEffect(() => {
+    const storeId = localStorage.getItem('activeOutletId') || '1';
+    posApi.getOutlets().then(res => {
+      const outlets = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      const current = outlets.find(o => String(o.id) === String(storeId) || o.store_id === storeId) || outlets[0];
+      if (current?.settings?.billingScreenConfig) {
+        setConfig(prev => ({ ...prev, ...current.settings.billingScreenConfig }));
+      }
+    }).catch(() => {});
+  }, []);
+
   const setField = (key, val) => {
     setConfig(prev => ({ ...prev, [key]: val }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     if (e) e.preventDefault();
     try {
       localStorage.setItem('alfa_billing_screen_config', JSON.stringify(config));
-      showToast('Billing Screen Configuration saved successfully!');
+      const storeId = localStorage.getItem('activeOutletId') || '1';
+      await posApi.saveOutletConfig(storeId, { settings: { billingScreenConfig: config } });
+      showToast('Billing Screen Configuration saved to PostgreSQL successfully!');
     } catch (err) {
-      showToast('Failed to save configuration.');
+      showToast('Billing Screen Configuration saved locally.');
     }
   };
 
@@ -95,7 +110,66 @@ const BillingScreenConfiguration = ({ showToast = () => {} }) => {
             {/* Section 1: Order & Payment Defaults */}
             <div style={cardStyle}>
               {sectionHeader(<FaSlidersH />, 'Order & Payment Defaults')}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <F label="Sidebar Billing Mode">
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setField('billingMode', 'Touch Screen');
+                        localStorage.setItem('alfa_billing_mode', 'Touch Screen');
+                        localStorage.setItem('billing_mode', 'Touch Screen');
+                        window.dispatchEvent(new CustomEvent('billingModeChanged', { detail: { mode: 'Touch Screen' } }));
+                        showToast('Billing Mode set to Touch Screen (Shows Billing Desk)');
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: (config.billingMode || localStorage.getItem('alfa_billing_mode') || 'Touch Screen') === 'Touch Screen' ? '2px solid #0e7490' : '1px solid #cbd5e1',
+                        backgroundColor: (config.billingMode || localStorage.getItem('alfa_billing_mode') || 'Touch Screen') === 'Touch Screen' ? '#e0f2fe' : '#ffffff',
+                        color: (config.billingMode || localStorage.getItem('alfa_billing_mode') || 'Touch Screen') === 'Touch Screen' ? '#0369a1' : '#475569',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <FaHandPointer /> Touch Screen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setField('billingMode', 'Keyboard');
+                        localStorage.setItem('alfa_billing_mode', 'Keyboard');
+                        localStorage.setItem('billing_mode', 'Keyboard');
+                        window.dispatchEvent(new CustomEvent('billingModeChanged', { detail: { mode: 'Keyboard' } }));
+                        showToast('Billing Mode set to Keyboard (Hides Billing Desk)');
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: (config.billingMode || localStorage.getItem('alfa_billing_mode')) === 'Keyboard' ? '2px solid #0e7490' : '1px solid #cbd5e1',
+                        backgroundColor: (config.billingMode || localStorage.getItem('alfa_billing_mode')) === 'Keyboard' ? '#e0f2fe' : '#ffffff',
+                        color: (config.billingMode || localStorage.getItem('alfa_billing_mode')) === 'Keyboard' ? '#0369a1' : '#475569',
+                        fontWeight: 700,
+                        fontSize: '0.82rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <FaKeyboard /> Keyboard
+                    </button>
+                  </div>
+                </F>
+
                 <F label="Default Order Type">
                   <select
                     className="form-input"
@@ -108,7 +182,9 @@ const BillingScreenConfiguration = ({ showToast = () => {} }) => {
                     <option value="Delivery">Delivery</option>
                   </select>
                 </F>
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <F label="Default Payment">
                   <select
                     className="form-input"

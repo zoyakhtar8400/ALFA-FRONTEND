@@ -7,6 +7,7 @@ import { exportExcel } from '../../../utils/exportExcel';
 import { handlePrint } from '../../../utils/printUtil';
 import { PrintHeader } from '../../../components/common/PrintComponent';
 import { mapSalesRegisterData, SalesRegisterTable } from './components/SalesRegisterReport';
+import ColumnSelectionPrintModal from '../../../components/common/ColumnSelectionPrintModal';
 
 const formatIndianCurrency = (num) => {
   const parsed = parseFloat(num);
@@ -38,7 +39,7 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
         storeId = user.store_id;
       } catch(e) {}
     }
-    return storeId || 'STORE_11';
+    return storeId || 'STORE_1';
   };
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,9 +77,15 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
         const { posApi } = await import('../../../api/posApi');
         const res = await posApi.getOutlets();
         const data = res?.data || res || [];
-        if (Array.isArray(data)) setOutletsList(data);
+        if (Array.isArray(data) && data.length > 0) {
+          setOutletsList(data);
+          setSelectedStoreId(prev => {
+            const hasMatch = data.some(o => o.store_id === prev || String(o.id) === String(prev));
+            return hasMatch ? prev : (data[0].store_id || 'STORE_1');
+          });
+        }
       } catch (e) {
-        console.error('Failed to fetch outlets', e);
+        console.warn('Failed to fetch outlets:', e?.message || 'Network error');
       }
     };
     fetchOutlets();
@@ -252,18 +259,25 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
         // 2. Itemwise Sales
         else if (reportId === 'itemwise-sale' || reportId === 'itemwise-outletwise-sale') {
           const items = soldItems.length > 0 ? soldItems : bills;
-          const rows = items.map((it, idx) => ({
-            c1: String(it.title || it.item_name || it.name || `Item ${idx + 1}`),
-            c2: String(it.unit || 'PCS'),
-            c3: String(it.ncQty || 0),
-            c4: String(it.qty || it.quantity || 1),
-            c5: formatIndianCurrency(it.finalamount || it.total || it.order_total || it.price || 0),
-            outlet: String(it.outlet || 'All Outlets'),
-            mainGrp: String(it.mainGrp || 'General'),
-            grp: String(it.grp || 'General'),
-            rawQty: Number(it.qty || it.quantity || 1),
-            rawValue: Number(it.finalamount || it.total || it.order_total || it.price || 0)
-          }));
+          const rows = items.map((it, idx) => {
+            const baseName = it.title || it.item_name || it.name || `Item ${idx + 1}`;
+            const variant = it.alternative_title || it.variantName || it.variant || '';
+            const displayName = variant && !baseName.toLowerCase().includes(variant.toLowerCase())
+              ? `${baseName} (${variant})`
+              : baseName;
+            return {
+              c1: String(displayName),
+              c2: String(it.unit || 'PCS'),
+              c3: String(it.ncQty || 0),
+              c4: String(it.qty || it.quantity || 1),
+              c5: formatIndianCurrency(it.finalamount || it.total || it.order_total || it.price || 0),
+              outlet: String(it.outlet || 'All Outlets'),
+              mainGrp: String(it.mainGrp || 'General'),
+              grp: String(it.grp || 'General'),
+              rawQty: Number(it.qty || it.quantity || 1),
+              rawValue: Number(it.finalamount || it.total || it.order_total || it.price || 0)
+            };
+          });
           setLiveData(rows);
         } else if (reportId === 'itemwise-categorywise-sale') {
           const items = catdataList.length > 0 ? catdataList : (soldItems.length > 0 ? soldItems : bills);
@@ -707,9 +721,54 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
     return `${datePart} ${timePart}`;
   }, []);
 
+  // Column Selection Print state
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [hiddenColIndices, setHiddenColIndices] = useState([]);
+
+  const selectableReportColumns = useMemo(() => {
+    return (report?.columns || []).map((col, idx) => ({
+      key: String(idx),
+      label: col
+    }));
+  }, [report?.columns]);
+
   const handlePrintClick = () => {
-    handlePrint();
-    if (showToast) showToast('Report sent to print!', 'success');
+    setIsPrintModalOpen(true);
+  };
+
+  const handleConfirmPrint = (selectedKeys) => {
+    const allKeys = selectableReportColumns.map(c => c.key);
+    const hidden = allKeys.filter(k => !selectedKeys.includes(k)).map(Number);
+    setHiddenColIndices(hidden);
+    setIsPrintModalOpen(false);
+
+    // Mark matching cells in the DOM for printing
+    setTimeout(() => {
+      const table = document.querySelector('.custom-table-element');
+      if (table) {
+        table.querySelectorAll('tr').forEach(tr => {
+          const cells = Array.from(tr.children);
+          if (cells.length === (report?.columns?.length || 0)) {
+            cells.forEach((cell, idx) => {
+              if (hidden.includes(idx)) {
+                cell.classList.add('print-col-hide');
+              } else {
+                cell.classList.remove('print-col-hide');
+              }
+            });
+          }
+        });
+      }
+
+      handlePrint();
+      if (showToast) showToast('Report sent to print!', 'success');
+
+      setTimeout(() => {
+        if (table) {
+          table.querySelectorAll('.print-col-hide').forEach(el => el.classList.remove('print-col-hide'));
+        }
+      }, 2000);
+    }, 150);
   };
 
   const handlePDF = () => {
@@ -873,7 +932,13 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           <thead>
             <tr>
               {report.columns.map((col, idx) => (
-                <th key={idx} style={{ textAlign: getColAlign(col) }}>{col}</th>
+                <th
+                  key={idx}
+                  className={hiddenColIndices.includes(idx) ? 'print-col-hide' : ''}
+                  style={{ textAlign: getColAlign(col) }}
+                >
+                  {col}
+                </th>
               ))}
             </tr>
           </thead>
@@ -1781,6 +1846,15 @@ const GenericReportViewer = ({ report, onBack, showToast }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Universal Column Selection Print Modal */}
+      <ColumnSelectionPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={selectableReportColumns}
+        onPrint={handleConfirmPrint}
+        title={`Print Columns - ${report?.name || 'Report'}`}
+      />
     </div>
   );
 };

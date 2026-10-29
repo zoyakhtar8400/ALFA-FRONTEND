@@ -146,6 +146,10 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
       const matchedStore = dbOutlets.find(o => (o.store_name || o.name) === defaultDept || o.store_id === defaultDept);
       const targetStoreId = matchedStore?.store_id || localStorage.getItem('activeOutletId') || 'STORE_1';
 
+      const isRowActive = initialData?.isActive !== undefined
+        ? Boolean(initialData.isActive)
+        : (initialData?.isactive !== undefined ? (initialData.isactive !== 0 && initialData.isactive !== '0' && initialData.isactive !== false) : String(initialData?.status || '').toUpperCase() !== 'INACTIVE');
+
       setFields(isEdit ? {
         department: defaultDept,
         store_id: initialData?.store_id || targetStoreId,
@@ -154,9 +158,9 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
         pax: '4',
         area: initialData?.area || initialData?.floor || (dbAreas[0]?.name || 'Main Dining Area'),
         description: '',
-        isActive: true,
         prefix: initialData?.prefix || initialData?.extra_details?.prefix || '',
-        ...initialData
+        ...initialData,
+        isActive: isRowActive
       } : {
         department: defaultDept,
         store_id: targetStoreId,
@@ -173,7 +177,16 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(fields);
+    const cleanPrefix = (fields.prefix || '').trim();
+    const cleanNo = (fields.no || '').trim();
+    const resolvedName = (fields.name || '').trim() || `${cleanPrefix}${cleanNo}`;
+    onSave({
+      ...fields,
+      name: resolvedName,
+      table_name: resolvedName,
+      prefix: cleanPrefix,
+      no: cleanNo
+    });
   };
 
   return (
@@ -210,16 +223,26 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
               </select>
             </div>
 
-            {/* Table Name */}
+            {/* Table Prefix */}
             <div className="form-field">
-              <label className="form-label">Table Name *</label>
+              <label className="form-label">Table Prefix (e.g. M, T, B, VIP)</label>
               <input
                 type="text"
-                placeholder="e.g. Table 01, T10A"
-                value={fields.name || ''}
-                onChange={(e) => setFields(p => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. M, T, B, VIP"
+                value={fields.prefix || ''}
+                onChange={(e) => {
+                  const newPrefix = e.target.value;
+                  setFields(p => {
+                    const prevPfx = p.prefix || '';
+                    const prevNo = p.no || '';
+                    const updated = { ...p, prefix: newPrefix };
+                    if (!isEdit && (!p.name || p.name === `${prevPfx}${prevNo}`)) {
+                      updated.name = `${newPrefix}${prevNo}`;
+                    }
+                    return updated;
+                  });
+                }}
                 className="form-input"
-                required
               />
             </div>
 
@@ -230,21 +253,33 @@ const TableMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) 
                 type="text"
                 placeholder="e.g. 1, 01, 10A"
                 value={fields.no || ''}
-                onChange={(e) => setFields(p => ({ ...p, no: e.target.value }))}
+                onChange={(e) => {
+                  const newNo = e.target.value;
+                  setFields(p => {
+                    const prevPfx = p.prefix || '';
+                    const prevNo = p.no || '';
+                    const updated = { ...p, no: newNo };
+                    if (!isEdit && (!p.name || p.name === `${prevPfx}${prevNo}`)) {
+                      updated.name = `${prevPfx}${newNo}`;
+                    }
+                    return updated;
+                  });
+                }}
                 className="form-input"
                 required
               />
             </div>
 
-            {/* Table Prefix */}
+            {/* Table Name */}
             <div className="form-field">
-              <label className="form-label">Table Prefix</label>
+              <label className="form-label">Table Name *</label>
               <input
                 type="text"
-                placeholder="e.g. T, B, VIP"
-                value={fields.prefix || ''}
-                onChange={(e) => setFields(p => ({ ...p, prefix: e.target.value }))}
+                placeholder="e.g. M1, T01, Table 1"
+                value={fields.name || ''}
+                onChange={(e) => setFields(p => ({ ...p, name: e.target.value }))}
                 className="form-input"
+                required
               />
             </div>
             

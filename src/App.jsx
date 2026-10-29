@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import AppRoutes from './routes/AppRoutes';
@@ -9,29 +9,24 @@ import { initKeyboardNavigation } from './utils/keyboardNavigation';
 import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import GlobalSearch from './components/common/GlobalSearch';
-
-const TOAST_THEMES = {
-  success: {
-    classes: 'bg-[#d1fae5] border-[#a7f3d0] text-[#065f46]',
-    icon: <FaCheckCircle size={15} />
-  },
-  warning: {
-    classes: 'bg-[#fef3c7] border-[#fde68a] text-[#92400e]',
-    icon: <FaExclamationTriangle size={15} />
-  },
-  error: {
-    classes: 'bg-[#fee2e2] border-[#fecaca] text-[#991b1b]',
-    icon: <FaTimesCircle size={15} />
-  },
-  info: {
-    classes: 'bg-[#e0f2fe] border-[#bae6fd] text-[#075985]',
-    icon: <FaInfoCircle size={15} />
-  }
-};
+import ToastContainer, { showToast as unifiedShowToast } from './components/common/ToastContainer';
+import ServerConfigModal from './components/common/ServerConfigModal';
 
 function App() {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Hide sidebar on operational POS pages (Display Table, View KOT, Order Details, Billing Desk, POS Billing)
+  const isPosOperationalPage = [
+    '/display-table',
+    '/view-kot',
+    '/order-details',
+    '/billing-desk',
+    '/pos-billing',
+    '/invoice'
+  ].some(subpath => location.pathname.includes(subpath));
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -42,6 +37,31 @@ function App() {
   });
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [initialSetupOpen, setInitialSetupOpen] = useState(false);
+
+  useEffect(() => {
+    const checkConfig = async () => {
+      let url = null;
+      try {
+        if (window.electronAPI && typeof window.electronAPI.getConfig === 'function') {
+          const cfg = await window.electronAPI.getConfig();
+          if (cfg && cfg.serverUrl) {
+            url = cfg.serverUrl;
+            localStorage.setItem('alfa_server_url', url);
+          }
+        }
+      } catch (e) {}
+
+      if (!url) {
+        url = localStorage.getItem('alfa_server_url');
+      }
+
+      if (!url) {
+        setInitialSetupOpen(true);
+      }
+    };
+    checkConfig();
+  }, []);
 
   // Enterprise Toast State
   const [toast, setToast] = useState({ message: '', type: 'info' });
@@ -90,12 +110,8 @@ function App() {
     };
   }, []);
 
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    const timer = setTimeout(() => {
-      setToast({ message: '', type: 'info' });
-    }, 3500);
-    return () => clearTimeout(timer);
+  const showToast = (message, type = null, duration = null) => {
+    return unifiedShowToast(message, type, duration);
   };
 
   useEffect(() => {
@@ -104,7 +120,7 @@ function App() {
 
     const handleGlobalKeyDown = (e) => {
       const isCtrl = e.ctrlKey || e.metaKey;
-      
+
       // Ctrl + K to toggle command palette
       if (isCtrl && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -146,9 +162,9 @@ function App() {
       } else if (e.key === 'F11') {
         e.preventDefault();
         if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
+          document.documentElement.requestFullscreen().catch(() => { });
         } else {
-          document.exitFullscreen().catch(() => {});
+          document.exitFullscreen().catch(() => { });
         }
       }
     };
@@ -165,8 +181,6 @@ function App() {
   const handleLogout = () => {
     logout(showToast);
   };
-
-  const activeToastTheme = TOAST_THEMES[toast.type] || TOAST_THEMES.info;
 
   if (!isAuthenticated) {
     return (
@@ -186,21 +200,14 @@ function App() {
             boxShadow: '0 1px 8px rgba(59, 130, 246, 0.5)'
           }} />
         )}
-        {toast.message && (
-          <div 
-            className={`fixed bottom-6 right-6 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg z-[9999] transition-all duration-300 ${activeToastTheme.classes}`}
-          >
-            {activeToastTheme.icon}
-            <span className="text-xs font-bold">{toast.message}</span>
-          </div>
-        )}
+        <ToastContainer />
         <Login showToast={showToast} />
       </div>
     );
   }
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <style>{`
         @keyframes topLoaderBar {
           0% { width: 0%; left: 0%; }
@@ -208,48 +215,55 @@ function App() {
           100% { width: 100%; left: 100%; }
         }
       `}</style>
+
       {loading && (
         <div style={{
-          position: 'fixed', top: 'var(--navbar-height)', left: 0, height: '3px',
+          position: 'fixed', top: 0, left: 0, height: '3px',
           background: 'linear-gradient(90deg, #3b82f6, #6366f1, #10b981)',
           zIndex: 99999, animation: 'topLoaderBar 1.2s ease-in-out infinite',
           boxShadow: '0 1px 8px rgba(59, 130, 246, 0.5)'
         }} />
       )}
-      {/* Global Enterprise Toast Notification */}
-      {toast.message && (
-        <div 
-          className={`fixed bottom-6 right-6 flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-lg z-[9999] transition-all duration-300 ${activeToastTheme.classes}`}
-        >
-          {activeToastTheme.icon}
-          <span className="text-xs font-bold">{toast.message}</span>
+
+      {/* Global Standard Toast Notifications */}
+      <ToastContainer />
+
+      {/* Main Workspace Frame */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {!isPosOperationalPage && (
+          <Sidebar
+            isOpen={sidebarOpen}
+            toggleSidebar={toggleSidebar}
+            isCollapsed={sidebarCollapsed}
+            toggleCollapse={toggleCollapse}
+            onLogout={handleLogout}
+          />
+        )}
+
+        <div className="main-layout" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+          <Navbar
+            toggleSidebar={toggleSidebar}
+            toggleCollapse={toggleCollapse}
+            sidebarCollapsed={sidebarCollapsed}
+            showToast={showToast}
+            onOpenSearch={() => setSearchOpen(true)}
+            isPosOperationalPage={isPosOperationalPage}
+          />
+          <main className="content-area relative" style={{ position: 'relative', flex: 1, overflowY: 'auto' }}>
+            <ProtectedRoute>
+              <AppRoutes showToast={showToast} />
+            </ProtectedRoute>
+          </main>
         </div>
-      )}
-
-      <Sidebar
-        isOpen={sidebarOpen}
-        toggleSidebar={toggleSidebar}
-        isCollapsed={sidebarCollapsed}
-        toggleCollapse={toggleCollapse}
-        onLogout={handleLogout}
-      />
-
-      <div className="main-layout">
-        <Navbar
-          toggleSidebar={toggleSidebar}
-          toggleCollapse={toggleCollapse}
-          sidebarCollapsed={sidebarCollapsed}
-          showToast={showToast}
-          onOpenSearch={() => setSearchOpen(true)}
-        />
-        <main className="content-area relative" style={{ position: 'relative' }}>
-          <ProtectedRoute>
-            <AppRoutes showToast={showToast} />
-          </ProtectedRoute>
-        </main>
       </div>
 
       <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ServerConfigModal
+        isOpen={initialSetupOpen}
+        isInitialSetup={true}
+        onClose={() => setInitialSetupOpen(false)}
+        onSaved={() => setInitialSetupOpen(false)}
+      />
     </div>
   );
 }

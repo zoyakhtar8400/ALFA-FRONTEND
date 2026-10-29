@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { LuUtensils, LuArrowRight } from 'react-icons/lu';
 import { RECENT_ORDERS } from './dashboardData';
 import { useNavigate } from 'react-router-dom';
+import { formatTableLabel, formatTableNo } from '../../utils/tableFormat';
 
 const STATUS_STYLE = {
   Served:    { bg: '#dcfce7', color: '#15803d' },
@@ -16,9 +17,9 @@ const RecentOrders = memo(({ stats, tables = [], showToast }) => {
   const liveTableRows = (tables || [])
     .filter(t => (t.status === 'Running' || t.status === 'Paid' || t.status === 'KOT Generated') && Number(t.amount || 0) > 0)
     .map(t => ({
-      table: `Table T${t.no}`,
-      kot: (t.kots && t.kots[0]?.kotNo) || (t.kotNo) || `KOT-T${t.no}`,
-      item: (t.customer && t.customer !== 'Walk-in') ? `${t.customer}'s Order` : `Dining Table T${t.no} Order`,
+      table: formatTableLabel(t.table_name || t.no),
+      kot: (t.kots && t.kots[0]?.kotNo) || (t.kotNo) || `KOT-${formatTableNo(t.table_name || t.no, t.prefix)}`,
+      item: (t.customer && t.customer !== 'Walk-in') ? `${t.customer}'s Order` : `${formatTableLabel(t.table_name || t.no)} Order`,
       time: t.openedAt || 'Active',
       status: t.status === 'Paid' ? 'Served' : 'Preparing',
       steward: t.waiter || t.captain || 'Assigned',
@@ -47,7 +48,7 @@ const RecentOrders = memo(({ stats, tables = [], showToast }) => {
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>Recent Restaurant Orders</span>
         </div>
         <button onClick={() => { try { navigate('/restaurant'); } catch { showToast?.('View restaurant orders'); } }}
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: '#418A8B', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer' }}>
           View All <LuArrowRight size={12} />
         </button>
       </div>

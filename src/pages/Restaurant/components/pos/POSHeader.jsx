@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaChevronDown, FaChevronUp, FaUtensils, FaTruck, FaShoppingBag } from 'react-icons/fa';
+import { FaChevronDown, FaChevronUp, FaUtensils, FaTruck, FaShoppingBag, FaConciergeBell } from 'react-icons/fa';
 import ServiceTabs from './ServiceTabs';
 import HeaderActions from './HeaderActions';
 
@@ -28,7 +28,8 @@ const POSHeader = ({
   onTableClick,
   onCustomerClick,
   onPaxClick,
-  onRemarksClick
+  onRemarksClick,
+  onKOTHistoryClick
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -48,51 +49,84 @@ const POSHeader = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: isCollapsed ? '8px 16px' : '10px 16px 6px 16px',
+          padding: isCollapsed ? '8px 14px' : '8px 14px 6px 14px',
           cursor: 'pointer',
           userSelect: 'none',
           background: isCollapsed ? '#f8fafc' : '#ffffff',
-          transition: 'all 0.15s ease'
+          transition: 'all 0.15s ease',
+          gap: '8px'
         }}
         title="Click to collapse / expand Service Type & Header actions"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexShrink: 1 }}>
           <h2 style={{
-            fontSize: '0.95rem',
+            fontSize: '0.88rem',
             fontWeight: 900,
             color: isBillingDesk ? '#047857' : '#0f172a',
             margin: 0,
             textTransform: 'uppercase',
-            letterSpacing: '-0.3px'
+            letterSpacing: '-0.3px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}>
             {isBillingDesk ? 'Restaurant Billing Desk' : 'POS Billing Desk'}
           </h2>
-          <span style={{
-            fontSize: '0.62rem',
-            fontWeight: 800,
-            background: isBillingDesk ? '#ecfdf5' : '#ecfeff',
-            color: isBillingDesk ? '#047857' : '#0e7490',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            border: isBillingDesk ? '1px solid #a7f3d0' : '1px solid #a5f3fc'
-          }}>
-            {isBillingDesk ? 'Cashier' : 'Dine-in / POS'}
-          </span>
         </div>
 
-        {/* Right side: Active Service indicator & Collapse toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            fontSize: '0.72rem',
-            fontWeight: 800,
-            background: '#0e7490',
-            color: '#ffffff',
-            padding: '3px 10px',
-            borderRadius: '6px',
-            boxShadow: '0 1px 2px rgba(14, 116, 144, 0.2)'
-          }}>
+        {/* Right side: KOT History button, Active Service indicator & Collapse toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {onKOTHistoryClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onKOTHistoryClick();
+              }}
+              title="View KOT History for this order / table"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '0.72rem',
+                fontWeight: 800,
+                background: '#f0fdfa',
+                color: '#0e7490',
+                border: '1px solid #a5f3fc',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#0e7490';
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = '#f0fdfa';
+                e.currentTarget.style.color = '#0e7490';
+              }}
+            >
+              <FaConciergeBell size={11} />
+              KOT History
+            </button>
+          )}
+
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              background: '#1b7a6d',
+              color: '#ffffff',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              boxShadow: '0 1px 3px rgba(27, 122, 109, 0.25)',
+              whiteSpace: 'nowrap'
+            }}
+          >
             {getServiceIcon(serviceType)}
             {serviceType}
             {assignedTableNo ? ` · ${assignedTableNo}` : ''}
@@ -111,25 +145,17 @@ const POSHeader = ({
               border: '1px solid #cbd5e1',
               background: isCollapsed ? '#ffffff' : '#f1f5f9',
               color: '#475569',
-              padding: '3px 8px',
+              padding: '4px 9px',
               borderRadius: '6px',
-              fontSize: '0.68rem',
-              fontWeight: 800,
+              fontSize: '0.72rem',
+              fontWeight: 700,
               cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              whiteSpace: 'nowrap'
             }}
+            title={isCollapsed ? "Expand billing options" : "Collapse billing options"}
           >
-            {isCollapsed ? (
-              <>
-                <span>Expand</span>
-                <FaChevronDown size={9} />
-              </>
-            ) : (
-              <>
-                <span>Collapse</span>
-                <FaChevronUp size={9} />
-              </>
-            )}
+            {isCollapsed ? 'Expand' : 'Collapse'}
+            {isCollapsed ? <FaChevronDown size={10} /> : <FaChevronUp size={10} />}
           </button>
         </div>
       </div>

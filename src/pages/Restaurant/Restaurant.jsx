@@ -30,7 +30,7 @@ const Restaurant = ({ showToast }) => {
 
   if (outletNotFound) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', fontFamily: 'var(--font-family, system-ui)' }}>
         <div style={{ padding: '40px', textAlign: 'center', color: '#b91c1c', border: '1px dashed #fca5a5', borderRadius: '16px', background: '#fef2f2', maxWidth: '480px', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.05)' }}>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 12px 0' }}>404 — Outlet Not Found</h2>
           <p style={{ fontSize: '0.95rem', color: '#991b1b', margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
@@ -93,7 +93,7 @@ const Restaurant = ({ showToast }) => {
   };
 
   return (
-    <div style={{ minHeight: '100%' }}>
+    <div style={{ flex: 1, height: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
       {renderSubPage()}
     </div>
   );

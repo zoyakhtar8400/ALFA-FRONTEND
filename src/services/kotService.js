@@ -31,6 +31,11 @@ export const kotService = {
     return await apiClient.delete(`/kot/${kotId}`, { data });
   },
 
+  // Delete all KOT tickets (admin only)
+  async deleteAllKOTs() {
+    return await apiClient.delete('/kot/all');
+  },
+
   // Close KOTs for a table in PostgreSQL (mark is_active=0)
   async closeTableKOTs(tableId) {
     return await apiClient.post(`/kot/close-table/${tableId}`);

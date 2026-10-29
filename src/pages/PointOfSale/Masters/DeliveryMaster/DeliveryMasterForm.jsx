@@ -3,16 +3,23 @@ import CommonModal from '../../../../components/common/CommonModal';
 import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import posApi from '../../../../api/posApi';
+import areaService from '../../../../services/areaService';
 
 const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit }) => {
-  const [fields, setFields] = useState({ partner: 'Direct Delivery', name: '', phone: '', store_id: 'STORE_1', status: 'Active' });
+  const [fields, setFields] = useState({ partner: 'Direct Delivery', name: '', phone: '', area: '', store_id: 'STORE_1', status: 'Active' });
   const [outlets, setOutlets] = useState([]);
+  const [areas, setAreas] = useState([]);
 
   useEffect(() => {
     posApi.getOutlets().then(res => {
       const list = res?.data || res?.stores || [];
       setOutlets(list);
     }).catch(err => console.warn('Failed to fetch outlets in DeliveryMasterForm', err));
+
+    areaService.getAreas().then(res => {
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setAreas(list);
+    }).catch(err => console.warn('Failed to fetch areas in DeliveryMasterForm', err));
   }, []);
 
   useEffect(() => {
@@ -20,12 +27,14 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
     if (isOpen) {
       setFields(isEdit ? {
         partner: 'Direct Delivery',
+        area: '',
         store_id: activeOutlet,
         ...initialData
       } : {
         partner: 'Direct Delivery',
         name: '',
         phone: '',
+        area: '',
         store_id: activeOutlet,
         status: 'Active'
       });
@@ -88,6 +97,8 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
               />
             </div>
 
+
+
             <div className="form-field">
               <label className="form-label">Outlet *</label>
               <select
@@ -104,7 +115,20 @@ const DeliveryMasterForm = ({ isOpen, onClose, onSave, initialData = {}, isEdit 
                 ))}
               </select>
             </div>
-
+            <div className="form-field">
+              <label className="form-label">Assigned Delivery Area</label>
+              <select
+                value={fields.area || ''}
+                onChange={(e) => setFields(p => ({ ...p, area: e.target.value }))}
+                className="form-select"
+              >
+                <option value="">All Delivery Areas</option>
+                {areas.map(a => {
+                  const aName = a.name || a.area_name || a;
+                  return <option key={a.id || aName} value={aName}>{aName}</option>;
+                })}
+              </select>
+            </div>
             <div className="form-field">
               <label className="form-label">Status</label>
               <select

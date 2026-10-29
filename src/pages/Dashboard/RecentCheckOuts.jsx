@@ -3,7 +3,7 @@ import { LuLogOut, LuArrowRight } from 'react-icons/lu';
 import { RECENT_CHECKOUTS } from './dashboardData';
 import { useNavigate } from 'react-router-dom';
 
-const PAY_COLOR = { Cash: '#16a34a', UPI: '#0d9488', Card: '#4f46e5', 'Visa Card': '#4f46e5' };
+const PAY_COLOR = { Cash: '#16a34a', UPI: '#0d9488', Card: '#112936', 'Visa Card': '#112936' };
 
 const RecentCheckOuts = memo(({ showToast }) => {
   const navigate = useNavigate();
@@ -13,11 +13,11 @@ const RecentCheckOuts = memo(({ showToast }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <LuLogOut size={14} color="#dc2626" />
+          <LuLogOut size={14} color="#c92534" />
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>Recent Check-Outs</span>
         </div>
         <button onClick={() => { try { navigate('/front-desk/check-out'); } catch { showToast?.('View all check-outs'); } }}
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: '#418A8B', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer' }}>
           View All <LuArrowRight size={12} />
         </button>
       </div>

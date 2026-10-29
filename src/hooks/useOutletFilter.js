@@ -33,8 +33,14 @@ export const useOutletFilter = () => {
   }, []);
 
   const filterData = (data, storeIdField = 'store_id') => {
-    if (outletFilter === 'All') return data;
-    return data.filter(item => String(item[storeIdField]) === String(outletFilter));
+    if (!Array.isArray(data)) return [];
+    if (!outletFilter || outletFilter === 'All') return data;
+    return data.filter(item => {
+      if (!item) return false;
+      const val = item[storeIdField] !== undefined ? item[storeIdField] : item.store_id;
+      const strVal = typeof val === 'object' ? (val?.store_id || val?.id || '') : String(val || '');
+      return strVal === String(outletFilter);
+    });
   };
 
   return {

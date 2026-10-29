@@ -11,7 +11,7 @@ const NCReleaseModal = ({ isOpen, onClose, table, onConfirm }) => {
       title="Clear NC Table"
       maxWidth="420px"
     >
-      <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
+      <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'var(--font-family, system-ui)' }}>
         <h4 style={{ margin: 0, fontSize: '1rem', color: '#1e293b', fontWeight: 800 }}>
           This table has a Non-Chargeable (NC) order. Do you want to clear it and make the table free?
         </h4>

@@ -118,22 +118,24 @@ const SidebarFlyoutL1 = ({
               onMouseEnter={() => setActiveSubFlyout(null)}
             >
               <FaFolder className="flyout-item-icon" />
-              <span>Order Details</span>
+              <span>Order Detail</span>
             </NavLink>
 
-            <NavLink
-              to={`/pos/master/outlet/${activeFlyout.outletId || 1}/billing-desk`}
-              className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActiveFlyout(null);
-                setActiveSubFlyout(null);
-                handleMobileNav();
-              }}
-              onMouseEnter={() => setActiveSubFlyout(null)}
-            >
-              <FaReceipt className="flyout-item-icon" />
-              <span>Billing Desk</span>
-            </NavLink>
+            {localStorage.getItem('alfa_billing_mode') !== 'Keyboard' && (
+              <NavLink
+                to={`/pos/master/outlet/${activeFlyout.outletId || 1}/billing-desk`}
+                className={({ isActive }) => `flyout-menu-item ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveFlyout(null);
+                  setActiveSubFlyout(null);
+                  handleMobileNav();
+                }}
+                onMouseEnter={() => setActiveSubFlyout(null)}
+              >
+                <FaReceipt className="flyout-item-icon" />
+                <span>Billing Desk</span>
+              </NavLink>
+            )}
           </>
         )}
 

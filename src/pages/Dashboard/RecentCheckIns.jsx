@@ -15,7 +15,7 @@ const RecentCheckIns = memo(({ showToast }) => {
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>Recent Check-Ins</span>
         </div>
         <button onClick={() => { try { navigate('/front-desk/check-in'); } catch { showToast?.('View all check-ins'); } }}
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: '#418A8B', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer' }}>
           View All <LuArrowRight size={12} />
         </button>
       </div>
@@ -40,7 +40,7 @@ const RecentCheckIns = memo(({ showToast }) => {
                 <div style={{ fontSize: '10px', color: '#475569' }}>{c.grc} · {c.arrTime}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: '800', color: '#244E5F' }}>Rm {c.room}</div>
+                <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)' }}>Rm {c.room}</div>
                 <div style={{ fontSize: '10px', color: '#475569' }}>{c.amt}</div>
               </div>
             </div>

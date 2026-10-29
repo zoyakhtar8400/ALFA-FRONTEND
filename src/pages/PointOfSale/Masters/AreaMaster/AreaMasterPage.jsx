@@ -44,7 +44,8 @@ const AreaMasterPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useAreaMaster(toastTrigger);
 
   const handleOpenAdd = () => {
@@ -66,6 +67,7 @@ const AreaMasterPage = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Area"
         searchPlaceholder="Search Area Master..."

@@ -23,7 +23,7 @@ const HousekeepingWidget = memo(({ showToast }) => {
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>Pending Housekeeping</span>
         </div>
         <button onClick={() => { try { navigate('/housekeeping'); } catch { showToast?.('View housekeeping'); } }}
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: '#418A8B', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer' }}>
           View All <LuArrowRight size={12} />
         </button>
       </div>

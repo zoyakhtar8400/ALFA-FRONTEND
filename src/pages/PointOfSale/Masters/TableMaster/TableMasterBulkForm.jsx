@@ -4,6 +4,7 @@ import FormCard from '../../../../components/common/FormCard';
 import CommonActionButtons from '../../../../components/common/CommonActionButtons';
 import areaService from '../../../../services/areaService';
 import posApi from '../../../../api/posApi';
+import { getOutletPrefix } from '../../../../utils/tableFormat';
 
 const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
   const [dbAreas, setDbAreas] = useState([]);
@@ -56,14 +57,17 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
     }
   }, [dbOutlets]);
 
-  const [fields, setFields] = useState({
-    prefix: 'T',
-    startNum: '1',
-    endNum: '10',
-    department: 'Main Restaurant',
-    area: 'Main Area',
-    pax: '4',
-    isActive: true
+  const [fields, setFields] = useState(() => {
+    const defaultDept = outletInfo?.openName || 'Main Restaurant';
+    return {
+      prefix: getOutletPrefix(defaultDept),
+      startNum: '1',
+      endNum: '10',
+      department: defaultDept,
+      area: 'Main Area',
+      pax: '4',
+      isActive: true
+    };
   });
 
   useEffect(() => {
@@ -142,8 +146,10 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
       const matchedStore = dbOutlets.find(o => (o.store_name || o.name) === defaultDept || o.store_id === defaultDept);
       const targetStoreId = matchedStore?.store_id || localStorage.getItem('activeOutletId') || 'STORE_1';
 
+      const pfx = getOutletPrefix(matchedStore || defaultDept);
+
       setFields({
-        prefix: 'T',
+        prefix: pfx,
         startNum: '1',
         endNum: '10',
         department: defaultDept,
@@ -160,7 +166,7 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
     const end   = parseInt(fields.endNum);
     const prefix = fields.prefix.trim();
     if (!prefix || isNaN(start) || isNaN(end) || start > end || end - start > 199) return [];
-    return Array.from({ length: end - start + 1 }, (_, i) => `${prefix}${start + i}`);
+    return Array.from({ length: end - start + 1 }, (_, i) => `${prefix}${String(start + i).padStart(2, '0')}`);
   }, [fields.prefix, fields.startNum, fields.endNum]);
 
   const handleSubmit = (e) => {
@@ -203,16 +209,18 @@ const TableMasterBulkForm = ({ isOpen, onClose, onSave }) => {
 
             {/* Department (Open Outlet) */}
             <div className="form-field">
-              <label className="form-label">Section / Department (Open Outlet) *</label>
+              <label className="form-label">Department (Open Outlet) *</label>
               <select
                 value={fields.department || outletInfo.openName || ''}
                 onChange={(e) => {
                   const val = e.target.value;
                   const matched = dbOutlets.find(o => (o.store_name || o.name) === val || o.store_id === val);
+                  const newPrefix = getOutletPrefix(matched || val);
                   setFields(p => ({
                     ...p,
                     department: val,
-                    store_id: matched?.store_id || p.store_id || 'STORE_1'
+                    store_id: matched?.store_id || p.store_id || 'STORE_1',
+                    prefix: newPrefix
                   }));
                 }}
                 className="form-select"

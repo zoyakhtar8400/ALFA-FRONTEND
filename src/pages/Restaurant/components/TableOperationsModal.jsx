@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaTimes, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 import MoveKOTTab from './tabs/MoveKOTTab';
+import { formatTableNo } from '../../../utils/tableFormat';
 
 const TableOperationsModal = (props) => {
   const [isTablesCollapsed, setIsTablesCollapsed] = useState(true);
@@ -34,7 +35,7 @@ const TableOperationsModal = (props) => {
         boxShadow: '0 20px 40px -8px rgba(0,0,0,0.18)',
         width: '620px', maxWidth: '95vw', maxHeight: '90vh',
         display: 'flex', flexDirection: 'column',
-        zIndex: 1000, fontFamily: 'system-ui', color: '#0f172a',
+        zIndex: 1000, fontFamily: 'var(--font-family, system-ui)', color: '#0f172a',
         overflow: 'hidden',
       }}>
 
@@ -113,7 +114,7 @@ const TableOperationsModal = (props) => {
                         }}
                       >
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {t.table_name || `T${parseInt(t.no)}`}
+                          {formatTableNo(t.table_name || t.no, t.prefix)}
                         </div>
                         {isFrom && <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>FROM</span>}
                         {isTo && <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>TO</span>}
@@ -163,7 +164,7 @@ const TableOperationsModal = (props) => {
                 ).map(([area, areaTables]) => (
                   <optgroup key={`from-${area}`} label={`--- ${area} ---`}>
                     {areaTables.map(t => (
-                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} (Running) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
+                      <option key={t.id} value={t.id}>{formatTableNo(t.table_name || t.no, t.prefix)} (Running) — ₹{Number(t.amount || 0).toLocaleString('en-IN')}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -197,7 +198,7 @@ const TableOperationsModal = (props) => {
                 ).map(([area, areaTables]) => (
                   <optgroup key={`to-${area}`} label={`--- ${area} ---`}>
                     {areaTables.map(t => (
-                      <option key={t.id} value={t.id}>{t.table_name || `T${parseInt(t.no)}`} (Available)</option>
+                      <option key={t.id} value={t.id}>{formatTableNo(t.table_name || t.no, t.prefix)} (Available)</option>
                     ))}
                   </optgroup>
                 ))}

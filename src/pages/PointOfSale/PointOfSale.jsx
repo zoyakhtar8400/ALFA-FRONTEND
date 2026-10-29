@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import StewardMasterPage from './Masters/StewardMaster/StewardMasterPage';
 import AreaMasterPage from './Masters/AreaMaster/AreaMasterPage';
 import PaymentMasterPage from './Masters/PaymentMaster/PaymentMasterPage';
@@ -18,6 +18,16 @@ import ItemRateUpdatePage from './Masters/ItemRateUpdate/ItemRateUpdatePage';
 import ItemRateCategoryPage from './Masters/ItemRateCategory/ItemRateCategoryPage';
 import POSExpenseList from './Operation/ExpenseEntry/POSExpenseList';
 import ReportsRouter from './reports/ReportsRouter';
+import MasterWorkspace from './MasterWorkspace';
+import OutletConfigPage from './Masters/OutletConfig/OutletConfigPage';
+import PrinterMasterPage from '../Restaurant/pages/PrinterMasterPage';
+import UOMMasterPage from './Masters/UOMMaster/UOMMasterPage';
+import ModifierGroupPage from './Masters/ModifierGroup/ModifierGroupPage';
+import ModifierAddonPage from './Masters/ModifierAddon/ModifierAddonPage';
+import ItemOutletPricingPage from './Masters/ItemOutletPricing/ItemOutletPricingPage';
+import ProductionCategoryPage from '../Restaurant/pages/ProductionCategoryPage';
+import CompanyMasterPage from './Masters/CompanyMaster/CompanyMasterPage';
+import OrderDetailsPage from '../Restaurant/pages/OrderDetailsPage';
 
 
 const PointOfSale = ({ showToast }) => {
@@ -25,6 +35,12 @@ const PointOfSale = ({ showToast }) => {
   const path = location.pathname;
 
   const renderSubPage = () => {
+    if (path.includes('/master/check') || path.includes('/masters/check')) {
+      return <OrderDetailsPage showToast={showToast} />;
+    }
+    if (path.includes('/master/company') || path.includes('/masters/company')) {
+      return <CompanyMasterPage showToast={showToast} />;
+    }
     if (path.includes('/report')) {
       return <ReportsRouter showToast={showToast} />;
     }
@@ -40,7 +56,13 @@ const PointOfSale = ({ showToast }) => {
     if (path.includes('/master/delivery')) {
       return <DeliveryMasterPage showToast={showToast} />;
     }
-    if (path.includes('/master/outlet') && !/\/master\/outlet\/\d+/.test(path)) {
+    if (path.includes('/master/outlet-config')) {
+      return <OutletConfigPage showToast={showToast} />;
+    }
+    if (path.includes('/master/printer')) {
+      return <PrinterMasterPage showToast={showToast} />;
+    }
+    if (path.includes('/master/outlet') && !path.includes('/master/outlet-config') && !/\/master\/outlet\/\d+/.test(path)) {
       return <OutletMasterPage showToast={showToast} />;
     }
     if (path.includes('/master/table') && !path.includes('/master/table-structure')) {
@@ -62,7 +84,7 @@ const PointOfSale = ({ showToast }) => {
       return <MenuItemPage showToast={showToast} />;
     }
     if (path.includes('/master/item-menu/csv-upload')) {
-      return <ItemEnterPage showToast={showToast} />;
+      return <ItemEnterPage showToast={showToast} isModal={false} />;
     }
     if (path.includes('/master/item-menu/hsn-update')) {
       return <HSNCodeEntryPage showToast={showToast} />;
@@ -79,14 +101,22 @@ const PointOfSale = ({ showToast }) => {
     if (path.includes('/pos/operation/expense-entry')) {
       return <POSExpenseList showToast={showToast} />;
     }
-    return (
-      <div className="dashboard-panel" style={{ padding: '24px' }}>
-        <div className="panel-header">
-          <h2 className="panel-title">Point Of Sale (POS)</h2>
-        </div>
-        <p className="text-secondary">Process billing and orders for retail and hotel outlets.</p>
-      </div>
-    );
+    if (path.includes('/master/uom') || path.includes('/master/unit')) {
+      return <UOMMasterPage showToast={showToast} />;
+    }
+    if (path.includes('/master/modifier-group')) {
+      return <ModifierGroupPage showToast={showToast} />;
+    }
+    if (path.includes('/master/modifier-addon') || path.includes('/master/modifier-add-on')) {
+      return <ModifierAddonPage showToast={showToast} />;
+    }
+    if (path.includes('/master/item-outlet-pricing')) {
+      return <ItemOutletPricingPage showToast={showToast} />;
+    }
+    if (path.includes('/master/production-category')) {
+      return <ProductionCategoryPage showToast={showToast} />;
+    }
+    return <MasterWorkspace />;
   };
 
   return (

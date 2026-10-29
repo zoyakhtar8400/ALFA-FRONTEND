@@ -28,32 +28,38 @@ const POSFooterStatus = ({ billNo = 'BILL-000123', cashierName = 'Admin', outlet
       justifyContent: 'space-between',
       alignItems: 'center',
       gap: '4px 12px',
-      padding: '6px 12px',
-      background: 'linear-gradient(90deg, #A16207, #CA8A04)',
-      color: '#ffffff',
-      fontSize: '0.68rem',
+      padding: '7px 16px',
+      background: 'linear-gradient(90deg, #0d1d25 0%, #112936 100%)',
+      color: '#94a3b8',
+      fontSize: '0.72rem',
       fontWeight: 700,
-      fontFamily: 'monospace',
-      borderTop: '1px solid #a16207',
+      fontFamily: 'var(--font-family)',
+      borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+      boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)',
       userSelect: 'none',
-      minHeight: '28px',
+      minHeight: '30px',
       height: 'auto'
     }}>
       {/* Left info */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <span>Bill: {billNo}</span>
-        <span style={{ opacity: 0.8 }}>|</span>
-        <span>Cashier: {cashierName}</span>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <span>Bill: <strong style={{ color: '#29b49b', letterSpacing: '0.5px' }}>{billNo}</strong></span>
+        <span style={{ opacity: 0.3 }}>|</span>
+        <span>Cashier: <strong style={{ color: '#ffffff' }}>{cashierName}</strong></span>
       </div>
 
       {/* Center info */}
-      <div>
-        <span>Outlet: {outletName}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{
+          display: 'inline-block', width: '7px', height: '7px',
+          borderRadius: '50%', background: '#29b49b',
+          boxShadow: '0 0 6px #29b49b'
+        }} />
+        <span>Outlet: <strong style={{ color: '#5eead4' }}>{outletName}</strong></span>
       </div>
 
       {/* Right info */}
       <div>
-        <span>{timeStr}</span>
+        <span style={{ color: '#ffffff', letterSpacing: '0.5px' }}>{timeStr}</span>
       </div>
     </div>
   );

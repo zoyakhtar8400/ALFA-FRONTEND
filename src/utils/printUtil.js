@@ -27,7 +27,7 @@ export const handlePrint = async (footerSelector = '.print-footer', printedBy = 
 
     // 2. Clone the body and strip out heavy non-printable elements to drastically reduce payload size
     const bodyClone = document.body.cloneNode(true);
-    const elementsToRemove = bodyClone.querySelectorAll('script, .sidebar, .navbar, .no-print, button, .modal, .toast, svg:not(.print-logo)');
+    const elementsToRemove = bodyClone.querySelectorAll('script, .sidebar, .navbar, .no-print, button, .modal, .toast, svg:not(.print-logo), .print-col-hide');
     elementsToRemove.forEach(el => el.remove());
     
     // We forcefully apply print-hiding CSS directly to the screen media 
@@ -57,6 +57,9 @@ export const handlePrint = async (footerSelector = '.print-footer', printedBy = 
               overflow: visible !important; 
               margin: 0 !important; 
               padding: 0 !important; 
+            }
+            .print-col-hide {
+              display: none !important;
             }
           </style>
         </head>

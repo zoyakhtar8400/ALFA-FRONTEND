@@ -23,7 +23,7 @@ const PurchaseSummary = ({ showToast }) => {
     }}>
       {/* Header */}
       <div>
-        <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#244E5F', margin: 0 }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
           Hotel Purchase & Inventory Summary
         </h3>
         <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>
@@ -90,7 +90,7 @@ const PurchaseSummary = ({ showToast }) => {
             <tbody>
               {PURCHASE_DETAILS.map((p, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background-color 100ms' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => showToast && showToast(`Invoice details: ${p.vNo}`)}>
-                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: '#244E5F' }}>{p.partyName}</td>
+                  <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{p.partyName}</td>
                   <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>
                     <div>City: {p.city}</div>
                     <div style={{ fontSize: '10px', color: '#94a3b8' }}>V.No: {p.vNo} • Bill: {p.partyBillNo}</div>

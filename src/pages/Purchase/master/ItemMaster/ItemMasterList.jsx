@@ -117,6 +117,11 @@ const ItemMasterList = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleBulkDelete = (selectedRows, selectedIds) => {
+    setItems((prev) => prev.filter((i) => !selectedIds.includes(String(i.id)) && !selectedRows.some(sr => sr.id === i.id)));
+    toast(`Deleted ${selectedRows.length} item(s) from catalog.`);
+  };
+
   if (viewMode === 'form') {
     return (
       <ItemMasterForm
@@ -142,6 +147,7 @@ const ItemMasterList = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Item Master"
         searchPlaceholder="Search Item Master..."

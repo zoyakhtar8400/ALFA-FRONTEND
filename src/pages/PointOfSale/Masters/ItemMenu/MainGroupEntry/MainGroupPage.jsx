@@ -24,7 +24,8 @@ const MainGroupPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useItemMenu('main-group', toastTrigger);
 
   const handleOpenAdd = () => {
@@ -45,6 +46,7 @@ const MainGroupPage = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Main Group Entry"
         searchPlaceholder="Search Main Group Entry..."

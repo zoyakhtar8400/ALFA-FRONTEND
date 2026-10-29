@@ -39,16 +39,16 @@ const OccupancyChart = memo(({ data, showToast }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Occupancy %</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: '#4f46e5', background: '#f5f3ff', padding: '4px 10px', borderRadius: '12px', border: '1px solid #ddd6fe' }}>
-          <LuTrendingUp size={13} style={{ color: '#6366f1' }} /> Avg {avg}%
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', color: 'var(--primary)', background: 'var(--primary-light)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(27, 122, 109, 0.2)' }}>
+          <LuTrendingUp size={13} style={{ color: 'var(--primary)' }} /> Avg {avg}%
         </span>
       </div>
 
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
         <defs>
           <linearGradient id="occFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="#29b49b" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#1b7a6d" stopOpacity="0.01" />
           </linearGradient>
           <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
             <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.1" floodColor="#0f172a" />
@@ -66,7 +66,7 @@ const OccupancyChart = memo(({ data, showToast }) => {
         })}
 
         <path d={area} fill="url(#occFill)" />
-        <path d={line} fill="none" stroke="#6366f1" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={line} fill="none" stroke="#1b7a6d" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
         {pts.map((p, i) => (
           <g key={i} style={{ cursor: 'pointer' }}
@@ -76,14 +76,14 @@ const OccupancyChart = memo(({ data, showToast }) => {
           >
             {hovered === i && (
               <>
-                <line x1={p.x} y1={pT} x2={p.x} y2={pT + cH} stroke="#6366f1" strokeWidth="1" strokeDasharray="3,3" opacity="0.5" />
+                <line x1={p.x} y1={pT} x2={p.x} y2={pT + cH} stroke="#1b7a6d" strokeWidth="1" strokeDasharray="3,3" opacity="0.5" />
                 <g filter="url(#shadow)">
                   <rect x={p.x - 26} y={p.y - 32} width="52" height="22" rx="6" fill="#0f172a" />
                   <text x={p.x} y={p.y - 18} textAnchor="middle" style={{ fontSize: '11px', fontWeight: '800', fill: '#fff', fontFamily: 'var(--font-family)' }}>{p.v}%</text>
                 </g>
               </>
             )}
-            <circle cx={p.x} cy={p.y} r={hovered === i ? 7 : 4.5} fill="#fff" stroke="#6366f1" strokeWidth="3" style={{ transition: 'all 150ms' }} />
+            <circle cx={p.x} cy={p.y} r={hovered === i ? 7 : 4.5} fill="#fff" stroke="#1b7a6d" strokeWidth="3" style={{ transition: 'all 150ms' }} />
             <text x={p.x} y={H - 6} textAnchor="middle" style={{ fontSize: '10px', fontWeight: '600', fill: '#64748b', fontFamily: 'var(--font-family)' }}>{p.label}</text>
           </g>
         ))}

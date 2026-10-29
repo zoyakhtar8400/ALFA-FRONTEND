@@ -76,6 +76,11 @@ const ItemGroupList = ({ showToast }) => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleBulkDelete = (selectedRows, selectedIds) => {
+    setItemGroups((prev) => prev.filter((ig) => !selectedIds.includes(String(ig.id)) && !selectedRows.some(sr => sr.id === ig.id)));
+    toast(`Deleted ${selectedRows.length} item group(s).`);
+  };
+
   return (
     <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
       <CommonTable
@@ -86,6 +91,7 @@ const ItemGroupList = ({ showToast }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Item Group"
         searchPlaceholder="Search Item Groups..."

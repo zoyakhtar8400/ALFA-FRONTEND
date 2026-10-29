@@ -23,7 +23,7 @@ const RestaurantSummary = ({ showToast }) => {
     }}>
       {/* Title */}
       <div>
-        <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#244E5F', margin: 0 }}>
+        <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
           Restaurant & Outlets Summary
         </h3>
         <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '500' }}>
@@ -93,7 +93,7 @@ const RestaurantSummary = ({ showToast }) => {
               <tbody>
                 {OUTLET_DETAILS.map((o, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background-color 100ms' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => showToast && showToast(`Selected Outlet: ${o.name}`)}>
-                    <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: '#244E5F' }}>{o.name}</td>
+                    <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>{o.name}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>₹{o.gross.toFixed(2)}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>₹{o.taxable.toFixed(2)}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#64748b' }}>₹{o.discount.toFixed(2)}</td>
@@ -133,7 +133,7 @@ const RestaurantSummary = ({ showToast }) => {
                   <tr key={idx} style={{ borderBottom: '1px solid #f8fafc', transition: 'background-color 100ms' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} onClick={() => showToast && showToast(`Selected KOT: ${ord.kot}`)}>
                     <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '600', color: '#334155' }}>{ord.outletName}</td>
                     <td style={{ padding: '10px 12px', fontSize: '13px', fontWeight: '700', color: '#1e293b' }}>{ord.tableRoom}</td>
-                    <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: '600', color: '#418A8B' }}>{ord.kot}</td>
+                    <td style={{ padding: '10px 12px', fontSize: '12px', fontWeight: '600', color: 'var(--primary)' }}>{ord.kot}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155', fontWeight: '600' }}>{ord.itemName}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#334155' }}>{ord.qty}</td>
                     <td style={{ padding: '10px 12px', fontSize: '12px', color: '#64748b' }}>{ord.time}</td>

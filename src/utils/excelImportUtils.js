@@ -30,7 +30,7 @@ const ALIAS_MAP = {
 /**
  * Universal Excel (.xlsx, .xls) and CSV (.csv) parsing helper using XLSX library
  */
-export const parseExcelOrCsvFile = async (file, expectedRequiredHeaders = [], validateRowFn = null) => {
+export const parseExcelOrCsvFile = async (file, expectedRequiredHeaders = [], validateRowFn = null, preprocessRowsFn = null) => {
   return new Promise((resolve, reject) => {
     if (!file) {
       reject(new Error('No file provided'));
@@ -52,17 +52,70 @@ export const parseExcelOrCsvFile = async (file, expectedRequiredHeaders = [], va
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
-        // Convert worksheet to JSON array of objects
-        const rawJsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        // Convert worksheet to raw 2D grid first to detect true header row
+        const rawGrid = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-        if (rawJsonRows.length === 0) {
+        if (!rawGrid || rawGrid.length === 0) {
           reject(new Error('The uploaded file is empty or contains no data rows.'));
           return;
         }
 
+        // Smart Header Row Detection: Find the row that best matches known menu/item column headers
+        const headerKeywords = [
+          'item', 'name', 'itemname', 'item name', 'menu item', 'title', 'particulars', 'dish', 'product', 'description',
+          'rate', 'price', 'salerate', 'sale rate', 'sale_rate', 'mrp', 'amount', 'cost',
+          'half', 'full', '4pc', '8pc', '4 pc', '8 pc', 'small', 'medium', 'large',
+          'category', 'group', 'itemgroup', 'foodtype', 'type', 'unit', 'serving', 'remarks'
+        ];
+
+        let bestHeaderIdx = 0;
+        let maxScore = -1;
+        const searchLimit = Math.min(rawGrid.length, 12);
+
+        for (let r = 0; r < searchLimit; r++) {
+          const rowCells = rawGrid[r];
+          if (!Array.isArray(rowCells) || rowCells.length === 0) continue;
+          let score = 0;
+          rowCells.forEach((cell) => {
+            const str = String(cell || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (!str) return;
+            if (headerKeywords.some((kw) => str.includes(kw.replace(/[^a-z0-9]/g, '')))) {
+              score += 2;
+            }
+          });
+          if (score > maxScore && score >= 2) {
+            maxScore = score;
+            bestHeaderIdx = r;
+          }
+        }
+
+        let rawJsonRows = [];
+        if (maxScore >= 2 && bestHeaderIdx > 0) {
+          // Use detected header row
+          const headerRow = rawGrid[bestHeaderIdx].map((c, i) => String(c || '').trim() || `Col_${i}`);
+          for (let r = bestHeaderIdx + 1; r < rawGrid.length; r++) {
+            const dataRow = rawGrid[r];
+            if (!dataRow || !dataRow.some((val) => val !== '' && val !== null && val !== undefined)) continue;
+            const obj = {};
+            headerRow.forEach((colName, cIdx) => {
+              obj[colName] = dataRow[cIdx] !== undefined ? dataRow[cIdx] : '';
+            });
+            rawJsonRows.push(obj);
+          }
+        } else {
+          rawJsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        }
+
+        if (rawJsonRows.length === 0) {
+          reject(new Error('The uploaded file contains no data rows after header analysis.'));
+          return;
+        }
+
+        const rowsToProcess = typeof preprocessRowsFn === 'function' ? preprocessRowsFn(rawJsonRows) : rawJsonRows;
+
         // Collect all file headers present in any row
         const fileHeaderSet = new Set();
-        rawJsonRows.forEach((row) => {
+        rowsToProcess.forEach((row) => {
           Object.keys(row || {}).forEach((k) => fileHeaderSet.add(k.trim().toLowerCase().replace(/[^a-z0-9]/g, '')));
         });
         const fileHeaders = Array.from(fileHeaderSet);
@@ -95,7 +148,7 @@ export const parseExcelOrCsvFile = async (file, expectedRequiredHeaders = [], va
 
         // 2. Row Validation & Sanitization
         const seenKeys = new Set();
-        const processedRows = rawJsonRows.map((row, index) => {
+        const processedRows = rowsToProcess.map((row, index) => {
           const sanitizedRow = {};
           Object.keys(row).forEach((key) => {
             const cleanKey = key.trim();
@@ -180,6 +233,6 @@ export const downloadSampleTemplate = (sampleData, baseFilename, format = 'xlsx'
     }
   } catch (err) {
     console.error('Error generating sample template:', err);
-    alert(`Error generating sample file: ${err.message}`);
+    if (window.showToast) window.showToast(`Error generating sample file: ${err.message}`, 'error');
   }
 };

@@ -150,6 +150,20 @@ export const usePaymentMaster = (showToast) => {
     }
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    try {
+      for (const row of selectedRows) {
+        if (row.id) {
+          await paymentModeService.deletePaymentMode(row.id);
+        }
+      }
+      notify(`Deleted ${selectedRows.length} payment mode(s) successfully.`);
+      await fetchPaymentModes();
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to delete selected payment modes.', 'error');
+    }
+  };
+
   return {
     data: filteredData,
     rawList: data,
@@ -166,6 +180,7 @@ export const usePaymentMaster = (showToast) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete,
     fetchPaymentModes
   };
 };

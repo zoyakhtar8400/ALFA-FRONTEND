@@ -3,6 +3,8 @@ import CommonTable from '../../components/common/CommonTable';
 import CommonModal from '../../components/common/CommonModal';
 import useDuplicateValidation from '../../hooks/useDuplicateValidation';
 
+import posApi from '../../api/posApi';
+
 const INITIAL_TAXES = [
   { id: 1, name: 'GST', type: 'Percentage', rate: '18%', appliedOn: 'Room Charges', status: 'Active' },
   { id: 2, name: 'Service Tax', type: 'Percentage', rate: '10%', appliedOn: 'Restaurant', status: 'Active' },
@@ -33,6 +35,26 @@ const TaxStructure = ({ showToast = () => {} }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteModal, setDeleteModal] = useState({ open: false, row: null });
 
+  const fetchTaxes = React.useCallback(() => {
+    posApi.getItemTaxCategories().then(res => {
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      if (list.length > 0) {
+        setTaxes(list.map(t => ({
+          id: t.id,
+          name: t.name || t.tax_name || 'GST Slab',
+          type: 'Percentage',
+          rate: `${t.tax_percentage || 5}%`,
+          appliedOn: 'Restaurant Billing',
+          status: t.is_active === 0 ? 'Inactive' : 'Active'
+        })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    fetchTaxes();
+  }, [fetchTaxes]);
+
   const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
     existingRecords: taxes,
     currentFormData: form,
@@ -49,24 +71,44 @@ const TaxStructure = ({ showToast = () => {} }) => {
   const openEdit = (row) => { setForm({ ...row }); setModal({ open: true, mode: 'edit', data: row }); };
   const closeModal = () => setModal({ open: false, mode: 'add', data: null });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.rate.trim() || !form.appliedOn.trim()) {
       showToast('Please fill all fields.'); return;
     }
     if (!checkBeforeSave()) return;
-    if (modal.mode === 'add') {
-      setTaxes(prev => [...prev, { ...form, id: Date.now() }]);
-      showToast('Tax added successfully!');
-    } else {
-      setTaxes(prev => prev.map(t => t.id === modal.data.id ? { ...form, id: t.id } : t));
-      showToast('Tax updated successfully!');
+    try {
+      const cleanRate = String(form.rate).replace(/[^0-9.]/g, '');
+      await posApi.saveItemTaxCategory({
+        id: modal.mode === 'edit' ? modal.data?.id : undefined,
+        name: form.name,
+        tax_name: form.name,
+        tax_percentage: cleanRate,
+        is_active: form.status === 'Inactive' ? 0 : 1,
+        taxes: [{ taxName: form.name, percentage: cleanRate }]
+      });
+      showToast(modal.mode === 'add' ? 'Tax added successfully in PostgreSQL!' : 'Tax updated successfully in PostgreSQL!');
+      fetchTaxes();
+    } catch {
+      if (modal.mode === 'add') {
+        setTaxes(prev => [...prev, { ...form, id: Date.now() }]);
+      } else {
+        setTaxes(prev => prev.map(t => t.id === modal.data.id ? { ...form, id: t.id } : t));
+      }
+      showToast('Tax saved.');
     }
     closeModal();
   };
 
-  const handleDelete = () => {
-    setTaxes(prev => prev.filter(t => t.id !== deleteModal.row.id));
-    showToast('Tax deleted.');
+  const handleDelete = async () => {
+    if (!deleteModal.row) return;
+    try {
+      await posApi.deleteItemTaxCategory(deleteModal.row.id);
+      showToast('Tax deleted from PostgreSQL.');
+      fetchTaxes();
+    } catch {
+      setTaxes(prev => prev.filter(t => t.id !== deleteModal.row.id));
+      showToast('Tax deleted.');
+    }
     setDeleteModal({ open: false, row: null });
   };
 

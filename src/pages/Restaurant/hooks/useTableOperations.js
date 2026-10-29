@@ -3,6 +3,7 @@ import { MOCK_MENU_ITEMS } from '../constants/mockData';
 import { useRestaurant } from '../../../context/RestaurantContext';
 import { kotService } from '../../../services/kotService';
 import { printShiftKOT, printTaxInvoice } from '../utils/printInvoice';
+import { formatTableNo } from '../../../utils/tableFormat';
 
 export const useTableOperations = (location, navigate) => {
   const { tables, setTables, refreshTables, orderItemsMap, setOrderItemsMap, loading, activeStoreId } = useRestaurant();
@@ -102,22 +103,10 @@ export const useTableOperations = (location, navigate) => {
     }
   }, [location.state]);
 
-  const toast = (msg) => {
-    console.log('Toast:', msg);
-    const alertBox = document.createElement('div');
-    alertBox.innerText = msg;
-    alertBox.style.position = 'fixed';
-    alertBox.style.bottom = '20px';
-    alertBox.style.right = '20px';
-    alertBox.style.backgroundColor = '#0e7490';
-    alertBox.style.color = '#fff';
-    alertBox.style.padding = '12px 24px';
-    alertBox.style.borderRadius = '8px';
-    alertBox.style.zIndex = '9999';
-    alertBox.style.fontSize = '0.85rem';
-    alertBox.style.fontWeight = '700';
-    document.body.appendChild(alertBox);
-    setTimeout(() => alertBox.remove(), 2500);
+  const toast = (msg, type = null) => {
+    if (window.showToast) {
+      window.showToast(msg, type);
+    }
   };
 
   // Get active items list of the selected source table
@@ -576,23 +565,7 @@ export const useTableOperations = (location, navigate) => {
 
       await refreshTables();
       setShowSettleSuccess(true);
-      toast(`Payment received. Bill printed and table cleared.`);
-
-      // 4. Generate Bill Print directly to ws://localhost:8989
-      try {
-        await printTaxInvoice(createdOrder || {
-          invoice_number: `INV-${orderId}`,
-          table_number: srcId,
-          items: orderItemsMap[srcId] || [],
-          subtotal: subtotal,
-          discount: discount,
-          grand_total: grandTotal,
-          payment_method: paymentMethod,
-          taxes_breakdown: [{ name: 'Tax', rate: 5, amount: gst }]
-        });
-      } catch (e) {
-        console.warn('Failed to print tax invoice:', e);
-      }
+      toast(`Payment received and table cleared.`);
     } catch (err) {
       console.error("Error settling payment in database:", err);
       toast(err.response?.data?.message || err.message || "Failed to settle payment in database.");
@@ -609,11 +582,34 @@ export const useTableOperations = (location, navigate) => {
     const selectedKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0 || selectedTransferItems[k] === true);
     if (selectedKeys.length === 0) return toast("Adjust item quantities to transfer.");
 
+    const srcTable = tables.find(t => String(t.id) === String(srcId));
+    const dstTable = tables.find(t => String(t.id) === String(dstId));
+    const fromTableLabel = srcTable?.table_name || formatTableNo(srcTable?.no || srcId, srcTable?.prefix);
+    const toTableLabel = dstTable?.table_name || formatTableNo(dstTable?.no || dstId, dstTable?.prefix);
+
+    const moveItemsList = srcTable?.kots?.flatMap(k => (k.items || []).map((it, idx) => ({ ...it, itemKey: `${k.id}-${idx}` })))?.filter(it => selectedTransferItems[it.itemKey]) || [];
+
     await kotService.moveItems({
       fromTableId: srcId,
       toTableId: dstId,
       items: selectedTransferItems
     });
+
+    try {
+      const itemsToPrint = moveItemsList.length > 0
+        ? moveItemsList
+        : Object.keys(selectedTransferItems).map(name => ({ name, qty: selectedTransferItems[name] }));
+      await printShiftKOT({
+        fromTableLabel,
+        toTableLabel,
+        items: itemsToPrint,
+        waiter: srcTable?.waiter,
+        transferType: 'Item Transfer',
+        store_id: activeStoreId
+      });
+    } catch (printErr) {
+      console.warn('Failed to print shift KOT:', printErr);
+    }
 
     await refreshTables();
     toast(`Transferred items to target table.`);
@@ -630,17 +626,28 @@ export const useTableOperations = (location, navigate) => {
       const dstId = parseInt(toTableId);
       if (srcId === dstId) return toast("Cannot select same table.");
 
+      const srcTable = tables.find(t => String(t.id) === String(srcId));
+      const dstTable = tables.find(t => String(t.id) === String(dstId));
+      const fromTableLabel = srcTable?.table_name || formatTableNo(srcTable?.no || srcId, srcTable?.prefix);
+      const toTableLabel = dstTable?.table_name || formatTableNo(dstTable?.no || dstId, dstTable?.prefix);
+      let printItems = srcTable?.kots?.flatMap(k => k.items || []) || [];
+      if (printItems.length === 0 && orderItemsMap && orderItemsMap[srcId]) {
+        printItems = orderItemsMap[srcId];
+      }
+
       try {
         await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
         toast(`Moved Table complete order to target table.`);
         
-        const srcTable = tables.find(t => String(t.id) === String(srcId));
-        const dstTable = tables.find(t => String(t.id) === String(dstId));
-        const fromTableLabel = srcTable?.table_name || `T${parseInt(srcTable?.no || srcId)}`;
-        const toTableLabel = dstTable?.table_name || `T${parseInt(dstTable?.no || dstId)}`;
-        const printItems = srcTable?.kots?.flatMap(k => k.items || []) || [];
-        
-        printShiftKOT({ fromTableLabel, toTableLabel, items: printItems, kotNo: '' });
+        await printShiftKOT({
+          fromTableLabel,
+          toTableLabel,
+          items: printItems,
+          kotNo: '',
+          waiter: srcTable?.waiter,
+          transferType: 'Full Table Move',
+          store_id: activeStoreId
+        });
 
         await refreshTables();
       } catch (err) {
@@ -658,8 +665,8 @@ export const useTableOperations = (location, navigate) => {
 
       const srcTable = tables.find(t => String(t.id) === String(srcId));
       const dstTable = tables.find(t => String(t.id) === String(dstId));
-      const fromTableLabel = srcTable?.table_name || `T${parseInt(srcTable?.no || srcId)}`;
-      const toTableLabel = dstTable?.table_name || `T${parseInt(dstTable?.no || dstId)}`;
+      const fromTableLabel = srcTable?.table_name || formatTableNo(srcTable?.no || srcId, srcTable?.prefix);
+      const toTableLabel = dstTable?.table_name || formatTableNo(dstTable?.no || dstId, dstTable?.prefix);
 
       const selectedKots = Object.keys(selectedTransferKots).filter(k => selectedTransferKots[k]);
       const selectedItemKeys = Object.keys(selectedTransferItems).filter(k => selectedTransferItems[k] > 0 || selectedTransferItems[k] === true);
@@ -667,8 +674,10 @@ export const useTableOperations = (location, navigate) => {
       try {
         let printItems = [];
         let printKotNo = '';
+        let transferType = 'Full Table Move';
 
         if (selectedKots.length > 0) {
+          transferType = 'KOT Move';
           for (const kotId of selectedKots) {
             await kotService.moveKOT(kotId, { toTableId: dstId, fromTableId: srcId });
           }
@@ -676,6 +685,7 @@ export const useTableOperations = (location, navigate) => {
           printItems = srcTable?.kots?.filter(k => selectedKots.includes(k.id)).flatMap(k => k.items || []) || [];
           printKotNo = selectedKots.join(', ');
         } else if (selectedItemKeys.length > 0) {
+          transferType = 'Item Move';
           const moveItemsList = srcTable?.kots?.flatMap(k => (k.items || []).map((it, idx) => ({ ...it, itemKey: `${k.id}-${idx}` })))?.filter(it => selectedTransferItems[it.itemKey]) || [];
           
           const payloadItems = {};
@@ -690,12 +700,24 @@ export const useTableOperations = (location, navigate) => {
           toast(`Moved selected items to target table.`);
           printItems = moveItemsList;
         } else {
+          transferType = 'Full Table Move';
           await kotService.moveTable({ fromTableId: srcId, toTableId: dstId });
           toast(`Moved order to target table.`);
           printItems = srcTable?.kots?.flatMap(k => k.items || []) || [];
+          if (printItems.length === 0 && orderItemsMap && orderItemsMap[srcId]) {
+            printItems = orderItemsMap[srcId];
+          }
         }
 
-        printShiftKOT({ fromTableLabel, toTableLabel, items: printItems, kotNo: printKotNo });
+        await printShiftKOT({
+          fromTableLabel,
+          toTableLabel,
+          items: printItems,
+          kotNo: printKotNo,
+          waiter: srcTable?.waiter,
+          transferType,
+          store_id: activeStoreId
+        });
 
         await refreshTables();
       } catch (err) {

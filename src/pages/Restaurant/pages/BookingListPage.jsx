@@ -270,7 +270,7 @@ const BookingListPage = () => {
   });
 
   return (
-    <div style={{ minHeight: '100%', background: '#f8fafc', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui' }}>
+    <div style={{ minHeight: '100%', background: '#f8fafc', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-family, system-ui)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 24px', background: '#fff', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>

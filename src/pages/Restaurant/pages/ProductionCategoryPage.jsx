@@ -102,7 +102,11 @@ const ProductionCategoryPage = () => {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('Category Name is required.'); return; }
+    if (!form.name.trim()) {
+      if (typeof showToast === 'function') showToast('Category name is required.', 'warning');
+      else if (window.showToast) window.showToast('Category name is required.', 'warning');
+      return;
+    }
 
     const isNumericId = modal.row && (typeof modal.row.id === 'number' || !isNaN(Number(modal.row.id)));
     const payload = {
@@ -118,9 +122,14 @@ const ProductionCategoryPage = () => {
     try {
       await apiClient.post('/production-categories', payload);
       await fetchData();
+      const successMsg = modal.mode === 'edit' ? 'Category updated successfully.' : 'Category created successfully.';
+      if (typeof showToast === 'function') showToast(successMsg, 'success');
+      else if (window.showToast) window.showToast(successMsg, 'success');
     } catch (err) {
       console.warn('Save category API error:', err.message);
-      alert('Failed to save category: ' + (err.response?.data?.message || err.message));
+      const errMsg = 'Failed to save category: ' + (err.response?.data?.message || err.message);
+      if (typeof showToast === 'function') showToast(errMsg, 'error');
+      else if (window.showToast) window.showToast(errMsg, 'error');
     }
 
     setModal({ open: false, mode: 'add', row: null });
@@ -140,6 +149,18 @@ const ProductionCategoryPage = () => {
     setDeleteModal({ open: false, row: null });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    for (const row of selectedRows) {
+      const id = row.id;
+      if (typeof id === 'number' || !isNaN(Number(id))) {
+        try {
+          await apiClient.delete(`/production-categories/${id}`);
+        } catch (e) { }
+      }
+    }
+    await fetchData();
+  };
+
   return (
     <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
       <CommonTable
@@ -150,6 +171,7 @@ const ProductionCategoryPage = () => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add Category"
         searchPlaceholder="Search Categories..."

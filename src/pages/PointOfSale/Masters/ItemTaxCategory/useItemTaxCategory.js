@@ -115,6 +115,20 @@ export const useItemTaxCategory = (showToast) => {
     });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    let count = 0;
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await posApi.deleteItemTaxCategory(row.id);
+          count++;
+        } catch (e) { }
+      }
+    }
+    showToast(`Deleted ${count} tax category record(s).`);
+    fetchTaxes();
+  };
+
   return {
     data: filteredData,
     loading,
@@ -129,7 +143,8 @@ export const useItemTaxCategory = (showToast) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   };
 };
 

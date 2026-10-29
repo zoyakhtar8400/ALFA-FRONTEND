@@ -8,14 +8,16 @@ const POSActionButtons = ({
   onPay,
   isNC = false,
   isViewMode = false,
-  isBillingDesk = false
+  isBillingDesk = false,
+  serviceType = 'Dine In'
 }) => {
-  const showAll = isBillingDesk;
+  const isTakeawayOrDelivery = serviceType === 'Takeaway' || serviceType === 'Delivery';
+  const showAll = isBillingDesk || isTakeawayOrDelivery;
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: showAll ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
+      gridTemplateColumns: isTakeawayOrDelivery ? 'repeat(2, 1fr)' : (showAll ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)'),
       gap: '8px',
       padding: '12px 16px',
       background: '#ffffff',
@@ -56,37 +58,39 @@ const POSActionButtons = ({
         }
 
         .btn-save {
-          background: #475569;
+          background: #334155;
+          box-shadow: 0 2px 6px rgba(51, 65, 85, 0.15);
         }
         .btn-save:hover {
-          background: #334155;
+          background: #1e293b;
+          box-shadow: 0 4px 12px rgba(30, 41, 59, 0.25);
         }
 
         .btn-print-bill {
-          background: #d97706;
-          box-shadow: 0 2px 6px rgba(217, 119, 6, 0.15);
+          background: #0f766e;
+          box-shadow: 0 2px 6px rgba(15, 118, 110, 0.2);
         }
         .btn-print-bill:hover {
-          background: #b45309;
-          box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+          background: #115e59;
+          box-shadow: 0 4px 12px rgba(17, 94, 89, 0.3);
         }
 
         .btn-kot {
-          background: #4f46e5;
-          box-shadow: 0 2px 6px rgba(79, 70, 229, 0.15);
+          background: #1b7a6d;
+          box-shadow: 0 2px 6px rgba(27, 122, 109, 0.25);
         }
         .btn-kot:hover {
-          background: #4338ca;
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+          background: #146358;
+          box-shadow: 0 4px 12px rgba(20, 99, 88, 0.35);
         }
 
         .btn-kot-print {
-          background: #6366f1;
-          box-shadow: 0 2px 6px rgba(99, 102, 241, 0.15);
+          background: #c92534;
+          box-shadow: 0 2px 6px rgba(201, 37, 52, 0.25);
         }
         .btn-kot-print:hover {
-          background: #4f46e5;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+          background: #b01f2d;
+          box-shadow: 0 4px 12px rgba(176, 31, 45, 0.35);
         }
 
         .btn-hotkey-label {
@@ -130,8 +134,8 @@ const POSActionButtons = ({
         </button>
       )}
 
-      {/* 3. KOT (Send uncut items to kitchen) */}
-      {(showAll || !isViewMode) && (
+      {/* 3. KOT (Send uncut items to kitchen) - strictly Dine In only */}
+      {!isTakeawayOrDelivery && (showAll || !isViewMode) && (
         <button
           type="button"
           onClick={onKOT}
@@ -144,8 +148,8 @@ const POSActionButtons = ({
         </button>
       )}
 
-      {/* 4. KOT & Print (Send & Print Kitchen KOT) */}
-      {(showAll || !isViewMode) && (
+      {/* 4. KOT & Print (Send & Print Kitchen KOT) - strictly Dine In only */}
+      {!isTakeawayOrDelivery && (showAll || !isViewMode) && (
         <button
           type="button"
           onClick={onKOTAndPrint}

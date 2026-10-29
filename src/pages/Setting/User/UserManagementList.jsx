@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaArrowLeft } from 'react-icons/fa';
 import CommonTable from '../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 import CommonModal from '../../../components/common/CommonModal';
@@ -12,6 +14,7 @@ const emptyUser = { id: '', username: '', email: '', password: '', name: '', pho
 const ROLES = ['ADMIN', 'STAFF'];
 
 const UserManagementList = ({ showToast = () => {} }) => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [availableOutlets, setAvailableOutlets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,8 +132,14 @@ const UserManagementList = ({ showToast = () => {} }) => {
   };
 
   const handleSave = async () => {
-    if (!form.username.trim()) { alert('Username is required.'); return; }
-    if (modal.mode === 'add' && !form.password.trim()) { alert('Password is required for new user.'); return; }
+    if (!form.username.trim()) {
+      showToast?.('Username is required.', 'warning');
+      return;
+    }
+    if (modal.mode === 'add' && !form.password.trim()) {
+      showToast?.('Password is required for new user.', 'warning');
+      return;
+    }
 
     const payload = {
       username: form.username.trim(),
@@ -149,16 +158,16 @@ const UserManagementList = ({ showToast = () => {} }) => {
     try {
       if (modal.mode === 'edit' && modal.row) {
         await apiClient.put(`/users/${modal.row.id}`, payload);
-        showToast?.(`User '${form.username}' updated successfully in PostgreSQL`, 'success');
+        showToast?.(`User '${form.username}' updated successfully.`, 'success');
       } else {
         await apiClient.post('/users', payload);
-        showToast?.(`User '${form.username}' created successfully in PostgreSQL`, 'success');
+        showToast?.(`User '${form.username}' created successfully.`, 'success');
       }
       setModal({ open: false, mode: 'add', row: null });
       fetchUsersAndOutlets();
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Failed to save user';
-      alert(`Error: ${errMsg}`);
+      showToast?.(`Error: ${errMsg}`, 'error');
     }
   };
 
@@ -167,14 +176,28 @@ const UserManagementList = ({ showToast = () => {} }) => {
     const id = deleteModal.row.id;
     try {
       await apiClient.delete(`/users/${id}`);
-      showToast?.(`User deactivated successfully in PostgreSQL`, 'success');
+      showToast?.(`User deactivated successfully.`, 'success');
       fetchUsersAndOutlets();
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || 'Failed to delete user';
-      alert(`Error: ${errMsg}`);
+      showToast?.(`Error: ${errMsg}`, 'error');
     } finally {
       setDeleteModal({ open: false, row: null });
     }
+  };
+
+  const handleBulkDelete = async (selectedRows) => {
+    let count = 0;
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await apiClient.delete(`/users/${row.id}`);
+          count++;
+        } catch (e) { }
+      }
+    }
+    showToast?.(`Deactivated ${count} user(s) in PostgreSQL`, 'success');
+    fetchUsersAndOutlets();
   };
 
   const activeOutletsList = availableOutlets.length > 0 ? availableOutlets : [
@@ -184,7 +207,30 @@ const UserManagementList = ({ showToast = () => {} }) => {
   ];
 
   return (
-    <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col p-6 animate-in fade-in duration-200" style={{ gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/setting')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            color: '#334155',
+            backgroundColor: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          }}
+        >
+          <FaArrowLeft style={{ fontSize: '13px', color: '#0e7490' }} /> Back to Operations Dashboard
+        </button>
+      </div>
+
       <CommonTable
         title="Admin User & Staff Management"
         columns={columns}
@@ -193,6 +239,7 @@ const UserManagementList = ({ showToast = () => {} }) => {
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Deactivate', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
         addEntryLabel="+ Add New User"
         searchPlaceholder="Search Users..."

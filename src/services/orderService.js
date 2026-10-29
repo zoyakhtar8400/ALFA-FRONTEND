@@ -31,6 +31,11 @@ export const orderService = {
     return await apiClient.patch(`/orders/${orderId}/payment`, paymentData);
   },
 
+  // Assign delivery boy to order
+  async assignDeliveryBoy(orderId, deliveryBoyData) {
+    return await apiClient.patch(`/orders/${orderId}/status`, deliveryBoyData);
+  },
+
   // Get pending bills for Billing Desk from PostgreSQL
   async getPendingBills() {
     return await apiClient.get('/billing/pending');
@@ -44,6 +49,11 @@ export const orderService = {
   // Delete order entry from PostgreSQL
   async deleteOrder(orderId) {
     return await apiClient.delete(`/orders/${orderId}`);
+  },
+
+  // Delete all orders (admin only)
+  async deleteAllOrders() {
+    return await apiClient.delete('/orders');
   }
 };
 

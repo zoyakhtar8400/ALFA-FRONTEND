@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import CommonTable from '../../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../../components/common/DeleteConfirmationModal';
 import DuplicateConfirmationModal from '../../../../components/common/DuplicateConfirmationModal';
@@ -7,25 +6,9 @@ import OutletMasterForm from './OutletMasterForm';
 import { useOutletMaster } from './useOutletMaster';
 
 const OutletMasterPage = ({ showToast }) => {
-  const navigate = useNavigate();
 
   const columns = [
-    {
-      key: 'name',
-      label: 'Outlet Name',
-      sortable: true,
-      render: (val, row) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/pos/master/outlet/${row.id}/display-table`);
-          }}
-          style={{ background: 'none', border: 'none', color: '#7c3aed', fontWeight: 800, cursor: 'pointer', textDecoration: 'underline', padding: 0, outline: 'none' }}
-        >
-          {val}
-        </button>
-      )
-    },
+    { key: 'name', label: 'Outlet Name', sortable: true },
     { key: 'shortName', label: 'Short Name', sortable: true },
     { key: 'phone', label: 'Phone Number', sortable: true },
     { key: 'status', label: 'Status', sortable: true, renderStatus: true, activeValue: 'Active' }
@@ -48,7 +31,8 @@ const OutletMasterPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useOutletMaster(toastTrigger);
 
   const handleOpenAdd = () => {
@@ -78,6 +62,7 @@ const OutletMasterPage = ({ showToast }) => {
             { label: 'Edit', onClick: handleOpenEdit },
             { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
           ]}
+          onBulkDelete={handleBulkDelete}
           onAddEntry={handleOpenAdd}
           addEntryLabel="+ Add Outlet"
           searchPlaceholder="Search outlet name or short name..."

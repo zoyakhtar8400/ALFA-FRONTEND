@@ -10,6 +10,7 @@ import { PrintHeader, PrintFooter } from '../../../components/common/PrintCompon
 import { purchaseApi } from '../../../api/purchaseApi';
 import { FaChartBar } from 'react-icons/fa';
 import '../../FrontDesk/report/reports.css';
+import ColumnSelectionPrintModal from '../../../components/common/ColumnSelectionPrintModal';
 
 const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -164,9 +165,41 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
     return `${datePart} ${timePart}`;
   }, []);
 
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
   const handlePrintClick = () => {
-    handlePrint();
-    toast('Report sent to print!');
+    setIsPrintModalOpen(true);
+  };
+
+  const handleConfirmPrint = (selectedKeys) => {
+    setIsPrintModalOpen(false);
+
+    setTimeout(() => {
+      const allKeys = tableColumns.map(c => c.key);
+      const unselectedIndices = tableColumns
+        .map((c, idx) => ({ key: c.key, idx }))
+        .filter(item => !selectedKeys.includes(item.key))
+        .map(item => item.idx);
+
+      const table = document.querySelector('.reports-workspace table');
+      if (table) {
+        table.querySelectorAll('tr').forEach(tr => {
+          unselectedIndices.forEach(idx => {
+            const cell = tr.children[idx + 1]; // +1 for the # serial column in CommonTable
+            if (cell) cell.classList.add('print-col-hide');
+          });
+        });
+      }
+
+      handlePrint();
+      toast('Report sent to print!');
+
+      setTimeout(() => {
+        if (table) {
+          table.querySelectorAll('.print-col-hide').forEach(el => el.classList.remove('print-col-hide'));
+        }
+      }, 2000);
+    }, 150);
   };
 
   const handleExportPDF = () => {
@@ -524,6 +557,15 @@ const PurchaseReportPlayground = ({ selectedReport, onBack, showToast }) => {
           </div>
         </div>
       </div>
+
+      {/* Universal Column Selection Print Modal */}
+      <ColumnSelectionPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        columns={tableColumns}
+        onPrint={handleConfirmPrint}
+        title={`Print Columns - ${selectedReport?.name || 'Purchase Report'}`}
+      />
     </div>
   );
 };

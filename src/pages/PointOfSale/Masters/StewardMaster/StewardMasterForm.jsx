@@ -5,6 +5,7 @@ import CommonActionButtons from '../../../../components/common/CommonActionButto
 import useDuplicateValidation from '../../../../hooks/useDuplicateValidation';
 import { handleEnterNavigation } from '../../../../utils/keyboardNavigation';
 import posApi from '../../../../api/posApi';
+import areaService from '../../../../services/areaService';
 
 const StewardMasterForm = ({
   isOpen,
@@ -14,8 +15,9 @@ const StewardMasterForm = ({
   onClose,
   existingRecords = []
 }) => {
-  const [form, setForm] = useState({ name: '', store_id: 'STORE_1', active: 'Yes' });
+  const [form, setForm] = useState({ name: '', area: '', store_id: 'STORE_1', active: 'Yes' });
   const [outlets, setOutlets] = useState([]);
+  const [areas, setAreas] = useState([]);
 
   // HMS Duplicate validation helper
   const { isDuplicate, DuplicateModal, checkBeforeSave } = useDuplicateValidation({
@@ -31,6 +33,11 @@ const StewardMasterForm = ({
       const list = res?.data || res?.stores || [];
       setOutlets(list);
     }).catch(err => console.warn('Failed to fetch outlets in StewardMasterForm', err));
+
+    areaService.getAreas().then(res => {
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+      setAreas(list);
+    }).catch(err => console.warn('Failed to fetch areas in StewardMasterForm', err));
   }, []);
 
   useEffect(() => {
@@ -38,11 +45,12 @@ const StewardMasterForm = ({
     if (initialData) {
       setForm({
         name: initialData.name || '',
+        area: initialData.area || '',
         store_id: initialData.store_id || activeOutlet,
         active: initialData.active || 'Yes'
       });
     } else {
-      setForm({ name: '', store_id: activeOutlet, active: 'Yes' });
+      setForm({ name: '', area: '', store_id: activeOutlet, active: 'Yes' });
     }
   }, [initialData, isOpen]);
 
@@ -50,7 +58,7 @@ const StewardMasterForm = ({
     e.preventDefault();
     if (!form.name.trim()) return;
     if (!checkBeforeSave()) return;
-    
+
     // Pass updated form data back to page action
     onSave(form);
   };
@@ -81,6 +89,7 @@ const StewardMasterForm = ({
               />
             </div>
 
+
             {/* Outlet Selector */}
             <div className="form-field">
               <label className="form-label">
@@ -98,6 +107,23 @@ const StewardMasterForm = ({
                     {o.store_name || o.name || `Outlet ${o.id}`}
                   </option>
                 ))}
+              </select>
+            </div>
+            {/* Assigned Area Selector */}
+            <div className="form-field">
+              <label className="form-label">
+                Assigned Dining Area
+              </label>
+              <select
+                value={form.area || ''}
+                onChange={(e) => setForm(prev => ({ ...prev, area: e.target.value }))}
+                className="form-select"
+              >
+                <option value="">All Dining Areas</option>
+                {areas.map(a => {
+                  const aName = a.name || a.area_name || a;
+                  return <option key={a.id || aName} value={aName}>{aName}</option>;
+                })}
               </select>
             </div>
 

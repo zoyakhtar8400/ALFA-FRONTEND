@@ -17,7 +17,7 @@ const RevenueChart = memo(({ data, showToast }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Revenue Trend</span>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#0369a1', background: '#e0f2fe', padding: '4px 10px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', background: 'var(--primary-light)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(27, 122, 109, 0.2)' }}>
           ₹{total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total} total
         </span>
       </div>
@@ -25,8 +25,8 @@ const RevenueChart = memo(({ data, showToast }) => {
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', overflow: 'visible' }}>
         <defs>
           <linearGradient id="revBarGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0ea5e9" />
-            <stop offset="100%" stopColor="#6366f1" />
+            <stop offset="0%" stopColor="#29b49b" />
+            <stop offset="100%" stopColor="#1b7a6d" />
           </linearGradient>
           <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="4" stdDeviation="4" floodOpacity="0.1" floodColor="#0f172a" />

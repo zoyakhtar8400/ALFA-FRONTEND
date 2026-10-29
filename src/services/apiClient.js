@@ -24,10 +24,18 @@ const endProgress = () => {
   }
 };
 
-// Request interceptor — attach JWT bearer token
+// Request interceptor — dynamically attach current Server URL and JWT bearer token
 apiClient.interceptors.request.use(
   (config) => {
     startProgress();
+    try {
+      let dynamicServer = (typeof localStorage !== 'undefined' && localStorage.getItem('alfa_server_url')) || 'http://localhost:8000';
+      if (!/^https?:\/\//i.test(dynamicServer)) {
+        dynamicServer = `http://${dynamicServer}`;
+      }
+      config.baseURL = `${dynamicServer.replace(/\/+$/, '')}/api`;
+    } catch (e) {}
+
     const token = localStorage.getItem('alfa_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

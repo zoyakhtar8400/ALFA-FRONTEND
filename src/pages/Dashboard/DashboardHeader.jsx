@@ -29,69 +29,37 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
     <div style={{ marginBottom: '24px', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
         <div>
-          <h1 style={{ fontSize: '30px', fontWeight: '800', color: '#244E5F', margin: 0, letterSpacing: '-0.75px', fontFamily: 'var(--font-family)' }}>
-            Hotel Dashboard
+          <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.75px', fontFamily: 'var(--font-family)' }}>
+            Operations Dashboard
           </h1>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{today}</p>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{today}</p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap', maxWidth: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', maxWidth: '100%' }}>
             {activeTab === 'overview' && (
-              <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '4px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '4px', background: '#eef2f5', border: '1px solid var(--border)', borderRadius: '10px', padding: '4px', flexWrap: 'wrap' }}>
                 {TIMEFRAMES.map(t => (
                   <button key={t} onClick={() => setTimeframe(t.toLowerCase())}
                     style={{
                       border: 'none', padding: '6px 14px', borderRadius: '7px',
                       fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', transition: 'all 200ms ease',
                       background: timeframe === t.toLowerCase() ? '#fff' : 'transparent',
-                      color: timeframe === t.toLowerCase() ? '#244E5F' : '#64748b',
-                      boxShadow: timeframe === t.toLowerCase() ? '0 4px 10px rgba(36, 78, 95, 0.05), 0 1px 3px rgba(36, 78, 95, 0.03)' : 'none',
+                      color: timeframe === t.toLowerCase() ? 'var(--primary)' : 'var(--text-secondary)',
+                      boxShadow: timeframe === t.toLowerCase() ? '0 2px 6px rgba(17, 41, 54, 0.08)' : 'none',
                     }}
                   >{t}</button>
                 ))}
               </div>
             )}
             <button onClick={onRefresh}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff', fontSize: '13px', fontWeight: '600', color: '#334155', cursor: 'pointer', transition: 'all 150ms' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#418A8B'; e.currentTarget.style.color = '#418A8B'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', border: '1px solid var(--border)', borderRadius: '8px', background: '#fff', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', transition: 'all 150ms' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
             >
               <LuRefreshCw size={14} /> Refresh
             </button>
           </div>
-
-          {/* activeTab === 'overview' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', maxWidth: '100%' }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Quick Action:
-              </span>
-              {headerActions.map((act, i) => {
-                const ActIcon = act.icon;
-                return (
-                  <button key={i} onClick={() => showToast?.(`${act.title} initiated`)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      padding: '7px 14px', border: 'none', borderRadius: '20px',
-                      background: act.bg, color: act.color, fontSize: '12px', fontWeight: '700',
-                      cursor: 'pointer', transition: 'all 150ms',
-                      boxShadow: `0 3px 6px ${act.shadow}`,
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = `0 6px 12px ${act.shadow}`;
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = `0 3px 6px ${act.shadow}`;
-                    }}
-                  >
-                    <ActIcon size={12} color="#ffffff" /> {act.title}
-                  </button>
-                );
-              })}
-            </div>
-          ) */}
         </div>
       </div>
 
@@ -102,8 +70,8 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
           flexWrap: 'nowrap', 
           overflowX: 'auto', 
           gap: '6px', 
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
+          background: '#edf2f5',
+          border: '1px solid var(--border)',
           padding: '6px',
           borderRadius: '12px',
           width: '100%', 
@@ -123,22 +91,22 @@ const DashboardHeader = memo(({ activeTab, setActiveTab, timeframe, setTimeframe
                 alignItems: 'center',
                 gap: '8px',
                 padding: '8px 18px',
-                border: 'none',
-                background: active ? '#fff' : 'transparent',
+                border: active ? '1px solid rgba(27, 122, 109, 0.25)' : '1px solid transparent',
+                background: active ? '#ffffff' : 'transparent',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '14px',
+                fontSize: '13.5px',
                 fontWeight: active ? '700' : '600',
-                color: active ? '#418A8B' : '#64748b',
-                boxShadow: active ? '0 4px 12px rgba(36, 78, 95, 0.06), 0 1px 3px rgba(36, 78, 95, 0.04)' : 'none',
+                color: active ? 'var(--primary)' : 'var(--text-secondary)',
+                boxShadow: active ? '0 2px 6px rgba(17, 41, 54, 0.06)' : 'none',
                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
               }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#418A8B'; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#64748b'; }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--primary)'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
-              <Icon size={15} style={{ color: active ? '#418A8B' : '#94a3b8' }} />{tab.label}
+              <Icon size={15} style={{ color: active ? 'var(--primary)' : 'var(--text-light)' }} />{tab.label}
             </button>
           );
         })}

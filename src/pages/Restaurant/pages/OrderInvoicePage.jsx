@@ -175,100 +175,106 @@ const OrderInvoicePage = () => {
             border-radius: 0 !important;
           }
         }
-      `}</style>
-
-      {/* Modern Premium Invoice Receipt Container */}
+      `}</style>        {/* Modern Premium Invoice Receipt Container */}
       <div
         className="invoice-container"
         style={{
-          width: '100%', maxWidth: '480px', background: '#ffffff',
-          padding: '32px 28px', borderRadius: '12px',
+          width: '100%', maxWidth: '380px', background: '#ffffff',
+          padding: '24px 20px', borderRadius: '8px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3)',
-          border: '1px solid #e2e8f0', boxSizing: 'border-box', color: '#000000'
+          border: '1px solid #e2e8f0', boxSizing: 'border-box', color: '#000000',
+          fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif'
         }}
       >
-        {/* Restaurant Header */}
-        <div style={{ textAlign: 'center', borderBottom: '1.5px dashed #000000', paddingBottom: '16px', marginBottom: '16px' }}>
-          {order.restaurant_name && (
-            <div style={{ fontSize: '23px', fontWeight: '900', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif', color: '#000000' }}>
-              {order.restaurant_name}
-            </div>
-          )}
-          {order.outlet_name && (
-            <div style={{ fontSize: '15px', fontWeight: '800', marginTop: '2px', color: '#000000', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif' }}>
+        {/* 1. Restaurant Name */}
+        <div style={{ textAlign: 'center', marginBottom: '14px' }}>
+          <div style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#000000' }}>
+            {order.restaurant_name || 'VARDAN RESTAURANT'}
+          </div>
+          {order.outlet_name && order.outlet_name.toUpperCase() !== (order.restaurant_name || 'VARDAN RESTAURANT').toUpperCase() && (
+            <div style={{ fontSize: '13px', fontWeight: '800', marginTop: '2px', color: '#000000', textTransform: 'uppercase' }}>
               {order.outlet_name}
             </div>
           )}
-          <div style={{ fontSize: '11px', marginTop: '6px', color: '#333333', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            {order.address || 'Main Dining Area'}
+
+          {/* 2. Address Section */}
+          <div style={{ fontSize: '11px', marginTop: '4px', color: '#000000', fontWeight: '800', textTransform: 'uppercase', lineHeight: '1.35' }}>
+            {order.address || 'VARDAAN TOWER 2 , SHAHEED NAGAR GATE NO.1 OPPOSITE DR. AMBEDKAR UNIVERSITY , LUCKNOW, LUCKNOW, UTTAR PRADESH'}
           </div>
-          <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
-            GSTIN: {order.gstin || '27AAAAA0000A1Z5'} {order.hsn ? `| HSN: ${order.hsn}` : ''} | FSSAI: {order.fssai || '10020021000123'}
+
+          {/* 3. Phone Number */}
+          <div style={{ fontSize: '11.5px', color: '#000000', fontWeight: '800', marginTop: '2px' }}>
+            Ph: {order.phone || '9794950982 , 9794950983'}
           </div>
-          <div style={{ fontSize: '11px', color: '#333333', fontWeight: '600', marginTop: '2px' }}>
-            PHONE: {order.phone || '+91 98765 43210'}
+
+          {/* 4. GSTIN */}
+          <div style={{ fontSize: '11.5px', color: '#000000', fontWeight: '800', marginTop: '2px' }}>
+            GSTIN: {(order.gstin || '09LCMPS7008F1Z0').toUpperCase()}
           </div>
+
+          {/* 5. FSSAI No */}
+          {order.fssai && (
+            <div style={{ fontSize: '11.5px', color: '#000000', fontWeight: '800', marginTop: '2px' }}>
+              FSSAI: {order.fssai}
+            </div>
+          )}
+
+          {/* 6. Bill Headers */}
+          {order.billHeader1 && <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '2px' }}>{order.billHeader1}</div>}
+          {order.billHeader2 && <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '1px' }}>{order.billHeader2}</div>}
+          {order.billHeader3 && <div style={{ fontSize: '11px', fontWeight: '700', marginTop: '1px' }}>{order.billHeader3}</div>}
+
+          {/* 7. Title Badge: TAX INVOICE / BILL */}
           <div style={{
-            fontSize: '14px', fontWeight: '800', marginTop: '14px',
-            borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000',
-            padding: '6px 0', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: '\'Outfit\', \'Segoe UI\', sans-serif'
+            fontSize: '15px', fontWeight: '900', marginTop: '10px',
+            padding: '4px 0', letterSpacing: '0.8px', textTransform: 'uppercase', color: '#000000'
           }}>
-            TAX INVOICE
+            TAX INVOICE / BILL
           </div>
         </div>
 
-        {/* Metadata Details */}
-        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginBottom: '16px', color: '#000000', fontFamily: 'monospace', fontWeight: 'bold' }}>
-          <tbody>
-            <tr>
-              <td style={{ padding: '4px 0', width: '50%' }}>BILL NO: {cleanBillNo()}</td>
-              <td style={{ padding: '4px 0', width: '50%', textAlign: 'right' }}>DATE: {order.billDate || new Date().toLocaleDateString()}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '4px 0' }}>TABLE: {order.tableNo || order.table_name || 'T01'}</td>
-              <td style={{ padding: '4px 0', textAlign: 'right' }}>TYPE: {order.billType || order.order_type || 'DINE_IN'}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '4px 0' }}>CUST: {order.customerName || order.customer_name || 'Walk-in'}</td>
-              <td style={{ padding: '4px 0', textAlign: 'right' }}>MOB: {order.mobileNo || order.customer_phone || '—'}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: '4px 0' }}>WAITER: {order.waiter || order.waiter_name || 'Staff'}</td>
-              <td style={{ padding: '4px 0', textAlign: 'right' }}>STATUS: [{order.payment_status || 'PAID'}]</td>
-            </tr>
-          </tbody>
-        </table>
+        {/* 8. Metadata Details */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: '600', lineHeight: '1.4', marginBottom: '8px', color: '#000000' }}>
+          <div>
+            <div>Bill No: {cleanBillNo()}</div>
+            <div>Table: {String(order.tableNo || order.table_name || 'T4').toLowerCase().startsWith('table') ? (order.tableNo || order.table_name) : `Table ${order.tableNo || order.table_name || 'T4'}`}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div>Date: {order.billDate || new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}</div>
+            <div>Time: {order.billTime || new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}</div>
+          </div>
+        </div>
 
-        {/* Items Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '16px', color: '#000000', fontFamily: 'monospace' }}>
+        {/* Items Table with Inverted Solid Black Header */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '8px', color: '#000000' }}>
           <thead>
-            <tr style={{ borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000' }}>
-              <th style={{ textAlign: 'left', padding: '6px 0', fontWeight: 'bold', width: '50%' }}>ITEM DESCRIPTION</th>
-              <th style={{ textAlign: 'center', padding: '6px 0', fontWeight: 'bold', width: '15%' }}>QTY</th>
-              <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 'bold', width: '17%' }}>RATE</th>
-              <th style={{ textAlign: 'right', padding: '6px 0', fontWeight: 'bold', width: '18%' }}>AMOUNT</th>
+            <tr style={{ background: '#000000', color: '#ffffff' }}>
+              <th style={{ textAlign: 'left', padding: '4px 4px', fontWeight: '900', width: '45%', textTransform: 'uppercase' }}>ITEM</th>
+              <th style={{ textAlign: 'center', padding: '4px 4px', fontWeight: '900', width: '15%', textTransform: 'uppercase' }}>QTY</th>
+              <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: '900', width: '20%', textTransform: 'uppercase' }}>RATE</th>
+              <th style={{ textAlign: 'right', padding: '4px 4px', fontWeight: '900', width: '20%', textTransform: 'uppercase' }}>AMT</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ padding: '16px', textAlign: 'center', fontWeight: 'bold' }}>
-                  NO MENU ITEMS SHOWING
+                <td colSpan={4} style={{ padding: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                  NO MENU ITEMS
                 </td>
               </tr>
             ) : items.map((item, idx) => {
               const displayName = (item.itemName || item.name || 'ITEM') + (item.variantName ? ` (${item.variantName})` : '');
               const rate = Number(item.unitPrice || item.price || item.rate || 0);
-              const total = Number(item.total || (item.qty * rate));
+              const total = Number(item.total || item.amount || (item.qty * rate));
               return (
-                <tr key={idx} style={{ borderBottom: '1px dotted #888888' }}>
-                  <td style={{ padding: '6px 0', fontWeight: 'bold', wordBreak: 'break-word' }}>
-                    {displayName.toUpperCase()}
+                <tr key={idx}>
+                  <td style={{ padding: '4px 2px', fontWeight: '800', wordBreak: 'break-word' }}>
+                    {displayName}
                     {item.remark && <div style={{ fontSize: '10px', fontWeight: 'normal', fontStyle: 'italic' }}>* {item.remark}</div>}
                   </td>
-                  <td style={{ padding: '6px 0', textAlign: 'center', fontWeight: 'bold' }}>{item.qty || 1}</td>
-                  <td style={{ padding: '6px 0', textAlign: 'right' }}>₹{formatAmount(rate)}</td>
-                  <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 'bold' }}>₹{formatAmount(total)}</td>
+                  <td style={{ padding: '4px 2px', textAlign: 'center', fontWeight: '800' }}>{item.qty || 1}</td>
+                  <td style={{ padding: '4px 2px', textAlign: 'right', fontWeight: '800' }}>{formatAmount(rate)}</td>
+                  <td style={{ padding: '4px 2px', textAlign: 'right', fontWeight: '900' }}>{formatAmount(total)}</td>
                 </tr>
               );
             })}
@@ -276,39 +282,46 @@ const OrderInvoicePage = () => {
         </table>
 
         {/* Totals Summary */}
-        <div style={{ borderTop: '1.5px dashed #000000', paddingTop: '10px', fontSize: '12px', color: '#000000', fontFamily: 'monospace' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
-            <span>SUBTOTAL:</span>
-            <span>₹{formatAmount(subtotal)}</span>
+        <div style={{ borderTop: '1px solid #000000', paddingTop: '6px', fontSize: '12.5px', color: '#000000', fontWeight: '800' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+            <span>Subtotal:</span>
+            <span>{formatAmount(subtotal)}</span>
           </div>
           {discountAmount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
-              <span>DISCOUNT:</span>
-              <span>- ₹{formatAmount(discountAmount)}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+              <span>Discount:</span>
+              <span>-{formatAmount(discountAmount)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
-            <span>CGST (2.5%):</span>
-            <span>₹{formatAmount(cgst)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+            <span>CGST:</span>
+            <span>{formatAmount(cgst || ((subtotal - discountAmount) * 0.025))}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontWeight: 'bold' }}>
-            <span>SGST (2.5%):</span>
-            <span>₹{formatAmount(sgst)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+            <span>SGST:</span>
+            <span>{formatAmount(sgst || ((subtotal - discountAmount) * 0.025))}</span>
           </div>
+
+          {/* Grand Total with double heavy line */}
           <div style={{
             display: 'flex', justifyContent: 'space-between',
-            borderTop: '1.5px dashed #000000', borderBottom: '1.5px dashed #000000',
-            padding: '8px 0', marginTop: '6px', fontSize: '15px', fontWeight: '900'
+            borderTop: '2px solid #000000', borderBottom: '3.5px double #000000',
+            padding: '5px 0', marginTop: '6px', marginBottom: '8px',
+            fontSize: '15px', fontWeight: '900'
           }}>
-            <span>NET AMOUNT:</span>
-            <span>₹{formatAmount(grandTotal)}</span>
+            <span>GRAND TOTAL:</span>
+            <span>₹ {formatAmount(grandTotal || subtotal + (cgst || 0) + (sgst || 0))}</span>
           </div>
         </div>
 
         {/* Receipt Footer */}
-        <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '11px', borderTop: '1.5px dashed #000000', paddingTop: '12px', color: '#333333', fontWeight: 'bold' }}>
-          *** THANK YOU FOR DINING WITH US ***<br />
-          HAVE A WONDERFUL DAY!
+        <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '11px', color: '#000000', fontWeight: '800' }}>
+          <div style={{ textTransform: 'uppercase', marginBottom: '4px' }}>
+            THANK YOU! VISIT AGAIN
+          </div>
+          <div style={{ fontSize: '10px', fontWeight: '700', color: '#222222' }}>
+            User: {(order.cashier || order.waiter || order.user_name || 'SAMAR').toUpperCase()} &nbsp;|&nbsp; Print Date & Time: {new Date().toLocaleDateString('en-GB').replace(/\//g, '-')} {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}
+          </div>
         </div>
       </div>
     </div>

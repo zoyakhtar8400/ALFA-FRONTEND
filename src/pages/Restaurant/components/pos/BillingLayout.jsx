@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FaToggleOn, FaStore, FaDesktop, FaClipboardList,
+  FaHistory, FaHandPaper, FaBell
+} from 'react-icons/fa';
 
 const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => {
-  const [mobileTab, setMobileTab] = useState('menu'); // Default to 'menu' so menu is always accessible on mobile/tablet
+  const [mobileTab, setMobileTab] = useState('menu');
+  const navigate = useNavigate();
 
   return (
     <div
@@ -20,6 +26,169 @@ const BillingLayout = ({ showMenu = true, isBillingDesk = false, children }) => 
         overflow: 'hidden'
       }}
     >
+      {/* ── Petpooja Upper Header Bar: All Icons (Item On/Off, Store, Live View, Orders, Recent, Hold, Alerts, Logout, Help) ── */}
+      <div style={{
+        height: '46px',
+        minHeight: '46px',
+        background: '#ffffff',
+        borderBottom: '1.5px solid #cbd5e1',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 12px',
+        boxSizing: 'border-box',
+        zIndex: 40,
+        flexShrink: 0
+      }}>
+        {/* Left Side: Back to Tables */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/restaurant/display-table')}
+            style={{
+              background: '#f1f5f9',
+              color: '#334155',
+              border: '1px solid #cbd5e1',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap'
+            }}
+            className="hover:bg-slate-200 hover:text-teal-800"
+            title="Back to Tables"
+          >
+            ← Tables
+          </button>
+        </div>
+
+        {/* Right Side: Petpooja Header Icons Strip */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* 1. Item On/Off */}
+          {/* <button
+            type="button"
+            onClick={() => navigate('/restaurant/menu-item-master')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Item On/Off"
+          >
+            <FaToggleOn size={14} color="#059669" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Item On/Off</span>
+          </button> */}
+
+          {/* 2. Store */}
+          {/* <button
+            type="button"
+            onClick={() => navigate('/restaurant/restaurant-outlets')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Store"
+          >
+            <FaStore size={13} color="#475569" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Store</span>
+          </button> */}
+
+          {/* 3. Live View */}
+          {/* <button
+            type="button"
+            onClick={() => navigate('/restaurant/display-table')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Live View"
+          >
+            <FaDesktop size={13} color="#475569" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Live View</span>
+          </button> */}
+
+          {/* 4. Orders */}
+          {/* <button
+            type="button"
+            onClick={() => navigate('/restaurant/order-details')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Orders"
+          >
+            <FaClipboardList size={13} color="#475569" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Orders</span>
+          </button> */}
+
+          {/* 5. Recent */}
+          {/* <button
+            type="button"
+            onClick={() => navigate('/restaurant/booking-list')}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Recent"
+          >
+            <FaHistory size={13} color="#475569" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Recent</span>
+          </button> */}
+
+          {/* 6. Hold */}
+          {/* <button
+            type="button"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569'
+            }}
+            title="Hold"
+          >
+            <FaHandPaper size={13} color="#d97706" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Hold</span>
+          </button> */}
+
+          {/* 7. Alerts */}
+          {/* <button
+            type="button"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', color: '#475569', position: 'relative'
+            }}
+            title="Alerts"
+          >
+            <FaBell size={13} color="#475569" />
+            <span style={{ fontSize: '7.5px', fontWeight: 800, color: '#475569', marginTop: '1px' }}>Alerts</span>
+          </button> */}
+
+
+          {/* 9. Need Help? Callout */}
+          <div
+            onClick={() => window.open('tel:7017671730')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              border: '1.5px solid #c92534',
+              borderRadius: '6px',
+              padding: '2px 8px',
+              background: '#fff1f2',
+              color: '#c92534',
+              cursor: 'pointer',
+              lineHeight: 1.15,
+              marginLeft: '4px'
+            }}
+            title="Call Support: 7017671730"
+          >
+            <span style={{ fontSize: '7px', fontWeight: 800, textTransform: 'uppercase' }}>Need Help ?</span>
+            <span style={{ fontSize: '9px', fontWeight: 900 }}>7017671730</span>
+          </div>
+        </div>
+      </div>
       <style>{`
         .content-area {
           padding: 0 !important;

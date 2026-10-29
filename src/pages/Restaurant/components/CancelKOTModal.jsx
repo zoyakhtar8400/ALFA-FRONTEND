@@ -68,6 +68,37 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
     });
   };
 
+  const eligibleKots = (kots || []).filter(kot => {
+    const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
+    const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
+    return !isNC;
+  });
+
+  const totalActiveItems = eligibleKots.reduce((acc, kot) => {
+    const items = kot.items || kot.sync_kot_item_list || [];
+    return acc + items.filter(i => String(i.status) !== '5').length;
+  }, 0);
+
+  const totalSelectedItems = Object.values(selectedItems).reduce((acc, list) => acc + (list || []).length, 0);
+
+  const isGlobalAllSelected = totalActiveItems > 0 && totalSelectedItems === totalActiveItems;
+  const isGlobalIndeterminate = totalSelectedItems > 0 && totalSelectedItems < totalActiveItems;
+
+  const handleToggleAllGlobal = () => {
+    if (isGlobalAllSelected) {
+      setSelectedItems({});
+    } else {
+      const next = {};
+      eligibleKots.forEach(kot => {
+        const kotId = kot.kot_id || kot.kotId || kot.id;
+        const items = kot.items || kot.sync_kot_item_list || [];
+        const activeItems = items.filter(i => String(i.status) !== '5');
+        next[kotId] = activeItems.map((i, index) => i.id || `item_${index}`);
+      });
+      setSelectedItems(next);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!reason.trim()) {
       setError('Please provide a reason for cancellation.');
@@ -111,10 +142,13 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       if (cancelledItemsList.length > 0) {
         try {
           const { printCancelKOT } = await import('../utils/printCancelKOT');
+          const firstKotNo = cancelledItemsList[0]?.kotNo || (kotsToProcess.length > 0 ? kotsToProcess[0] : '');
           printCancelKOT({
             tableLabel: String(tableId).replace('T', ''),
             items: cancelledItemsList,
-            reason: reason
+            reason: reason,
+            kotNo: firstKotNo,
+            kotId: firstKotNo
           });
         } catch (e) {
           console.error('Print cancel kot error:', e);
@@ -163,17 +197,39 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
       title="Cancel KOT / Items"
       maxWidth="550px"
     >
-      <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'system-ui' }}>
+      <div style={{ padding: '8px 4px', display: 'flex', flexDirection: 'column', gap: '14px', fontFamily: 'var(--font-family, system-ui)' }}>
         <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#1e293b', fontWeight: 800 }}>
           Select the items or KOTs you want to cancel:
         </h4>
 
+        {totalActiveItems > 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            padding: '8px 12px',
+            borderRadius: '8px'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 800, color: '#1e293b' }}>
+              <input
+                type="checkbox"
+                checked={isGlobalAllSelected}
+                ref={input => { if (input) input.indeterminate = isGlobalIndeterminate; }}
+                onChange={handleToggleAllGlobal}
+                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#ef4444' }}
+              />
+              Select All ({totalActiveItems} items across all KOTs)
+            </label>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: totalSelectedItems > 0 ? '#b91c1c' : '#64748b' }}>
+              {totalSelectedItems} of {totalActiveItems} selected
+            </span>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '40vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingRight: '8px', paddingBottom: '10px' }}>
-          {kots.filter(kot => {
-            const extra = typeof kot.extra_details === 'string' ? JSON.parse(kot.extra_details || '{}') : (kot.extra_details || {});
-            const isNC = extra.isNC || kot.isNC || kot.ncType || String(kot.remarks || '').toUpperCase().includes('NC') || String(kot.custom_bill_number || '').startsWith('NC-KOT');
-            return !isNC;
-          }).map(kot => {
+          {eligibleKots.map(kot => {
             const kotId = kot.kot_id || kot.kotId || kot.id;
             const items = kot.items || kot.sync_kot_item_list || [];
             const activeItems = items.filter(i => String(i.status) !== '5'); // Exclude already cancelled
@@ -203,7 +259,7 @@ const CancelKOTModal = ({ isOpen, onClose, kots: initialKots, tableId, onCancelS
                       type="checkbox" 
                       checked={isAllSelected}
                       ref={input => { if (input) input.indeterminate = isIndeterminate; }}
-                      onChange={() => {}} // handled by parent div onClick
+                      onChange={(e) => { e.stopPropagation(); handleToggleWholeKot(kotId, allItemIds); }}
                       style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#ef4444' }}
                     />
                     <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#0f172a' }}>

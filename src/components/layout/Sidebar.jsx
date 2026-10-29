@@ -12,435 +12,94 @@ import {
   FaTimes,
   FaSignOutAlt,
   FaChevronRight,
-  FaCogs,
+  FaChevronDown,
+  FaChevronLeft,
   FaFolder,
   FaChartBar,
   FaFileAlt,
   FaReceipt,
   FaBars,
-  FaUserCircle
+  FaStore,
+  FaLayerGroup,
+  FaThLarge,
+  FaBuilding,
+  FaChartLine,
+  FaMoon,
+  FaKeyboard,
+  FaHandPointer
 } from 'react-icons/fa';
-
-// Import split modules
-import {
-  masters, operations, misItems,
-  restaurantItems, restaurantMasters,
-  purchaseMasters, purchaseOperationsProcess, purchaseOperationsDirect
-} from './components/SidebarConfig';
-import SidebarFlyoutL1 from './components/SidebarFlyoutL1';
-import SidebarFlyoutL2 from './components/SidebarFlyoutL2';
-import SidebarFlyoutL3 from './components/SidebarFlyoutL3';
-import companyProfileService from '../../services/companyProfileService';
 import { useRestaurant } from '../../context/RestaurantContext';
-import ConfirmationDialog from '../common/ConfirmationDialog';
 
 const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout }) => {
   const navigate = useNavigate();
-  const { activeOutletId, allOutlets } = useRestaurant();
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const activeOutlet = allOutlets.find(o => Number(o.id) === Number(activeOutletId));
-  const activeOutletName = activeOutlet ? activeOutlet.name || activeOutlet.store_name : '';
-  const [companyProfile, setCompanyProfile] = useState(null);
-
-  const getMappedPath = (path) => {
-    const targetOutletId = activeOutletId || 1;
-    if (path.startsWith('/restaurant/')) {
-      const subpath = path.replace('/restaurant/', '');
-      return `/pos/master/outlet/${targetOutletId}/${subpath}`;
-    }
-    return path;
-  };
-
-  const getOutletMappedPath = (path, outletId) => {
-    const targetOutletId = outletId || activeOutletId || 1;
-    if (path.startsWith('/restaurant/')) {
-      const subpath = path.replace('/restaurant/', '');
-      return `/pos/master/outlet/${targetOutletId}/${subpath}`;
-    }
-    return path;
-  };
-
-  const isOutletActive = (outletId) => {
-    const parts = location.pathname.split('/').filter(Boolean);
-    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
-    if (inOutletWorkspace) {
-      return Number(parts[3]) === Number(outletId);
-    }
-    if (location.pathname.startsWith('/restaurant')) {
-      return Number(activeOutletId || 1) === Number(outletId);
-    }
-    return false;
-  };
-
-  // Load real Company Profile from PostgreSQL and listen for live updates
-  React.useEffect(() => {
-    let isMounted = true;
-    const loadComp = async () => {
-      try {
-        const res = await companyProfileService.getProfile();
-        const p = res?.data || res?.companyProfile || (res && res.id ? res : null);
-        if (isMounted && p) {
-          setCompanyProfile(p);
-        }
-      } catch (e) { }
-    };
-    loadComp();
-
-    const handleUpdate = (e) => {
-      if (isMounted) {
-        setCompanyProfile(e.detail);
-      }
-    };
-    window.addEventListener('companyProfileUpdated', handleUpdate);
-    window.addEventListener('authLoginSuccess', loadComp);
-    return () => {
-      isMounted = false;
-      window.removeEventListener('companyProfileUpdated', handleUpdate);
-      window.removeEventListener('authLoginSuccess', loadComp);
-    };
-  }, []);
-
-  // Global Keyboard Navigation for Sidebar
-  React.useEffect(() => {
-    const handleAltS = (e) => {
-      if (e.altKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) {
-          const first = Array.from(sidebar.querySelectorAll('[tabindex="0"]'))
-            .find(el => el.offsetWidth > 0 || el.offsetHeight > 0);
-          if (first) {
-            first.focus();
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleAltS);
-    return () => {
-      window.removeEventListener('keydown', handleAltS);
-    };
-  }, []);
-
-  const handleSidebarKeyDown = (e) => {
-    const active = document.activeElement;
-    if (!active || !e.currentTarget.contains(active)) return;
-
-    const focusable = Array.from(e.currentTarget.querySelectorAll('[tabindex="0"]'))
-      .filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
-
-    const idx = focusable.indexOf(active);
-    if (idx === -1) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        if (idx < focusable.length - 1) {
-          focusable[idx + 1].focus();
-        }
-        break;
-
-      case 'ArrowUp':
-        e.preventDefault();
-        if (idx > 0) {
-          focusable[idx - 1].focus();
-        }
-        break;
-
-      case 'ArrowRight':
-        e.preventDefault();
-        const isCollapsedHeader = active.querySelector('.chevron-icon:not(.open)');
-        if (isCollapsedHeader) {
-          active.click();
-        }
-        break;
-
-      case 'ArrowLeft':
-        e.preventDefault();
-        const isExpandedHeader = active.querySelector('.chevron-icon.open');
-        if (isExpandedHeader) {
-          active.click();
-        } else {
-          const parentAccordion = active.closest('.sidebar-submenu');
-          if (parentAccordion) {
-            const header = parentAccordion.previousElementSibling;
-            if (header && header.getAttribute('tabindex') === '0') {
-              header.focus();
-            }
-          }
-        }
-        break;
-
-      case 'Enter':
-        const isHeader = active.querySelector('.chevron-icon') || (active.classList.contains('sidebar-subitem') && active.tagName !== 'A');
-        if (isHeader) {
-          e.preventDefault();
-          active.click();
-        }
-        break;
-
-      default:
-        break;
-    }
-  };
-
   const location = useLocation();
-  const [frontDeskOpen, setFrontDeskOpen] = useState(true); // default open to show submenus
-  const [masterOpen, setMasterOpen] = useState(() => location.pathname.startsWith('/front-desk/master'));
-  const [operationOpen, setOperationOpen] = useState(() => location.pathname.startsWith('/front-desk/operation'));
-  const [misOpen, setMisOpen] = useState(() => location.pathname.startsWith('/front-desk/mis'));
+  const { activeOutletId, allOutlets, selectOutlet } = useRestaurant();
+  const [adminOpen, setAdminOpen] = useState(false);
 
-  const [purchaseOpen, setPurchaseOpen] = useState(() => location.pathname.startsWith('/purchase'));
-  const [purchaseMasterOpen, setPurchaseMasterOpen] = useState(true);
-  const [purchaseOperationOpen, setPurchaseOperationOpen] = useState(true);
-  const [purchaseProcessOpen, setPurchaseProcessOpen] = useState(true);
-  const [purchaseDirectOpen, setPurchaseDirectOpen] = useState(true);
-
-  const isOutletWorkspace = (() => {
-    const parts = location.pathname.split('/').filter(Boolean);
-    // /pos/master/outlet/:id/something — need at least 5 parts
-    return parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
-  })();
-  const [openOutlets, setOpenOutlets] = useState(() => {
-    const parts = location.pathname.split('/').filter(Boolean);
-    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
-    const currentOutletId = inOutletWorkspace ? Number(parts[3]) : null;
-    const initialOpen = {};
-    if (currentOutletId) {
-      initialOpen[currentOutletId] = true;
-    } else if (location.pathname.startsWith('/restaurant') &&
-      !location.pathname.includes('/master') &&
-      !location.pathname.includes('/masters') &&
-      !location.pathname.includes('order-details')) {
-      initialOpen[activeOutletId || 1] = true;
+  // Billing Mode State: 'Touch Screen' vs 'Keyboard' (default: 'Touch Screen')
+  const [billingMode, setBillingMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfa_billing_mode') || localStorage.getItem('billing_mode');
+      return saved === 'Keyboard' ? 'Keyboard' : 'Touch Screen';
+    } catch {
+      return 'Touch Screen';
     }
-    if (location.pathname.includes('order-details')) {
-      initialOpen[activeOutletId || 1] = true;
-    }
-    return initialOpen;
   });
-  const [posOpen, setPosOpen] = useState(() =>
-    (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')) ||
-    location.pathname.includes('/restaurant/masters') ||
-    location.pathname.includes('/restaurant/master') ||
-    location.pathname.includes('order-details')
-  );
-  const [posMasterOpen, setPosMasterOpen] = useState(() => location.pathname.startsWith('/restaurant/master') || location.pathname.startsWith('/restaurant/masters') || (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')));
-  const [posReportOpen, setPosReportOpen] = useState(() => location.pathname.includes('order-details'));
-  const [itemMenuOpen, setItemMenuOpen] = useState(() =>
-    location.pathname.includes('/pos/master/item-menu') ||
-    location.pathname.includes('/restaurant/master/item-menu')
-  );
 
-  // ERP Sidebar Flyout state
-  const [activeFlyout, setActiveFlyout] = useState(null); // { menu: string, top: number }
-  const [activeSubFlyout, setActiveSubFlyout] = useState(null); // { submenu: string, top: number }
-  const [activeSubSubFlyout, setActiveSubSubFlyout] = useState(null); // { submenu: string, top: number }
-  const closeTimerRef = React.useRef(null);
+  const handleBillingModeChange = (mode) => {
+    setBillingMode(mode);
+    try {
+      localStorage.setItem('alfa_billing_mode', mode);
+      localStorage.setItem('billing_mode', mode);
+      window.dispatchEvent(new CustomEvent('billingModeChanged', { detail: { mode } }));
+    } catch (e) {
+      console.warn('Could not persist billing mode:', e);
+    }
+  };
 
+  // Sync across tabs/windows
   React.useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
+    const handleStorage = (e) => {
+      if (e.key === 'alfa_billing_mode' || e.key === 'billing_mode') {
+        const val = e.newValue;
+        if (val === 'Touch Screen' || val === 'Keyboard') {
+          setBillingMode(val);
+        }
       }
+    };
+    const handleCustom = (e) => {
+      if (e.detail?.mode) {
+        setBillingMode(e.detail.mode);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('billingModeChanged', handleCustom);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('billingModeChanged', handleCustom);
     };
   }, []);
 
-  const clearCloseTimer = () => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  };
+  // Fallback if no outlets in state yet
+  const outletsToRender = allOutlets && allOutlets.length > 0
+    ? allOutlets
+    : [{ id: 1, name: 'Main Restaurant Outlet', store_name: 'Main Restaurant Outlet' }];
 
-  const startCloseTimer = () => {
-    clearCloseTimer();
-    closeTimerRef.current = setTimeout(() => {
-      setActiveFlyout(null);
-      setActiveSubFlyout(null);
-    }, 250);
-  };
-
-  const handleFrontDeskMouseEnter = (e) => {
-    if (!isCollapsed) return;
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveFlyout({
-      menu: 'front-desk',
-      top: rect.top
+  // State to track open/closed state for each outlet
+  const [openOutlets, setOpenOutlets] = useState(() => {
+    const initial = {};
+    outletsToRender.forEach((o, i) => {
+      // First outlet or currently active outlet open by default
+      initial[o.id] = i === 0 || Number(o.id) === Number(activeOutletId);
     });
-    setActiveSubFlyout(null);
-  };
+    return initial;
+  });
 
-  const handleFrontDeskMouseLeave = () => {
-    if (!isCollapsed) return;
-    startCloseTimer();
-  };
-
-  const handleRestaurantMouseEnter = (e, outletId) => {
-    if (!isCollapsed) return;
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveFlyout({
-      menu: 'restaurant',
-      outletId,
-      top: rect.top
-    });
-    setActiveSubFlyout(null);
-  };
-
-  const handleRestaurantMouseLeave = () => {
-    if (!isCollapsed) return;
-    startCloseTimer();
-  };
-
-  const handlePOSMouseEnter = (e) => {
-    if (!isCollapsed) return;
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveFlyout({
-      menu: 'point-of-sale',
-      top: rect.top
-    });
-    setActiveSubFlyout(null);
-  };
-
-  const handlePOSMouseLeave = () => {
-    if (!isCollapsed) return;
-    startCloseTimer();
-  };
-
-  const handlePurchaseMouseEnter = (e) => {
-    if (!isCollapsed) return;
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveFlyout({
-      menu: 'purchase',
-      top: rect.top
-    });
-    setActiveSubFlyout(null);
-  };
-
-  const handlePurchaseMouseLeave = () => {
-    if (!isCollapsed) return;
-    startCloseTimer();
-  };
-
-  const handleOtherItemMouseEnter = () => {
-    if (!isCollapsed) return;
-    clearCloseTimer();
-    setActiveFlyout(null);
-    setActiveSubFlyout(null);
-    setActiveSubSubFlyout(null);
-  };
-
-  const handleFlyoutL1MouseEnter = () => {
-    clearCloseTimer();
-  };
-
-  const handleFlyoutL1MouseLeave = () => {
-    startCloseTimer();
-  };
-
-  const handleFlyoutL2MouseEnter = () => {
-    clearCloseTimer();
-  };
-
-  const handleFlyoutL2MouseLeave = () => {
-    startCloseTimer();
-  };
-
-  const handleFlyoutL3MouseEnter = () => {
-    clearCloseTimer();
-  };
-
-  const handleFlyoutL3MouseLeave = () => {
-    startCloseTimer();
-  };
-
-  const handleSubSubmenuMouseEnter = (e, submenuId) => {
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveSubSubFlyout({
-      submenu: submenuId,
-      top: rect.top
-    });
-  };
-
-  const handleSubSubmenuMouseLeave = () => {
-    startCloseTimer();
-  };
-
-  const handleSubmenuMouseEnter = (e, submenuId) => {
-    clearCloseTimer();
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveSubFlyout({
-      submenu: submenuId,
-      top: rect.top
-    });
-  };
-
-  const handleSubmenuMouseLeave = () => {
-    startCloseTimer();
-  };
-
-  React.useEffect(() => {
-    if (location.pathname.startsWith('/front-desk/master')) {
-      setMasterOpen(true);
-    } else if (location.pathname.startsWith('/front-desk/operation')) {
-      setOperationOpen(true);
-    } else if (location.pathname.startsWith('/front-desk/mis')) {
-      setMisOpen(true);
-    }
-
-    const parts = location.pathname.split('/').filter(Boolean);
-    const inOutletWorkspace = parts[0] === 'pos' && parts[1] === 'master' && parts[2] === 'outlet' && parts[3] && parts[4];
-
-    if (location.pathname.includes('/restaurant/master/item-menu') || location.pathname.includes('/pos/master/item-menu')) {
-      setPosOpen(true);
-      setPosMasterOpen(true);
-      setItemMenuOpen(true);
-    } else if (location.pathname.includes('/restaurant/master') || location.pathname.includes('/restaurant/masters') || location.pathname.includes('/pos/master') || location.pathname.includes('/pos/masters')) {
-      if (!inOutletWorkspace) {
-        setPosOpen(true);
-        setPosMasterOpen(true);
-      }
-    } else if (location.pathname.includes('order-details')) {
-      setPosOpen(true);
-      setPosReportOpen(true);
-    } else if (inOutletWorkspace) {
-      const targetId = Number(parts[3]);
-      setOpenOutlets(prev => ({ ...prev, [targetId]: true }));
-    } else if (location.pathname.startsWith('/restaurant')) {
-      setOpenOutlets(prev => ({ ...prev, [activeOutletId || 1]: true }));
-    }
-  }, [location.pathname, activeOutletId]);
-
-  const handleMasterToggle = () => {
-    setMasterOpen(!masterOpen);
-    if (!masterOpen) {
-      setOperationOpen(false);
-      setMisOpen(false);
-    }
-  };
-
-  const handleOperationToggle = () => {
-    setOperationOpen(!operationOpen);
-    if (!operationOpen) {
-      setMasterOpen(false);
-      setMisOpen(false);
-    }
-  };
-
-  const handleMisToggle = () => {
-    setMisOpen(!misOpen);
-    if (!misOpen) {
-      setMasterOpen(false);
-      setOperationOpen(false);
-    }
-  };
-
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
+  const toggleOutletAccordion = (outletId) => {
+    setOpenOutlets(prev => ({
+      ...prev,
+      [outletId]: !prev[outletId]
+    }));
   };
 
   const handleMobileNav = () => {
@@ -449,13 +108,28 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
     }
   };
 
-  const handleHamburgerClick = () => {
-    if (window.innerWidth > 768) {
-      toggleCollapse();
-    } else {
-      toggleSidebar();
+  const isMasterActive =
+    location.pathname.startsWith('/pos/master') ||
+    location.pathname.startsWith('/pos/masters') ||
+    location.pathname === '/pos';
+
+  // Base navigation items: Display Table, View KOT, Order Detail, Billing Desk
+  const allOutletNavItems = [
+    { name: 'Display Table', subpath: 'display-table', icon: FaThLarge },
+    { name: 'View KOT', subpath: 'view-kot', icon: FaConciergeBell },
+    { name: 'Order Detail', subpath: 'order-details', icon: FaFileAlt },
+    { name: 'Billing Desk', subpath: 'billing-desk', icon: FaReceipt },
+  ];
+
+  // Dynamic items based on Billing Mode:
+  // Touch Screen -> Display Table, View KOT, Order Detail, Billing Desk
+  // Keyboard     -> Display Table, View KOT, Order Detail (Billing Desk hidden)
+  const outletNavItems = allOutletNavItems.filter(item => {
+    if (billingMode === 'Keyboard' && item.name === 'Billing Desk') {
+      return false;
     }
-  };
+    return true;
+  });
 
   return (
     <>
@@ -463,505 +137,617 @@ const Sidebar = ({ isOpen, toggleSidebar, isCollapsed, toggleCollapse, onLogout 
       <div
         className={`sidebar-backdrop ${isOpen ? 'open' : ''}`}
         onClick={toggleSidebar}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.4)',
+          zIndex: 90,
+          display: isOpen && window.innerWidth <= 768 ? 'block' : 'none'
+        }}
       />
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="sidebar-brand" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '20px', gap: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-            <img src="/logo/alfa-logo.png" alt="Logo" className="sidebar-logo" />
-            <button
-              className="sidebar-toggle-btn"
-              onClick={handleHamburgerClick}
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            >
-              <span className="desktop-only-toggle"><FaBars /></span>
-              <span className="mobile-only-toggle"><FaTimes /></span>
-            </button>
+      <aside
+        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
+        style={{
+          width: isCollapsed ? '64px' : '230px',
+          minWidth: isCollapsed ? '64px' : '230px',
+          background: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          position: 'relative',
+          transition: 'width 0.22s ease-in-out',
+          fontFamily: 'var(--font-family, system-ui)',
+          userSelect: 'none'
+        }}
+      >
+        {/* Floating Right Collapse Chevron Button (<) matching screenshot */}
+        <button
+          onClick={toggleCollapse}
+          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          style={{
+            position: 'absolute',
+            right: '-10px',
+            top: '48%',
+            transform: 'translateY(-50%)',
+            width: '20px',
+            height: '28px',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 120,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            color: '#64748b',
+            fontSize: '10px'
+          }}
+          className="hover:text-teal-700 hover:border-teal-500"
+        >
+          {isCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+        </button>
+
+        {/* ── Brand Header (Matching Screenshot & Linked to Company Profile) ── */}
+        <div
+          onClick={() => navigate('/company-profile')}
+          title="Company Setup & Profile"
+          style={{
+            padding: isCollapsed ? '12px 6px' : '14px 16px',
+            borderBottom: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            cursor: 'pointer'
+          }}
+          className="hover:bg-slate-50 transition-colors"
+        >
+          {/* Original ALFA Logo */}
+          <div
+            style={{
+              width: isCollapsed ? '32px' : '36px',
+              height: isCollapsed ? '32px' : '36px',
+              borderRadius: '8px',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              overflow: 'hidden',
+              padding: '2px'
+            }}
+          >
+            <img
+              src="/logo/alfa-logo.png"
+              alt="ALFA POS Logo"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                e.currentTarget.src = '/logo/hotel-logo.png';
+              }}
+            />
           </div>
-          {!isCollapsed && activeOutletName && (
-            <div style={{ fontSize: '11px', fontWeight: '800', background: '#0e7490', color: '#ffffff', padding: '4px 8px', borderRadius: '6px', width: '100%', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              Outlet: {activeOutletName}
+
+          {!isCollapsed && (
+            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: '1.2' }}>
+              <span style={{ fontSize: '14.5px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.2px' }}>
+                ALFA POS
+              </span>
+              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 500, letterSpacing: '0.01em' }}>
+                Hospitality Operating System
+              </span>
             </div>
           )}
         </div>
 
-        <nav className="sidebar-menu" onKeyDown={handleSidebarKeyDown}>
+        {/* ── Scrollable Menu Body ── */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '10px 8px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2px'
+        }}>
+
+          {/* ══════ SECTION: POINT OF SALE ══════ */}
+          {!isCollapsed && (
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: '#94a3b8',
+              textTransform: 'uppercase',
+              padding: '6px 10px 2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>POINT OF SALE</span>
+            </div>
+          )}
+
           {/* Dashboard */}
-          <NavLink to="/" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Dashboard" : ""}>
-            <FaTachometerAlt className="sidebar-icon" />
-            <span>Dashboard</span>
-          </NavLink>
-
-          {/* Point Of Sale Accordion Container */}
-          <div>
-            <div
-              tabIndex={0} className={`sidebar-item ${(location.pathname.startsWith('/restaurant/master') || location.pathname.startsWith('/restaurant/masters') || (location.pathname.startsWith('/pos') && !location.pathname.includes('/pos/master/outlet/')) || location.pathname.includes('order-details')) ? 'active' : ''}`}
-              onClick={() => {
-                if (isCollapsed) {
-                  setActiveFlyout(prev => prev ? null : { menu: 'point-of-sale', top: 280 });
-                  setActiveSubFlyout(null);
-                } else {
-                  setPosOpen(!posOpen);
-                }
-              }}
-              onMouseEnter={handlePOSMouseEnter}
-              onMouseLeave={handlePOSMouseLeave}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              title={isCollapsed ? "Point Of Sale" : ""}
-            >
-              <FaCashRegister className="sidebar-icon" />
-              <span>Point Of Sale</span>
-              <FaChevronRight className={`chevron-icon ${posOpen ? 'open' : ''}`} />
-            </div>
-
-            {/* POS Submenu (only when NOT collapsed) */}
-            {posOpen && !isCollapsed && (
-              <div className="sidebar-submenu">
-                {/* Master Sub-Accordion */}
-                <div>
-                  <div tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={() => setPosMasterOpen(!posMasterOpen)}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaCogs style={{ fontSize: '0.95rem' }} />
-                    <span>Master</span>
-                    <FaChevronRight className={`chevron-icon ${posMasterOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {posMasterOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      {restaurantMasters.map((m) => {
-                        if (m.subitems) {
-                          return (
-                            <div key={m.name}>
-                              <div tabIndex={0}
-                                className="sidebar-subitem"
-                                onClick={() => setItemMenuOpen(!itemMenuOpen)}
-                                style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '6px' }}
-                              >
-                                <span>{m.name}</span>
-                                <FaChevronRight className={`chevron-icon ${itemMenuOpen ? 'open' : ''}`} style={{ fontSize: '0.7rem', marginLeft: 'auto' }} />
-                              </div>
-                              {itemMenuOpen && (
-                                <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '12px' }}>
-                                  {m.subitems.map((sub) => (
-                                    <NavLink tabIndex={0}
-                                      key={sub.name}
-                                      to={sub.path}
-                                      className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                                      onClick={handleMobileNav}
-                                    >
-                                      {sub.name}
-                                    </NavLink>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <NavLink tabIndex={0}
-                            key={m.name}
-                            to={m.path}
-                            className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                            onClick={handleMobileNav}
-                          >
-                            {m.name}
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Report Sub-Accordion */}
-                <div>
-                  <div tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={() => setPosReportOpen(!posReportOpen)}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaFileAlt style={{ fontSize: '0.95rem' }} />
-                    <span>Report</span>
-                    <FaChevronRight className={`chevron-icon ${posReportOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {posReportOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      <NavLink to="/pos/report" tabIndex={0} className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`} onClick={handleMobileNav}>
-                        POS Reports Hub
-                      </NavLink>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Room Services (Commented)
-          <NavLink to="/room-services" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Room Services" : ""}>
-            <FaUtensils className="sidebar-icon" />
-            <span>Room Services</span>
-          </NavLink>
-          */}
-
-          {/* Restaurant Accordion Container */}
-          {(() => {
-            const outletsToRender = [...allOutlets].sort((a, b) => Number(a.id) - Number(b.id));
-
-            return outletsToRender.map((outlet) => {
-              const outletId = Number(outlet.id);
-              const outletName = outlet.store_name || outlet.name || 'Restaurant';
-              const isOpen = !!openOutlets[outletId];
-              const isActive = isOutletActive(outletId);
-
-              return (
-                <div key={outletId}>
-                  <div
-                    tabIndex={0}
-                    className={`sidebar-item ${isActive ? 'active' : ''}`}
-                    onClick={() => {
-                      if (isCollapsed) {
-                        setActiveFlyout(prev => prev && prev.menu === 'restaurant' && prev.outletId === outletId
-                          ? null
-                          : { menu: 'restaurant', outletId, top: 320 }
-                        );
-                        setActiveSubFlyout(null);
-                      } else {
-                        setOpenOutlets(prev => {
-                          const nextState = { [outletId]: !prev[outletId] };
-                          if (nextState[outletId]) {
-                            setPosOpen(false);
-                            setFrontDeskOpen(false);
-                            setPurchaseOpen(false);
-                          }
-                          return nextState;
-                        });
-                      }
-                    }}
-                    onMouseEnter={(e) => handleRestaurantMouseEnter(e, outletId)}
-                    onMouseLeave={handleRestaurantMouseLeave}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                    title={isCollapsed ? outletName : ''}
-                  >
-                    <FaUtensils className="sidebar-icon" />
-                    <span>{outletName}</span>
-                    <FaChevronRight className={`chevron-icon ${isOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {/* Restaurant Submenu (only when NOT collapsed) */}
-                  {isOpen && !isCollapsed && (
-                    <div className="sidebar-submenu">
-                      {restaurantItems.map((item) => {
-                        let SubIcon = FaFileAlt;
-                        if (item.name === 'POS') SubIcon = FaCashRegister;
-                        else if (item.name === 'Billing Desk') SubIcon = FaReceipt;
-                        else if (item.name === 'Display Table') SubIcon = FaUtensils;
-                        else if (item.name === 'View KOT') SubIcon = FaConciergeBell;
-                        else if (item.name === 'Order Details') SubIcon = FaFolder;
-
-                        return (
-                          <NavLink
-                            tabIndex={0}
-                            key={`${outletId}-${item.name}`}
-                            to={getOutletMappedPath(item.path, outletId)}
-                            className={({ isActive: isLinkActive }) => `sidebar-subitem ${isLinkActive ? 'active' : ''}`}
-                            onClick={handleMobileNav}
-                          >
-                            <SubIcon style={{ fontSize: '0.85rem' }} />
-                            <span>{item.name}</span>
-                          </NavLink>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            });
-          })()}
-
-          {/* Banquet (Commented)
-          <NavLink to="/banquet" tabIndex={0} className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`} onClick={handleMobileNav} onMouseEnter={handleOtherItemMouseEnter} title={isCollapsed ? "Banquet" : ""}>
-            <FaGlassCheers className="sidebar-icon" />
-            <span>Banquet</span>
-          </NavLink>
-          */}
-
-          {/* Purchase Accordion Container (Commented Out) */}
-          {/*
-          <div onMouseEnter={handlePurchaseMouseEnter} onMouseLeave={handlePurchaseMouseLeave}>
-            <div
-              tabIndex={0}
-              className={`sidebar-item ${location.pathname.startsWith('/purchase') ? 'active' : ''}`}
-              onClick={() => {
-                if (isCollapsed) {
-                  setActiveFlyout(prev => prev?.menu === 'purchase' ? null : { menu: 'purchase', top: 340 });
-                  setActiveSubFlyout(null);
-                } else {
-                  setPurchaseOpen(!purchaseOpen);
-                }
-              }}
-              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-              title={isCollapsed ? "Purchase" : ""}
-            >
-              <FaShoppingCart className="sidebar-icon" />
-              <span>Purchase</span>
-              <FaChevronRight className={`chevron-icon ${purchaseOpen ? 'open' : ''}`} />
-            </div>
-
-            {purchaseOpen && !isCollapsed && (
-              <div className="sidebar-submenu">
-                <div>
-                  <div
-                    tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={() => setPurchaseMasterOpen(!purchaseMasterOpen)}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaCogs style={{ fontSize: '0.95rem' }} />
-                    <span>Master</span>
-                    <FaChevronRight className={`chevron-icon ${purchaseMasterOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {purchaseMasterOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      {purchaseMasters.map((m) => (
-                        <NavLink
-                          tabIndex={0}
-                          key={m.name}
-                          to={m.path}
-                          className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                          onClick={handleMobileNav}
-                        >
-                          {m.name}
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div
-                    tabIndex={0}
-                    className="sidebar-subitem"
-                    onClick={() => setPurchaseOperationOpen(!purchaseOperationOpen)}
-                    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                  >
-                    <FaFolder style={{ fontSize: '0.95rem' }} />
-                    <span>Operation</span>
-                    <FaChevronRight className={`chevron-icon ${purchaseOperationOpen ? 'open' : ''}`} />
-                  </div>
-
-                  {purchaseOperationOpen && (
-                    <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '16px' }}>
-                      <div style={{ opacity: 0.9 }}>
-                        <div
-                          tabIndex={0}
-                          className="sidebar-subitem"
-                          onClick={() => setPurchaseProcessOpen(!purchaseProcessOpen)}
-                          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
-                        >
-                          <span>Purchase Process</span>
-                          <FaChevronRight className={`chevron-icon ${purchaseProcessOpen ? 'open' : ''}`} style={{ fontSize: '0.7rem', marginLeft: 'auto' }} />
-                        </div>
-
-                        {purchaseProcessOpen && (
-                          <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '12px' }}>
-                            {purchaseOperationsProcess.map((o) => (
-                              <NavLink
-                                tabIndex={0}
-                                key={o.name}
-                                to={o.path}
-                                className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                                onClick={handleMobileNav}
-                              >
-                                {o.name}
-                              </NavLink>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ marginTop: '4px' }}>
-                        <div
-                          tabIndex={0}
-                          className="sidebar-subitem"
-                          onClick={() => setPurchaseDirectOpen(!purchaseDirectOpen)}
-                          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
-                        >
-                          <span>Direct Process</span>
-                          <FaChevronRight className={`chevron-icon ${purchaseDirectOpen ? 'open' : ''}`} style={{ fontSize: '0.7rem', marginLeft: 'auto' }} />
-                        </div>
-
-                        {purchaseDirectOpen && (
-                          <div className="sidebar-submenu" style={{ paddingLeft: '10px', marginLeft: '12px' }}>
-                            {purchaseOperationsDirect.map((o) => (
-                              <NavLink
-                                tabIndex={0}
-                                key={o.name}
-                                to={o.path}
-                                className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                                onClick={handleMobileNav}
-                              >
-                                {o.name}
-                              </NavLink>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <NavLink
-                  to="/purchase/reports"
-                  tabIndex={0}
-                  className={({ isActive }) => `sidebar-subitem ${isActive ? 'active' : ''}`}
-                  onClick={handleMobileNav}
-                >
-                  <FaFileAlt style={{ fontSize: '0.95rem' }} />
-                  <span>Report</span>
-                </NavLink>
-              </div>
-            )}
-          </div>
-          */}
-
-          {/* Setting */}
           <NavLink
-            to="/setting"
-            tabIndex={0}
-            className={({ isActive }) => `sidebar-item ${isActive ? 'active' : ''}`}
-            onClick={(e) => {
-              handleMobileNav(e);
-              setPosOpen(false);
-            }}
-            onMouseEnter={handleOtherItemMouseEnter}
-            title={isCollapsed ? "Setting" : ""}
+            to="/"
+            end
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Dashboard' : ''}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '12.5px',
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? '#0d9488' : '#334155',
+              background: isActive ? '#e6f7f4' : 'transparent',
+              justifyContent: isCollapsed ? 'center' : 'flex-start',
+              transition: 'all 0.15s ease'
+            })}
+            className="hover:bg-slate-100"
           >
-            <FaCog className="sidebar-icon" />
-            <span>Setting</span>
+            <FaThLarge style={{ fontSize: '13px', color: location.pathname === '/' ? '#0d9488' : '#64748b' }} />
+            {!isCollapsed && <span>Dashboard</span>}
           </NavLink>
-        </nav>
 
-        {/* Sidebar Footer with Logout Button & Profile */}
-        <div className="sidebar-footer" onMouseEnter={handleOtherItemMouseEnter}>
-          <div className="sidebar-profile" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              onClick={() => navigate('/company-profile')}
-              style={{
-                width: '36px',
-                height: '36px',
-                minWidth: '36px',
-                borderRadius: '6px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                overflow: 'hidden',
+          {/* Master (Active highlighted item in screenshot) */}
+          <NavLink
+            to="/pos/master"
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Master' : ''}
+            style={() => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '12.5px',
+              fontWeight: isMasterActive ? 600 : 500,
+              color: isMasterActive ? '#0d9488' : '#334155',
+              background: isMasterActive ? '#e6f7f4' : 'transparent',
+              justifyContent: isCollapsed ? 'center' : 'flex-start',
+              transition: 'all 0.15s ease'
+            })}
+            className="hover:bg-slate-100"
+          >
+            <FaLayerGroup style={{ fontSize: '13px', color: isMasterActive ? '#0d9488' : '#64748b' }} />
+            {!isCollapsed && <span>Master</span>}
+          </NavLink>
+
+          {/* ══════ Outlets Accordion List (Every outlet displays Display Table, View KOT, Order Details, Billing Desk) ══════ */}
+          {outletsToRender.map((outlet) => {
+            const outletId = Number(outlet.id);
+            const outletName = outlet.store_name || outlet.name || `Outlet ${outletId}`;
+            const isOpen = !!openOutlets[outletId];
+            const isCurrentOutletActive = Number(activeOutletId) === outletId;
+
+            return (
+              <div key={outletId} style={{ marginTop: '2px' }}>
+                {/* Outlet Header */}
+                <div
+                  onClick={() => toggleOutletAccordion(outletId)}
+                  title={isCollapsed ? outletName : ''}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '12.5px',
+                    fontWeight: 500,
+                    color: isCurrentOutletActive ? '#0d9488' : '#334155',
+                    background: isCurrentOutletActive && !isOpen ? '#f0fdfa' : 'transparent',
+                    justifyContent: isCollapsed ? 'center' : 'space-between',
+                    transition: 'all 0.15s ease'
+                  }}
+                  className="hover:bg-slate-100"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                    <FaStore style={{ fontSize: '13px', color: '#0d9488', flexShrink: 0 }} />
+                    {!isCollapsed && (
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {outletName}
+                      </span>
+                    )}
+                  </div>
+                  {!isCollapsed && (
+                    <FaChevronDown style={{
+                      fontSize: '9px',
+                      color: '#94a3b8',
+                      transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      transition: 'transform 0.18s ease'
+                    }} />
+                  )}
+                </div>
+
+                {/* Submenu for this Outlet: Display Table, View KOT, Order Details, Billing Desk */}
+                {isOpen && !isCollapsed && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1px',
+                    paddingLeft: '22px',
+                    borderLeft: '1px dashed #cbd5e1',
+                    marginLeft: '16px',
+                    marginTop: '2px',
+                    marginBottom: '4px'
+                  }}>
+                    {outletNavItems.map((item, idx) => {
+                      const Icon = item.icon;
+                      // Target route for this outlet
+                      const targetPath = `/pos/master/outlet/${outletId}/${item.subpath}`;
+                      const isItemActive =
+                        (location.pathname === targetPath || location.pathname === `/restaurant/${item.subpath}`) &&
+                        (Number(activeOutletId) === outletId);
+
+                      return (
+                        <NavLink
+                          key={idx}
+                          to={targetPath}
+                          onClick={() => {
+                            selectOutlet(outletId);
+                            handleMobileNav();
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px 8px',
+                            borderRadius: '5px',
+                            textDecoration: 'none',
+                            fontSize: '11.8px',
+                            color: isItemActive ? '#0d9488' : '#475569',
+                            background: isItemActive ? '#e6f7f4' : 'transparent',
+                            fontWeight: isItemActive ? 600 : 400,
+                            transition: 'all 0.15s ease'
+                          }}
+                          className="hover:bg-slate-100"
+                        >
+                          <Icon style={{ fontSize: '11px', flexShrink: 0 }} />
+                          <span>{item.name}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* ══════ SECTION: ONLINE ORDERS ══════ */}
+          {!isCollapsed && (
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: '#94a3b8',
+              textTransform: 'uppercase',
+              padding: '12px 10px 2px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>ONLINE ORDERS</span>
+            </div>
+          )}
+
+          {/* Zomato */}
+          <div
+            title="Zomato Integration"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'space-between',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+            className="hover:bg-slate-100"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{
+                color: '#e23744',
+                fontWeight: 900,
+                fontSize: '13px',
+                fontStyle: 'italic',
+                fontFamily: 'sans-serif'
+              }}>
+                Z
+              </span>
+              {!isCollapsed && <span style={{ fontSize: '12.5px', color: '#e23744', fontWeight: 600 }}>Zomato</span>}
+            </div>
+            {!isCollapsed && (
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                color: '#e23744',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                padding: '1px 5px',
+                borderRadius: '4px'
+              }}>
+                LIVE
+              </span>
+            )}
+          </div>
+
+          {/* Swiggy */}
+          <div
+            title="Swiggy Integration"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'space-between',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer'
+            }}
+            className="hover:bg-slate-100"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{
+                color: '#fc8019',
+                fontWeight: 900,
+                fontSize: '13px',
+                fontFamily: 'sans-serif'
+              }}>
+                S
+              </span>
+              {!isCollapsed && <span style={{ fontSize: '12.5px', color: '#fc8019', fontWeight: 600 }}>Swiggy</span>}
+            </div>
+            {!isCollapsed && (
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                color: '#fc8019',
+                background: '#fff7ed',
+                border: '1px solid #fed7aa',
+                padding: '1px 5px',
+                borderRadius: '4px'
+              }}>
+                LIVE
+              </span>
+            )}
+          </div>
+
+          {/* ══════ SECTION: REPORTS ══════ */}
+          {!isCollapsed && (
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: '#94a3b8',
+              textTransform: 'uppercase',
+              padding: '12px 10px 2px'
+            }}>
+              <span>REPORTS</span>
+            </div>
+          )}
+
+          {/* Reports Dashboard (Growth & Loss) */}
+          <NavLink
+            to="/pos/report"
+            end
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Growth & Loss Dashboard' : ''}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '12.5px',
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? '#0d9488' : '#334155',
+              background: isActive ? '#e6f7f4' : 'transparent',
+              justifyContent: isCollapsed ? 'center' : 'flex-start'
+            })}
+            className="hover:bg-slate-100"
+          >
+            <FaChartLine style={{ fontSize: '13px', color: location.pathname === '/pos/report' ? '#0d9488' : '#64748b' }} />
+            {!isCollapsed && <span>Dashboard</span>}
+          </NavLink>
+
+          {/* Reports Catalog (All 32 Reports) */}
+          <NavLink
+            to="/pos/report/catalog"
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'All Reports' : ''}
+            style={({ isActive }) => {
+              const isCatalogActive = isActive || location.pathname.startsWith('/pos/report/') && location.pathname !== '/pos/report';
+              return {
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                padding: companyProfile?.logo ? '2px' : '0'
-              }}
-              title="Open Company Profile"
+                gap: '10px',
+                padding: '7px 10px',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontSize: '12.5px',
+                fontWeight: isCatalogActive ? 600 : 500,
+                color: isCatalogActive ? '#0d9488' : '#334155',
+                background: isCatalogActive ? '#e6f7f4' : 'transparent',
+                justifyContent: isCollapsed ? 'center' : 'flex-start'
+              };
+            }}
+            className="hover:bg-slate-100"
+          >
+            <FaFileAlt style={{ fontSize: '13px', color: (location.pathname.startsWith('/pos/report/') && location.pathname !== '/pos/report') ? '#0d9488' : '#64748b' }} />
+            {!isCollapsed && <span>Reports</span>}
+          </NavLink>
+
+          {/* Night Audit & Day-End Settlement */}
+          <NavLink
+            to="/front-desk/operation/night-audit-entry"
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Night Audit' : ''}
+            style={({ isActive }) => {
+              const isAuditActive = isActive || location.pathname.includes('night-audit');
+              return {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '7px 10px',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontSize: '12.5px',
+                fontWeight: isAuditActive ? 600 : 500,
+                color: isAuditActive ? '#0d9488' : '#334155',
+                background: isAuditActive ? '#e6f7f4' : 'transparent',
+                justifyContent: isCollapsed ? 'center' : 'flex-start'
+              };
+            }}
+            className="hover:bg-slate-100"
+          >
+            <FaMoon style={{ fontSize: '13px', color: location.pathname.includes('night-audit') ? '#0d9488' : '#64748b' }} />
+            {!isCollapsed && <span>Night Audit</span>}
+          </NavLink>
+
+          {/* ══════ SECTION: ADMINISTRATION ══════ */}
+          {!isCollapsed && (
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: '#94a3b8',
+              textTransform: 'uppercase',
+              padding: '12px 10px 2px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer'
+            }}
+            onClick={() => setAdminOpen(!adminOpen)}
             >
-              {companyProfile?.logo ? (
-                <img
-                  src={companyProfile.logo}
-                  alt="Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: '-webkit-optimize-contrast' }}
-                />
-              ) : (
-                <FaUserCircle size={22} style={{ color: '#0f766e' }} />
-              )}
+              <span>ADMINISTRATION</span>
+              <FaChevronDown style={{
+                fontSize: '8px',
+                transform: adminOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                transition: 'transform 0.15s ease'
+              }} />
             </div>
-            <div
-              className="profile-details"
-              onClick={() => navigate('/company-profile')}
-              style={{ cursor: 'pointer', flex: 1, minWidth: 0 }}
-              title="Open Company Profile"
-            >
-              <span className="profile-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
-                {companyProfile?.company_name || companyProfile?.name || 'ALFA Restaurant'}
-              </span>
-              <span className="profile-role" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', color: activeOutletName ? '#0e7490' : '#64748b', fontWeight: activeOutletName ? '800' : 'normal' }}>
-                {activeOutletName ? `Outlet: ${activeOutletName}` : (companyProfile?.city ? `${companyProfile.city}, ${companyProfile.state || ''}`.replace(/,\s*$/, '') : 'Company Details')}
-              </span>
+          )}
+
+          {/* Company Setup (Connected to Company Profile Page) */}
+          <NavLink
+            to="/company-profile"
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Company Setup' : ''}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '12.5px',
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? '#0d9488' : '#334155',
+              background: isActive ? '#e6f7f4' : 'transparent',
+              justifyContent: isCollapsed ? 'center' : 'flex-start'
+            })}
+            className="hover:bg-slate-100"
+          >
+            <FaBuilding style={{ fontSize: '13px', color: '#64748b' }} />
+            {!isCollapsed && <span>Company Setup</span>}
+          </NavLink>
+
+          {/* Settings */}
+          <NavLink
+            to="/setting"
+            onClick={handleMobileNav}
+            title={isCollapsed ? 'Settings' : ''}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '7px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+              fontSize: '12.5px',
+              fontWeight: isActive ? 600 : 500,
+              color: isActive ? '#0d9488' : '#334155',
+              background: isActive ? '#e6f7f4' : 'transparent',
+              justifyContent: isCollapsed ? 'center' : 'flex-start'
+            })}
+            className="hover:bg-slate-100"
+          >
+            <FaCog style={{ fontSize: '13px', color: '#64748b' }} />
+            {!isCollapsed && <span>Settings</span>}
+          </NavLink>
+
+          {/* Extra Administration Modules (Collapsible) */}
+          {adminOpen && !isCollapsed && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1px',
+              paddingLeft: '20px',
+              borderLeft: '1px dashed #cbd5e1',
+              marginLeft: '16px',
+              marginTop: '2px'
+            }}>
+              <NavLink to="/front-desk" onClick={handleMobileNav} style={{ fontSize: '11.5px', color: '#475569', textDecoration: 'none', padding: '5px 8px', borderRadius: '4px' }} className="hover:bg-slate-100">
+                Front Desk
+              </NavLink>
+              <NavLink to="/housekeeping" onClick={handleMobileNav} style={{ fontSize: '11.5px', color: '#475569', textDecoration: 'none', padding: '5px 8px', borderRadius: '4px' }} className="hover:bg-slate-100">
+                House Keeping
+              </NavLink>
+              <NavLink to="/purchase" onClick={handleMobileNav} style={{ fontSize: '11.5px', color: '#475569', textDecoration: 'none', padding: '5px 8px', borderRadius: '4px' }} className="hover:bg-slate-100">
+                Purchase & Inventory
+              </NavLink>
+              <NavLink to="/banquet" onClick={handleMobileNav} style={{ fontSize: '11.5px', color: '#475569', textDecoration: 'none', padding: '5px 8px', borderRadius: '4px' }} className="hover:bg-slate-100">
+                Banquet & Events
+              </NavLink>
             </div>
-            <button className="logout-btn" onClick={handleLogoutClick} title="Log Out">
-              <FaSignOutAlt />
-            </button>
-          </div>
+          )}
+
         </div>
+
+        {/* ── Sidebar Footer (ALFA POS v1.0 matching screenshot) ── */}
+        {!isCollapsed && (
+          <div style={{
+            padding: '10px 14px',
+            borderTop: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#ffffff'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>ALFA POS</span>
+            </div>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              color: '#64748b',
+              background: '#f1f5f9',
+              padding: '2px 6px',
+              borderRadius: '4px'
+            }}>
+              v1.0
+            </span>
+          </div>
+        )}
       </aside>
-
-      {/* Render modular Level 1 Flyout */}
-      <SidebarFlyoutL1
-        isCollapsed={isCollapsed}
-        activeFlyout={activeFlyout}
-        location={location}
-        activeSubFlyout={activeSubFlyout}
-        handleFlyoutL1MouseEnter={handleFlyoutL1MouseEnter}
-        handleFlyoutL1MouseLeave={handleFlyoutL1MouseLeave}
-        handleSubmenuMouseEnter={handleSubmenuMouseEnter}
-        handleSubmenuMouseLeave={handleSubmenuMouseLeave}
-        setActiveSubFlyout={setActiveSubFlyout}
-        handleMobileNav={handleMobileNav}
-        setActiveFlyout={setActiveFlyout}
-      />
-
-      {/* Render modular Level 2 Flyout */}
-      <SidebarFlyoutL2
-        isCollapsed={isCollapsed}
-        activeFlyout={activeFlyout}
-        activeSubFlyout={activeSubFlyout}
-        activeSubSubFlyout={activeSubSubFlyout}
-        handleFlyoutL2MouseEnter={handleFlyoutL2MouseEnter}
-        handleFlyoutL2MouseLeave={handleFlyoutL2MouseLeave}
-        handleSubSubmenuMouseEnter={handleSubSubmenuMouseEnter}
-        handleSubSubmenuMouseLeave={handleSubSubmenuMouseLeave}
-        masters={masters}
-        operations={operations}
-        misItems={misItems}
-        restaurantMasters={restaurantMasters}
-        purchaseMasters={purchaseMasters}
-        purchaseOperationsProcess={purchaseOperationsProcess}
-        purchaseOperationsDirect={purchaseOperationsDirect}
-        setActiveFlyout={setActiveFlyout}
-        setActiveSubFlyout={setActiveSubFlyout}
-        setActiveSubSubFlyout={setActiveSubSubFlyout}
-        handleMobileNav={handleMobileNav}
-        location={location}
-      />
-
-      {/* Render modular Level 3 Flyout */}
-      <SidebarFlyoutL3
-        isCollapsed={isCollapsed}
-        activeFlyout={activeFlyout}
-        activeSubFlyout={activeSubFlyout}
-        activeSubSubFlyout={activeSubSubFlyout}
-        handleFlyoutL3MouseEnter={handleFlyoutL3MouseEnter}
-        handleFlyoutL3MouseLeave={handleFlyoutL3MouseLeave}
-        restaurantMasters={restaurantMasters}
-        setActiveFlyout={setActiveFlyout}
-        setActiveSubFlyout={setActiveSubFlyout}
-        setActiveSubSubFlyout={setActiveSubSubFlyout}
-        handleMobileNav={handleMobileNav}
-      />
-      <ConfirmationDialog
-        isOpen={showLogoutModal}
-        onClose={() => setShowLogoutModal(false)}
-        onConfirm={onLogout}
-        title="Confirm Log Out"
-        message="Are you sure you want to log out from ALFA HMS?"
-        confirmText="Log Out"
-        cancelText="Cancel"
-        type="danger"
-        isLoadingText="Logging out..."
-      />
     </>
   );
 };

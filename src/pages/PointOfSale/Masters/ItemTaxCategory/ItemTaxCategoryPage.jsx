@@ -44,7 +44,8 @@ const ItemTaxCategoryPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useItemTaxCategory(toastTrigger);
 
   const handleOpenAdd = () => {
@@ -85,6 +86,7 @@ const ItemTaxCategoryPage = ({ showToast }) => {
             { label: 'Edit', onClick: handleOpenEdit },
             { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
           ]}
+          onBulkDelete={handleBulkDelete}
           onAddEntry={handleOpenAdd}
           addEntryLabel="+ Add Item Category"
           searchPlaceholder="Search category name or department..."

@@ -165,10 +165,10 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                   fontWeight: 800,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  background: isSelected ? '#DCFCE7' : '#FFFFFF',
-                  border: isSelected ? '1.5px solid #22C55E' : '1px solid #CBD5E1',
-                  color: isSelected ? '#15803D' : '#334155',
-                  boxShadow: isSelected ? '0 2px 6px rgba(34, 197, 94, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
+                  background: isSelected ? 'rgba(41, 180, 155, 0.12)' : '#FFFFFF',
+                  border: isSelected ? '1.5px solid #29b49b' : '1px solid #CBD5E1',
+                  color: isSelected ? '#0f766e' : '#334155',
+                  boxShadow: isSelected ? '0 2px 6px rgba(41, 180, 155, 0.2)' : '0 1px 2px rgba(0, 0, 0, 0.04)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis'
@@ -187,7 +187,7 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                 }}
                 title={mode.label}
               >
-                <Icon size={14} style={{ color: isSelected ? '#15803D' : '#64748b', flexShrink: 0 }} />
+                <Icon size={14} style={{ color: isSelected ? '#1b7a6d' : '#64748b', flexShrink: 0 }} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{mode.label}</span>
               </button>
             );
@@ -210,9 +210,9 @@ const POSPaymentBar = ({ activeMode, onSelectMode, isPaid, onChangeIsPaid }) => 
                 fontWeight: 800,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                background: isMoreActive ? '#DCFCE7' : (showMoreMenu ? '#e2e8f0' : '#FFFFFF'),
-                border: isMoreActive ? '1.5px solid #22C55E' : '1.5px dashed #94a3b8',
-                color: isMoreActive ? '#15803D' : '#334155',
+                background: isMoreActive ? 'rgba(41, 180, 155, 0.12)' : (showMoreMenu ? '#e2e8f0' : '#FFFFFF'),
+                border: isMoreActive ? '1.5px solid #29b49b' : '1.5px dashed #94a3b8',
+                color: isMoreActive ? '#0f766e' : '#334155',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

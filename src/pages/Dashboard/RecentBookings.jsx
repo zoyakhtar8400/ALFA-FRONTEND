@@ -17,11 +17,11 @@ const RecentBookings = memo(({ showToast }) => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-          <LuCalendarDays size={14} color="#418A8B" />
+          <LuCalendarDays size={14} color="var(--primary)" />
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>Recent Reservations</span>
         </div>
         <button onClick={() => { try { navigate('/front-desk/reservations'); } catch { showToast?.('View all reservations'); } }}
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: '#418A8B', cursor: 'pointer' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '11px', fontWeight: '700', color: 'var(--primary)', cursor: 'pointer' }}>
           View All <LuArrowRight size={12} />
         </button>
       </div>

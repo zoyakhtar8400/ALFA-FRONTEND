@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaUtensils } from 'react-icons/fa';
+import { formatTableNo } from '../../../../utils/tableFormat';
 
 const TableSelector = ({ isOpen, onClose, tablesList = [], currentTableId, onSelectTable }) => {
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -78,7 +79,7 @@ const TableSelector = ({ isOpen, onClose, tablesList = [], currentTableId, onSel
       }}>
         {/* Modal Header */}
         <div style={{
-          background: '#0e7490', color: '#fff', padding: '16px 20px',
+          background: '#1b7a6d', color: '#fff', padding: '16px 20px',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -118,19 +119,19 @@ const TableSelector = ({ isOpen, onClose, tablesList = [], currentTableId, onSel
                     fontSize: '0.85rem',
                     fontWeight: 800,
                     border: isFocused
-                      ? '2.5px solid #0e7490'
+                      ? '2.5px solid #1b7a6d'
                       : isAssigned
-                        ? '2px solid #0891b2'
+                        ? '2px solid #29b49b'
                         : '1px solid #cbd5e1',
                     background: isFocused
-                      ? '#cffafe'
+                      ? '#ccfbf1'
                       : isAssigned
-                        ? '#ecfeff'
+                        ? '#f0fdfa'
                         : isOccupied
                           ? '#fee2e2'
                           : '#f8fafc',
                     color: isAssigned || isFocused
-                      ? '#0e7490'
+                      ? '#1b7a6d'
                       : isOccupied
                         ? '#dc2626'
                         : '#334155',
@@ -141,7 +142,7 @@ const TableSelector = ({ isOpen, onClose, tablesList = [], currentTableId, onSel
                     boxShadow: isFocused ? '0 4px 12px rgba(14,116,144,0.25)' : 'none'
                   }}
                 >
-                  <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>{table.table_name || `T${parseInt(table.no || table.id, 10)}`}</div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>{formatTableNo(table.table_name || table.no || table.id, table.prefix, table.outlet_name || table.store_name || table)}</div>
                   <div style={{ fontSize: '0.62rem', fontWeight: 700, marginTop: '2px', opacity: 0.75 }}>
                     {table.status}
                   </div>

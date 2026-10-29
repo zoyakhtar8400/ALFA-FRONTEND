@@ -76,10 +76,11 @@ export const reportService = {
           console.error('Error parsing report JSON response:', e);
         }
       }
-      return data || {};
+      return data;
     } catch (error) {
-      console.error('Error fetching report data:', error);
-      throw error;
+      const errMsg = error?.message || 'Error fetching report data';
+      console.warn('Report fetch notice:', errMsg);
+      return {};
     }
   }
 };

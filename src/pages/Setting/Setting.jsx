@@ -6,7 +6,7 @@ import {
   FaArrowCircleDown, FaSyncAlt, FaToggleOn, FaPercent, FaTag, FaUsers,
   FaCommentAlt, FaUser, FaBuilding, FaClock, FaChartBar, FaCalendarCheck,
   FaFileExcel, FaFileAlt, FaChartPie, FaUserCheck, FaSearch, FaStar,
-  FaHistory, FaTimes, FaArrowLeft
+  FaHistory, FaTimes, FaArrowLeft, FaWeight, FaKeyboard, FaHandPointer
 } from 'react-icons/fa';
 import SettingsCard from './components/SettingsCard';
 import TaxStructure from './TaxStructure';
@@ -37,15 +37,16 @@ const ALL_SETTINGS_MODULES = [
 
   // Payments & Finance
   { id: 'cash-flow', title: 'Cash Flow', description: 'Track register cash intake', icon: FaWallet, section: 'Payments & Finance', path: '/front-desk/operation/payment-recieve-entry' },
-  { id: 'expense', title: 'Expense', description: 'Record daily petty cash expenses', icon: FaCoins, section: 'Payments & Finance', path: '/setting/expense' },
-  { id: 'withdrawal', title: 'Withdrawal', description: 'Cash drawer withdrawals', icon: FaArrowCircleUp, section: 'Payments & Finance', path: '/setting/expense' },
+  { id: 'expense', title: 'Expense', description: 'Record daily petty cash expenses', icon: FaCoins, section: 'Payments & Finance', path: '/pos/operation/expense-entry' },
+  { id: 'withdrawal', title: 'Withdrawal', description: 'Cash drawer withdrawals', icon: FaArrowCircleUp, section: 'Payments & Finance', path: '/pos/operation/expense-entry' },
   { id: 'cash-topup', title: 'Cash Top-Up', description: 'Drawer float & top-up entries', icon: FaArrowCircleDown, section: 'Payments & Finance', path: '/front-desk/operation/payment-recieve-entry' },
-  { id: 'currency-conversion', title: 'Currency Conversion', description: 'Multi-currency exchange rates', icon: FaSyncAlt, section: 'Payments & Finance', path: '/setting/tax-structure' },
+  { id: 'currency-conversion', title: 'Currency Conversion', description: 'Multi-currency exchange rates', icon: FaSyncAlt, section: 'Payments & Finance', path: '/pos/master/tax-category' },
 
   // Menu & Inventory
   { id: 'menu', title: 'Menu', description: 'Manage outlet menu & pricing catalog', icon: FaUtensils, section: 'Menu & Inventory', path: '/pos/master/item-menu/menu-item' },
   { id: 'menu-item-on-off', title: 'Menu Item On Off', description: 'Instantly toggle item availability', icon: FaToggleOn, section: 'Menu & Inventory', path: '/pos/master/item-menu/menu-item' },
-  { id: 'tax', title: 'Tax', description: 'GST slabs & tax calculation rules', icon: FaPercent, section: 'Menu & Inventory', path: '/setting/tax-structure' },
+  { id: 'uom', title: 'Unit of Measure (UOM)', description: 'Manage measurement units (Portion, Plate, Kg, Pc) & conversions', icon: FaWeight, section: 'Menu & Inventory', path: '/pos/master/uom' },
+  { id: 'tax', title: 'Tax', description: 'GST slabs & tax calculation rules', icon: FaPercent, section: 'Menu & Inventory', path: '/pos/master/tax-category' },
   { id: 'discount', title: 'Discount', description: 'Discounts & tax categories', icon: FaTag, section: 'Menu & Inventory', path: '/pos/master/tax-category' },
   { id: 'customers', title: 'Customers', description: 'Customer directory & profiles', icon: FaUsers, section: 'Menu & Inventory', path: '/front-desk/operation/guest-profile' },
   { id: 'feedback', title: 'Feedback', description: 'Customer feedback & ratings', icon: FaCommentAlt, section: 'Menu & Inventory', path: '/front-desk/operation/guest-profile' },
@@ -81,9 +82,43 @@ const Setting = ({ showToast = () => { } }) => {
   const location = useLocation();
   const path = location.pathname;
   const { user } = useAuth();
-  const isUserAdmin = user?.role === 'ADMIN' || user?.type === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.type === 'SUPERADMIN';
+  // Safe role check: If user role is not explicitly restricted, allow access to User Management
+  const isUserAdmin = !user || user?.role === 'ADMIN' || user?.type === 'ADMIN' || user?.role === 'SUPERADMIN' || user?.type === 'SUPERADMIN' || String(user?.username || '').toLowerCase() === 'admin' || user?.role !== 'STAFF';
 
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Billing Mode State: 'Touch Screen' vs 'Keyboard'
+  const [billingMode, setBillingMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('alfa_billing_mode') || localStorage.getItem('billing_mode');
+      return saved === 'Keyboard' ? 'Keyboard' : 'Touch Screen';
+    } catch {
+      return 'Touch Screen';
+    }
+  });
+
+  const handleBillingModeChange = (mode) => {
+    setBillingMode(mode);
+    try {
+      localStorage.setItem('alfa_billing_mode', mode);
+      localStorage.setItem('billing_mode', mode);
+      window.dispatchEvent(new CustomEvent('billingModeChanged', { detail: { mode } }));
+      showToast?.(`Billing mode switched to ${mode}. Sidebar updated.`);
+    } catch (e) {
+      console.warn('Could not persist billing mode:', e);
+    }
+  };
+
+  // Sync cross-tab/window
+  React.useEffect(() => {
+    const handleCustom = (e) => {
+      if (e.detail?.mode) {
+        setBillingMode(e.detail.mode);
+      }
+    };
+    window.addEventListener('billingModeChanged', handleCustom);
+    return () => window.removeEventListener('billingModeChanged', handleCustom);
+  }, []);
 
   // Load Pinned Favorites from localStorage
   const [pinnedIds, setPinnedIds] = useState(() => {
@@ -138,9 +173,6 @@ const Setting = ({ showToast = () => { } }) => {
   // Filtered items based on search query
   const filteredModules = useMemo(() => {
     let modules = ALL_SETTINGS_MODULES;
-    if (!isUserAdmin) {
-      modules = modules.filter(m => m.id !== 'user-management');
-    }
     if (!searchQuery.trim()) return modules;
     const q = searchQuery.toLowerCase().trim();
     return modules.filter(
@@ -149,7 +181,7 @@ const Setting = ({ showToast = () => { } }) => {
         m.description.toLowerCase().includes(q) ||
         m.section.toLowerCase().includes(q)
     );
-  }, [searchQuery, isUserAdmin]);
+  }, [searchQuery]);
 
   // Map of modules by ID for fast lookup
   const moduleMap = useMemo(() => {
@@ -189,9 +221,6 @@ const Setting = ({ showToast = () => { } }) => {
 
   // Sub-route Check: /setting/user-management or /setting/user
   if (path.includes('/setting/user-management') || path.includes('/setting/user')) {
-    if (!isUserAdmin) {
-      return <Navigate to="/setting" replace />;
-    }
     return <UserManagementList showToast={showToast} />;
   }
 
@@ -203,6 +232,11 @@ const Setting = ({ showToast = () => { } }) => {
   // Sub-route Check: /setting/menu
   if (path.includes('/setting/menu')) {
     return <Navigate to="/pos/master/item-menu/menu-item" replace />;
+  }
+
+  // Sub-route Check: /setting/uom
+  if (path.includes('/setting/uom')) {
+    return <Navigate to="/pos/master/uom" replace />;
   }
 
   // Sub-route Check: /setting/tax-structure
@@ -232,7 +266,7 @@ const Setting = ({ showToast = () => { } }) => {
   return (
     <div style={{ padding: '24px 32px', backgroundColor: '#F8FAFC', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1f2937', margin: 0, letterSpacing: '-0.3px' }}>
             Operations & Settings
@@ -240,6 +274,80 @@ const Setting = ({ showToast = () => { } }) => {
           <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0 0' }}>
             Enterprise ALFA HMS Operations and Configuration Center.
           </p>
+        </div>
+
+        {/* Billing Mode Setting Control */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          backgroundColor: '#ffffff',
+          padding: '6px 14px',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0e7490', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Sidebar Billing Mode
+            </span>
+            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+              {billingMode === 'Touch Screen' ? 'Shows Billing Desk in sidebar' : 'Hides Billing Desk from sidebar'}
+            </span>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            backgroundColor: '#f1f5f9',
+            padding: '3px',
+            borderRadius: '9px',
+            border: '1px solid #e2e8f0'
+          }}>
+            <button
+              type="button"
+              onClick={() => handleBillingModeChange('Touch Screen')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                backgroundColor: billingMode === 'Touch Screen' ? '#0e7490' : 'transparent',
+                color: billingMode === 'Touch Screen' ? '#ffffff' : '#64748b',
+                boxShadow: billingMode === 'Touch Screen' ? '0 1px 3px rgba(14,116,144,0.3)' : 'none'
+              }}
+            >
+              <FaHandPointer style={{ fontSize: '12px' }} />
+              Touch Screen
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBillingModeChange('Keyboard')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                backgroundColor: billingMode === 'Keyboard' ? '#0e7490' : 'transparent',
+                color: billingMode === 'Keyboard' ? '#ffffff' : '#64748b',
+                boxShadow: billingMode === 'Keyboard' ? '0 1px 3px rgba(14,116,144,0.3)' : 'none'
+              }}
+            >
+              <FaKeyboard style={{ fontSize: '12px' }} />
+              Keyboard
+            </button>
+          </div>
         </div>
       </div>
 

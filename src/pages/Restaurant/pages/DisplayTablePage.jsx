@@ -21,6 +21,8 @@ import InvoicePreviewModal from '../components/InvoicePreviewModal';
 import { useTableOperations } from '../hooks/useTableOperations';
 import { SERVICES } from '../constants/mockData';
 import { printTaxInvoice, printKitchenKOT, generateInvoiceHTML } from '../utils/printInvoice';
+import { TakeawayOrdersTab } from '../components/TakeawayOrdersTab';
+import { DeliveryOrdersTab } from '../components/DeliveryOrdersTab';
 import { orderService } from '../../../services/orderService';
 import { tableService } from '../../../services/tableService';
 import { kotService } from '../../../services/kotService';
@@ -70,6 +72,43 @@ const DisplayTablePage = () => {
   const [showDirectPayModal, setShowDirectPayModal] = useState(false);
   const [directPayTable, setDirectPayTable] = useState(null);
 
+  // Persistent Sequential Bill Number Generator for Display Table
+  const getOrAssignTableBillNumber = (tbl, orderObj) => {
+    // 1. Check if the table or order already has an assigned bill number
+    const existing = tbl?.bill_number || tbl?.billNo || tbl?.custom_bill_number ||
+                     orderObj?.bill_number || orderObj?.billNo || orderObj?.custom_bill_number;
+    if (existing) {
+      const match = String(existing).match(/\d+/g);
+      if (match && match.length > 0) {
+        const num = parseInt(match[match.length - 1], 10);
+        if (num > 0 && num < 1000000) return num;
+      }
+    }
+
+    // 2. Check active session storage for this specific table order
+    const tableKey = tbl?.id || tbl?.no || '1';
+    const sessionKey = `alfa_table_active_bill_${tableKey}`;
+    const savedSessionBill = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
+    if (savedSessionBill && !isNaN(Number(savedSessionBill)) && Number(savedSessionBill) > 0) {
+      return Number(savedSessionBill);
+    }
+
+    // 3. Increment global sequential bill sequence
+    let currentSeq = 0;
+    const stored = localStorage.getItem('alfa_pos_bill_sequence');
+    if (stored && !isNaN(Number(stored))) {
+      currentSeq = parseInt(stored, 10);
+    } else {
+      currentSeq = 0;
+    }
+
+    const nextSeq = currentSeq + 1;
+    localStorage.setItem('alfa_pos_bill_sequence', String(nextSeq));
+    localStorage.setItem(sessionKey, String(nextSeq));
+    sessionStorage.setItem(sessionKey, String(nextSeq));
+    return nextSeq;
+  };
+
   // Helper to fetch rich details from backend and print instantly
   const handlePrintPaidTable = async (table) => {
     try {
@@ -82,12 +121,20 @@ const DisplayTablePage = () => {
         // Fallback to table state
       }
 
+      const assignedBillNo = getOrAssignTableBillNumber(table, fetchedOrder);
+
       if (!fetchedOrder) {
         fetchedOrder = {
+          bill_number: assignedBillNo,
+          billNo: assignedBillNo,
+          bill_num_only: assignedBillNo,
+          custom_bill_number: `Bill ${assignedBillNo}`,
+          invoice_number: `Bill ${assignedBillNo}`,
+          id: `Bill ${assignedBillNo}`,
           tableNo: table.no,
           table_number: table.no,
           table_name: table.table_name || `T${table.no}`,
-          kotId: `INV-${table.no}-${Math.floor(1000 + Math.random() * 9000)}`,
+          kotId: `INV-${table.no}-${assignedBillNo}`,
           customerName: table.customer_name || 'Walk-in',
           waiterName: table.waiter_name || 'Staff',
           subtotal: table.amount,
@@ -96,6 +143,13 @@ const DisplayTablePage = () => {
           items: [],
           printerName: table.printerName || ''
         };
+      } else {
+        fetchedOrder.bill_number = assignedBillNo;
+        fetchedOrder.billNo = assignedBillNo;
+        fetchedOrder.bill_num_only = assignedBillNo;
+        fetchedOrder.custom_bill_number = `Bill ${assignedBillNo}`;
+        fetchedOrder.invoice_number = `Bill ${assignedBillNo}`;
+        fetchedOrder.id = `Bill ${assignedBillNo}`;
       }
 
       const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
@@ -115,26 +169,20 @@ const DisplayTablePage = () => {
 
       // Directly dispatch bill print to ws://localhost:8989 (triggers Windows Print Spooler Save As dialog)
       await printTaxInvoice({ ...fetchedOrder, printerName: table.printerName || '' });
-      if (window.showToast) window.showToast('✅ Bill print dispatched');
+      if (window.showToast) window.showToast(`✅ Bill #${assignedBillNo} print dispatched`);
     } catch (err) {
       console.warn('Direct print failed', err);
       if (window.showToast) window.showToast('Failed to print bill');
     }
   };
 
-  // Helper to open thermal bill preview modal
+  // Helper to directly print bill and mark table status as Unpaid (Exact same logic as POS Billing Page)
   const handleOpenInvoicePreview = async (table) => {
-    console.log('%c🔍 [Display Table] Opening Invoice Preview for Table:', 'color: #0ea5e9; font-weight: bold;', table);
+    console.log('%c🖨️ [Display Table] Direct Print Bill & Mark Unpaid for Table:', 'color: #0ea5e9; font-weight: bold;', table);
     try {
-      let fetchedOrder = null;
-      try {
-        const targetId = (table.current_order_id && table.current_order_id !== 0) ? table.current_order_id : `table-${table.id}`;
-        const res = await orderService.getOrderById(targetId);
-        fetchedOrder = res?.order || res?.data;
-      } catch (e) {}
-
+      // 1. Gather all active items for this table
       const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
-      const localItems = aggregateItems(
+      let allFinalItems = aggregateItems(
         (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) ||
         (orderItemsMap[table.no] && orderItemsMap[table.no].length > 0 ? orderItemsMap[table.no] : null) ||
         (orderItemsMap[String(table.no)] && orderItemsMap[String(table.no)].length > 0 ? orderItemsMap[String(table.no)] : null) ||
@@ -144,45 +192,166 @@ const DisplayTablePage = () => {
         (kotItemsFromTable.length > 0 ? kotItemsFromTable : [])
       );
 
-      const subtotalAmt = Number(table.amount || 0);
-      const taxAmt = subtotalAmt * (Number(globalTaxRate || 5) / 100);
-      const grandTotalAmt = subtotalAmt + taxAmt;
+      // If still empty, fetch active KOTs directly from backend
+      if (!allFinalItems || allFinalItems.length === 0) {
+        try {
+          const kotRes = await kotService.getKOTList({ table_id: table.id, active: 1 });
+          const activeKots = kotRes?.kots || kotRes?.data || [];
+          const fetchedKotItems = Array.isArray(activeKots) ? activeKots.flatMap(k => Array.isArray(k.items) ? k.items : []) : [];
+          if (fetchedKotItems.length > 0) {
+            allFinalItems = aggregateItems(fetchedKotItems);
+          }
+        } catch (kotErr) {
+          console.warn('Could not fetch KOT items for table:', kotErr);
+        }
+      }
 
-      const invoiceData = fetchedOrder ? {
-        ...fetchedOrder,
-        pax: fetchedOrder.pax || table.pax || table.paxCount || table.seats || 1,
-        guests: fetchedOrder.guests || table.pax || table.paxCount || table.seats || 1
-      } : {
-        table_number: table.no,
-        table_name: table.table_name || `T${table.no}`,
-        invoice_number: `INV-${table.no}`,
-        customer_name: table.customer_name || table.customer || 'Walk-in',
-        waiter_name: table.waiter_name || table.waiter || 'Staff',
-        pax: table.pax || table.paxCount || table.seats || 1,
-        guests: table.pax || table.paxCount || table.seats || 1,
-        items: localItems,
-        subtotal: subtotalAmt,
-        discount: Number(table.discount || table.discount_amount || table.discountAmount || 0),
-        discount_reason: table.discount_reason || table.discount_remarks || table.discount_note || '',
-        tax: taxAmt,
-        grand_total: grandTotalAmt,
-        payment_method: table.status === 'Paid' ? 'Paid' : 'Unpaid'
-      };
-      if (localItems.length > 0) invoiceData.items = localItems;
+      // 2. Calculate totals
+      const finalAmt = allFinalItems.reduce((sum, r) => sum + (Number(r.qty || 1) * Number(r.unitPrice || r.price || r.rate || 0)), 0);
+      const subtotalAmt = finalAmt > 0 ? finalAmt : Number(table.amount || 0);
+      const discountAmt = Number(table.discount || table.discount_amount || table.discountAmount || 0);
+      const taxRate = Number(globalTaxRate || 5);
+      const taxAmt = Math.round((subtotalAmt - discountAmt) * (taxRate / 100));
+      const netAmt = Math.round(subtotalAmt - discountAmt + taxAmt);
+      const taxBreakdown = [{ name: 'Tax', rate: taxRate, amount: taxAmt }];
 
-      let companyProfile = {};
+      // 3. Customer and staff details
+      const activeCustomerName = (table.customer_name || table.customer || 'Walk-in').trim();
+      const cleanMobile = (table.phone || table.customer_phone || table.mobile || '').trim();
+      const activeAddress = (table.customer_address || table.address || '').trim();
+      const activeLocality = (table.customer_locality || table.locality || '').trim();
+      const activeCompany = (table.company || table.company_name || '').trim();
+      const waiterName = table.waiter_name || table.waiter || 'Staff';
+      const paxCount = table.pax || table.paxCount || table.seats || 1;
+      const resolvedTableName = `T${table.no}`;
+
+      // 4. Create the Order in PostgreSQL DB via orderService.createOrder (exact same as POS Billing Page)
+      let createdOrderId = null;
+      let createdOrderData = null;
       try {
-        const cpRes = await companyProfileService.getProfile();
-        companyProfile = cpRes?.data || cpRes?.companyProfile || (cpRes && cpRes.id ? cpRes : {});
-      } catch (err) {}
+        const orderRes = await orderService.createOrder({
+          tableId: Number(table.id) || 1,
+          tableNo: resolvedTableName,
+          customerName: activeCustomerName,
+          mobileNo: cleanMobile,
+          customer_address: activeAddress,
+          customer_locality: activeLocality,
+          company: activeCompany,
+          waiter: waiterName,
+          status: 'unpaid',
+          items: allFinalItems,
+          discount: discountAmt,
+          tax: taxAmt,
+          taxes: taxAmt,
+          grand_total: netAmt,
+          total_amount: netAmt,
+          taxes_breakdown: taxBreakdown,
+          store_id: activeStoreId || 'STORE_1',
+          order_type: 'Dine In'
+        });
+        createdOrderData = orderRes?.data?.data || orderRes?.data?.order || orderRes?.order || orderRes?.data;
+        createdOrderId = createdOrderData?.order_id || createdOrderData?.id || orderRes?.order?.order_id || orderRes?.data?.order_id;
+      } catch (orderErr) {
+        console.warn('Non-blocking order persistence warning:', orderErr);
+      }
 
-      const html = generateInvoiceHTML(invoiceData, companyProfile, true);
-      console.log('%c📄 [Display Table] Invoice HTML generated successfully. Opening modal...', 'color: #10b981; font-weight: bold;');
-      setPreviewHtmlContent(html);
-      setPreviewInvoiceData(invoiceData);
-      setPreviewModalOpen(true);
+      // Extract accurate sequential bill number from database response
+      const assignedBillNo = createdOrderData?.bill_number || (createdOrderId ? String(createdOrderId).match(/\d+$/)?.[0] : null);
+      const cleanBillTitle = (createdOrderData?.custom_bill_number && /^Bill\s+\d+$/i.test(String(createdOrderData.custom_bill_number).trim()))
+        ? String(createdOrderData.custom_bill_number).trim()
+        : (assignedBillNo ? `Bill ${assignedBillNo}` : 'Bill 1');
+
+      if (assignedBillNo) {
+        localStorage.setItem('alfa_pos_bill_sequence', String(assignedBillNo));
+      }
+
+      // 5. Update table status in PostgreSQL backend
+      try {
+        await tableService.patchTableStatus(table.id, {
+          status: 'UNPAID_BILL',
+          order_state: 'UNPAID_BILL',
+          table_color: 'blue',
+          color: 'blue',
+          amount: netAmt,
+          total_amount: netAmt,
+          current_order_id: createdOrderId || table.current_order_id,
+          waiter: waiterName,
+          customer: activeCustomerName,
+          pax: paxCount,
+          guests: paxCount
+        });
+      } catch (e) {
+        console.warn('Failed to patch table status in backend:', e);
+      }
+
+      // 6. Update local state immediately so table turns blue (Unpaid)
+      setTables(prev => (Array.isArray(prev) ? prev : []).map(t => {
+        if (String(t.id) === String(table.id) || String(t.no) === String(table.no)) {
+          return {
+            ...t,
+            status: 'UNPAID_BILL',
+            order_state: 'UNPAID_BILL',
+            color: 'blue',
+            table_color: 'blue',
+            amount: netAmt,
+            total_amount: netAmt,
+            current_order_id: createdOrderId || t.current_order_id,
+            bill_number: assignedBillNo,
+            custom_bill_number: cleanBillTitle,
+            waiter: waiterName,
+            customer: activeCustomerName,
+            pax: paxCount,
+            paxCount: paxCount,
+            updatedAt: Date.now()
+          };
+        }
+        return t;
+      }));
+
+      // 7. Auto-print the Tax Invoice / Bill directly (same as POS Billing Page)
+      try {
+        await printTaxInvoice({
+          bill_number: cleanBillTitle,
+          invoice_number: cleanBillTitle,
+          custom_bill_number: cleanBillTitle,
+          id: cleanBillTitle,
+          table_number: resolvedTableName,
+          table_name: resolvedTableName,
+          customer_name: activeCustomerName,
+          company: activeCompany,
+          company_name: activeCompany,
+          customer_phone: cleanMobile,
+          customer_address: activeAddress,
+          customer_locality: activeLocality,
+          waiter_name: waiterName,
+          pax: paxCount,
+          guests: paxCount,
+          paxCount: paxCount,
+          payment_method: 'Unpaid',
+          payment_status: 'Unpaid',
+          status: 'Unpaid',
+          items: allFinalItems,
+          subtotal: subtotalAmt,
+          discount: discountAmt,
+          discount_reason: '',
+          grand_total: netAmt,
+          total_amount: netAmt,
+          taxes_breakdown: taxBreakdown,
+          serviceType: 'Dine In',
+          store_id: activeStoreId || 'STORE_1'
+        });
+      } catch (e) {
+        console.warn('Failed to print tax invoice:', e);
+      }
+
+      toast(`✅ Dine In order bill generated & printed! (${cleanBillTitle})`);
+
+      if (typeof refreshTables === 'function') {
+        refreshTables();
+      }
     } catch (err) {
-      console.error('❌ [Display Table] Failed to generate preview:', err);
+      console.error('❌ [Display Table] Failed to print bill directly:', err);
+      toast('Failed to print bill', 'error');
     }
   };
 
@@ -269,13 +438,188 @@ const DisplayTablePage = () => {
   const [ncReleaseTable, setNcReleaseTable] = useState(null);
   const [globalTaxRate, setGlobalTaxRate] = useState(0);
 
+  // Takeaway and Delivery Order Management State
+  const [takeawayOrders, setTakeawayOrders] = useState([]);
+  const [deliveryOrders, setDeliveryOrders] = useState([]);
+  const [deliveryBoysList, setDeliveryBoysList] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [takeawayStatusFilter, setTakeawayStatusFilter] = useState('All');
+  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState('All');
+
+  // Handle activeService passed from POSBillingPage navigation
+  useEffect(() => {
+    if (location.state?.activeService) {
+      setService(location.state.activeService);
+    }
+  }, [location.state?.activeService]);
+
+  // Fetch Delivery Boys from API
+  useEffect(() => {
+    async function fetchBoys() {
+      try {
+        const res = await posApi.getDeliveryBoys({ store_id: activeStoreId || 'STORE_1' });
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : (res?.data?.data || []));
+        setDeliveryBoysList(list);
+      } catch (err) {
+        console.warn('Failed to load delivery boys:', err);
+      }
+    }
+    fetchBoys();
+  }, [activeStoreId]);
+
+  // Fetch Takeaway and Delivery Orders from Backend
+  const refreshSpecialOrders = React.useCallback(async () => {
+    try {
+      setOrdersLoading(true);
+      const res = await orderService.getOrders({ store_id: activeStoreId || 'STORE_1' });
+      const allOrders = Array.isArray(res?.orders) ? res.orders : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+
+      const tk = [];
+      const dl = [];
+
+      allOrders.forEach(ord => {
+        const bType = Number(ord.billing_type);
+        const oType = String(ord.order_type || ord.orderType || '').toUpperCase();
+        const tName = String(ord.table_name || ord.tableName || '').toUpperCase();
+
+        if (bType === 2 || oType === 'TAKEAWAY' || tName.includes('TAKEAWAY') || tName.startsWith('TK-')) {
+          tk.push(ord);
+        } else if (bType === 3 || oType === 'DELIVERY' || tName.includes('DELIVERY') || tName.startsWith('DL-')) {
+          dl.push(ord);
+        }
+      });
+
+      setTakeawayOrders(tk);
+      setDeliveryOrders(dl);
+    } catch (err) {
+      console.warn('Failed to fetch takeaway/delivery orders:', err);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [activeStoreId]);
+
+  useEffect(() => {
+    refreshSpecialOrders();
+  }, [refreshSpecialOrders]);
+
+  // Handler to update Order Status
+  const handleUpdateOrderStatus = async (order, newStatus) => {
+    try {
+      const orderId = order.id || order.order_id || order.custom_bill_number;
+      await orderService.updateOrderStatus(orderId, { status: newStatus });
+      toast(`Order #${order.billNo || order.orderNo || orderId} status updated to: ${newStatus}`);
+      await refreshSpecialOrders();
+    } catch (err) {
+      console.error('Failed to update order status:', err);
+      toast('Failed to update order status', 'error');
+    }
+  };
+
+  // Handler to Assign Delivery Boy
+  const handleAssignDeliveryBoy = async (order, boyData) => {
+    try {
+      const orderId = order.id || order.order_id || order.custom_bill_number;
+      await orderService.assignDeliveryBoy(orderId, boyData);
+      toast(`Assigned delivery boy ${boyData.name} to order #${order.billNo || order.orderNo || orderId}`);
+      await refreshSpecialOrders();
+    } catch (err) {
+      console.error('Failed to assign delivery boy:', err);
+      toast('Failed to assign delivery boy', 'error');
+    }
+  };
+
+  // Handler to Open QuickPaymentModal for Takeaway / Delivery
+  const handleOpenQuickPayForOrder = (order) => {
+    const isDel = order.billing_type === 3 || order.order_type === 'DELIVERY';
+    const rawOrderId = order.id || order.order_id;
+    const isRealBill = typeof rawOrderId === 'string' && rawOrderId.startsWith('ORD-');
+    const kotId = !isRealBill ? (order.kot_id || rawOrderId) : null;
+    const formattedTable = {
+      id: rawOrderId,
+      // For existing Bill, provide current_order_id. For unbilled KOT, do not set current_order_id so QuickPaymentModal creates the bill
+      current_order_id: isRealBill ? rawOrderId : null,
+      order_id: isRealBill ? rawOrderId : null,
+      kot_id: kotId,
+      no: order.billNo || order.orderNo || rawOrderId,
+      table_name: isDel ? 'Delivery' : 'Takeaway',
+      table_number: order.billNo || order.orderNo || rawOrderId,
+      // Amounts
+      amount: Number(order.grand_total || order.total_amount || order.subtotal || order.amount || 0),
+      total_amount: Number(order.grand_total || order.total_amount || 0),
+      subtotal: Number(order.subtotal || order.amount || 0),
+      tax_amount: Number(order.tax_amount || order.tax || order.total_tax || 0),
+      discount_amount: Number(order.discount || order.discount_amount || 0),
+      // Customer
+      customer_name: order.customer_name || order.customerName || 'Walk-in',
+      customer: order.customer_name || order.customerName || 'Walk-in',
+      customer_phone: order.customer_phone || order.phone || '',
+      mobile: order.customer_phone || order.phone || '',
+      customer_address: order.customer_address || order.line_1 || order.address || '',
+      address: order.customer_address || order.line_1 || order.address || '',
+      waiter: order.waiter_name || order.waiter || 'Staff',
+      waiter_name: order.waiter_name || order.waiter || 'Staff',
+      // Type markers for QuickPaymentModal bypass checks
+      billing_type: order.billing_type,
+      order_type: isDel ? 'DELIVERY' : 'TAKEAWAY',
+      serviceType: isDel ? 'Delivery' : 'Takeaway',
+      order_state: order.order_state,
+      payment_status: order.payment_status,
+      // Items for bill calculation
+      items: Array.isArray(order.items) ? order.items : []
+    };
+    setQuickPaymentTable(formattedTable);
+  };
+
+  // Handler to Print Bill for Takeaway / Delivery
+  const handlePrintSpecialOrderBill = async (order) => {
+    try {
+      const isDel = order.billing_type === 3 || order.order_type === 'DELIVERY';
+      const invoiceData = {
+        invoice_number: order.billNo || order.orderNo || `INV-${order.id}`,
+        billNo: order.billNo || order.orderNo || `INV-${order.id}`,
+        table_name: isDel ? 'Delivery' : 'Takeaway',
+        table_number: isDel ? 'Delivery' : 'Takeaway',
+        customer_name: order.customer_name || order.customerName || 'Walk-in',
+        customer_phone: order.customer_phone || order.phone || '',
+        customer_address: order.customer_address || order.line_1 || order.address || '',
+        items: order.items || [],
+        subtotal: Number(order.subtotal || order.amount || 0),
+        tax: Number(order.tax || order.total_tax || 0),
+        discount: Number(order.discount || 0),
+        delivery_charge: Number(order.delivery_charge || 0),
+        grand_total: Number(order.grand_total || order.total_amount || 0),
+        order_type: isDel ? 'DELIVERY' : 'TAKEAWAY',
+        status: order.payment_status || 'Unpaid'
+      };
+      await printTaxInvoice(invoiceData);
+      toast(`✅ Bill printed for ${isDel ? 'Delivery' : 'Takeaway'} #${order.billNo || order.orderNo || order.id}`);
+    } catch (err) {
+      console.error('Failed to print order bill:', err);
+      toast('Failed to print bill', 'error');
+    }
+  };
+
   useEffect(() => {
     if (location.state?.toastMessage) {
       toast(location.state.toastMessage);
-      window.history.replaceState({}, document.title);
     } else if (location.state?.updatedTable && location.state?.updatedTable?.status === 'UNPAID_BILL') {
       const tNo = location.state.updatedTable.no || location.state.updatedTable.id;
       toast(`✅ Bill generated & printed for Table T${tNo}!`);
+    }
+    if (location.state?.updatedTable) {
+      const up = location.state.updatedTable;
+      setTables(prev => (Array.isArray(prev) ? prev : []).map(t => {
+        if (String(t.id) === String(up.id) || String(t.no) === String(up.no) || String(t.table_no) === String(up.no)) {
+          return {
+            ...t,
+            ...up,
+            status: up.status || 'UNPAID_BILL',
+            color: up.color || 'blue',
+            updatedAt: Date.now()
+          };
+        }
+        return t;
+      }));
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
@@ -767,9 +1111,13 @@ const DisplayTablePage = () => {
       } catch (err) {
         console.warn('Error resetting table status in PostgreSQL:', err);
       }
+      const tableKey = table.id || table.no || '1';
+      sessionStorage.removeItem(`alfa_table_active_bill_${tableKey}`);
+      localStorage.removeItem(`alfa_table_active_bill_${tableKey}`);
+
       setTables(prev => prev.map(t => {
         if (t.id === table.id) {
-          return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0 };
+          return { ...t, status: 'Blank', amount: 0, waiter: null, captain: null, customer: 'Walk-in', openedAt: null, isHold: false, kots: [], kotCount: 0, bill_number: null, custom_bill_number: null };
         }
         return t;
       }));
@@ -1039,65 +1387,75 @@ const DisplayTablePage = () => {
       )}
 
       {/* 1. Header Section */}
-      {/* 1. LEVEL 1: Title, Search, Date & Core Actions Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '10px 18px', borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
+      {/* 1. LEVEL 1: Back, Title, Service Tabs, Search, Date & Core Actions Row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '16px', padding: '12px 24px', borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.3px' }}>POS Tables</h2>
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              background: '#fff',
+              color: '#334155',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            ← Back
+          </button>
 
-          {/* Service switcher tabs */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: '2px', borderRadius: '8px', border: '1px solid #e2e8f0', gap: '2px' }}>
-            {SERVICES.map(({ id, label }) => {
-              const isSelected = service === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => {
-                    if (id === 'Takeaway' || id === 'Delivery') {
-                      navigate(getBillingPath(), { state: { serviceType: id, isNewBooking: true, tableNumber: id === 'Takeaway' ? 'Takeaway' : 'Delivery', tableId: id === 'Takeaway' ? 'TK-NEW' : 'DL-NEW' } });
-                    } else {
-                      setService(id);
-                    }
-                  }}
-                  style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 150ms ease-in-out', background: isSelected ? 'var(--primary)' : 'transparent', color: isSelected ? '#fff' : '#64748b' }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.2px' }}>
+            POS Tables
+          </h2>
         </div>
 
         {/* Search, Date & Quick Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Search box */}
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <FaSearch style={{ position: 'absolute', left: '10px', color: '#94a3b8', fontSize: '0.8rem' }} />
             <input
               type="text"
-              placeholder="Search Table..."
+              placeholder="Search Tabl"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '130px', padding: '6px 12px 6px 28px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.78rem', outline: 'none' }}
+              style={{
+                width: '140px',
+                padding: '7px 12px 7px 30px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                fontSize: '0.82rem',
+                outline: 'none',
+                background: '#fff'
+              }}
             />
           </div>
 
           {/* Date Picker */}
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            style={{
-              padding: '5px 8px',
-              borderRadius: '6px',
-              border: selectedDate !== todayStr ? '1.5px solid var(--primary)' : '1px solid #cbd5e1',
-              background: selectedDate !== todayStr ? 'var(--primary-light)' : '#fff',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              color: selectedDate !== todayStr ? 'var(--primary)' : '#1e293b',
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                padding: '7px 10px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                color: '#1e293b',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            />
+          </div>
 
           <button
             onClick={() => {
@@ -1108,262 +1466,300 @@ const DisplayTablePage = () => {
               setSelectedTransferItems({});
               setShowQuickSwitch(true);
             }}
-            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+            style={{
+              padding: '7px 14px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#fff',
+              color: '#334155',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
           >
-            <FaExchangeAlt size={11} color="var(--primary)" /> Move
+            <FaExchangeAlt size={12} color="#0d9488" /> Move
           </button>
 
           <button
             onClick={() => setBookModalOpen(true)}
-            style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', color: '#fff', fontSize: '0.78rem', fontWeight: 800, cursor: 'pointer' }}
+            style={{
+              padding: '7px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#f97316',
+              color: '#fff',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(249, 115, 22, 0.2)'
+            }}
           >
             Book
           </button>
 
           <button
             onClick={handleAddNewTable}
-            style={{ padding: '6px 10px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+            style={{
+              padding: '7px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              background: '#0d9488',
+              color: '#fff',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(13, 148, 136, 0.2)'
+            }}
           >
             + Add
           </button>
         </div>
       </div>
 
-      {/* 2. LEVEL 2: Combined Section Filters & Live Status Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '6px 18px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', overflowX: 'auto' }}>
-        {/* Floors/Areas */}
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          {dynamicAreas.map(ar => {
-            const isSelected = filter === ar;
-            return (
-              <button
-                key={ar}
-                onClick={() => setFilter(ar)}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '16px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  border: isSelected ? '1.5px solid var(--primary)' : '1px solid #e2e8f0',
-                  background: isSelected ? 'var(--primary-light)' : '#fff',
-                  color: isSelected ? 'var(--primary)' : '#475569',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {ar === 'All' ? 'All Areas' : ar}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Live Status KPI Pills */}
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          {STATUS_FILTERS.map(st => {
-            const isSelected = statusFilter === st;
-            let count = 0;
-            if (st === 'All') {
-              count = dateAdjustedTables.length;
-            } else if (st === 'Blank') {
-              count = dateAdjustedTables.filter(t => !t.status || t.status === 'Blank' || t.status === 'AVAILABLE' || t.color === 'white').length;
-            } else if (st === 'Running') {
-              count = dateAdjustedTables.filter(t => {
-                const sUpper = (t.status || '').toUpperCase();
-                const kotCnt = t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0);
-                const hasAct = (Number(t.amount || 0) > 0) || kotCnt > 0;
-                return sUpper !== 'BLANK' && sUpper !== 'AVAILABLE' && sUpper !== 'NC_BLOCKED' && sUpper !== 'RESERVED' && sUpper !== 'PAID' && sUpper !== 'CLEANING' && sUpper !== 'UNPAID' && t.color !== 'blue' && t.color !== 'purple' && hasAct;
-              }).length;
-            } else if (st === 'Unpaid') {
-              count = dateAdjustedTables.filter(t => t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.color === 'blue' || t.color === 'red').length;
-            } else if (st === 'Reserved') {
-              count = dateAdjustedTables.filter(t => t.status === 'Reserved' || t.color === 'orange').length;
-            } else if (st === 'Paid') {
-              count = dateAdjustedTables.filter(t => t.status === 'Paid' || ['PAYMENT_COMPLETED', 'PAID', 'BILL GENERATED'].includes((t.status || '').toUpperCase())).length;
-            } else if (st === 'Cleaning') {
-              count = dateAdjustedTables.filter(t => t.status === 'Cleaning' || (t.status || '').toUpperCase() === 'CLEANING').length;
-            } else if (st === 'NC Blocked') {
-              count = dateAdjustedTables.filter(t => (t.status || '').toUpperCase() === 'NC_BLOCKED' || t.color === 'purple').length;
-            }
-
-            let dotColor = '#94a3b8';
-            if (st === 'Running') dotColor = '#f59e0b';
-            if (st === 'Unpaid') dotColor = '#2563eb';
-            if (st === 'Reserved') dotColor = '#f97316';
-            if (st === 'Paid') dotColor = '#10b981';
-            if (st === 'NC Blocked') dotColor = '#8b5cf6';
-
-            return (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  borderRadius: '5px',
-                  border: isSelected ? '1px solid #cbd5e1' : '1px solid transparent',
-                  background: isSelected ? '#fff' : 'transparent',
-                  color: isSelected ? '#0f172a' : '#64748b',
-                  fontSize: '0.76rem',
-                  fontWeight: isSelected ? 800 : 600,
-                  cursor: 'pointer'
-                }}
-              >
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor }} />
-                <span>{st === 'All' ? 'All' : st}</span>
-                <span style={{ fontSize: '0.7rem', color: isSelected ? 'var(--primary)' : '#64748b', padding: '0 4px', fontWeight: 800 }}>
-                  ({count})
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Main Tables grid */}
-      {loading ? (
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '55vh',
-          gap: '16px'
-        }}>
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            border: '4px solid #e2e8f0',
-            borderTop: '4px solid #0f172a',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite'
-          }} />
-          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#475569' }}>Loading Tables & Backend Data...</span>
-        </div>
-      ) : (
-        <div className="pos-table-grid" style={{
-          flex: 1,
-          padding: '12px 16px 24px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(125px, 1fr))',
-          gap: '16px 12px',
-          alignContent: 'start',
-          overflowY: 'auto',
-          filter: previewModalOpen ? 'blur(4px)' : 'none',
-          transition: 'filter 0.3s ease',
-        }}>
-          {filteredData.map((table, idx) => {
-            const isBlank = table.status === 'Blank';
-            const isHighlighted = isBookingMode && isBlank;
-            const isFaded = isBookingMode && !isBlank;
-            const defaultArea = (dbAreasList && dbAreasList.length > 0) ? dbAreasList[0] : 'MAIN RESTAURANT';
-            let currentArea = (table.area || defaultArea).trim();
-            if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(currentArea)) {
-              currentArea = defaultArea;
-            }
-
-            let previousArea = null;
-            if (idx > 0) {
-              previousArea = (filteredData[idx - 1].area || defaultArea).trim();
-              if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(previousArea)) {
-                previousArea = defaultArea;
-              }
-            }
-
-            const isNewArea = currentArea !== previousArea;
-
-            return (
-              <React.Fragment key={`fragment-${table.id}-${idx}`}>
-                {isNewArea && (
-                  <div style={{
-                    gridColumn: '1 / -1',
-                    fontSize: '1rem',
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    padding: '8px 4px 4px',
-                    borderBottom: '2px solid #e2e8f0',
-                    marginTop: idx > 0 ? '16px' : '0',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {currentArea}
-                  </div>
-                )}
-                <div key={`table-${table.id}-${idx}`} style={{
-                  position: 'relative',
-                  borderRadius: '8px',
-                  border: isHighlighted ? '3px solid #ea580c' : 'none',
-                  boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
-                  transform: isHighlighted ? 'scale(1.02)' : 'none',
-                  opacity: isFaded ? 0.4 : 1,
-                  pointerEvents: isFaded ? 'none' : 'auto',
-                  transition: 'all 0.2s ease-in-out'
-                }}>
-                  <TableCard
-                    table={table}
-                    globalTaxRate={globalTaxRate}
-                    isSelected={isKeyboardNav && focusedTableIndex === idx}
-                    onClick={(e, actionType) => {
-                      if (actionType === 'quick_pay') {
-                        e?.stopPropagation?.();
-                        const statusUpper = (table.status || table.order_state || '').toUpperCase();
-                        if (statusUpper === 'NC_BLOCKED' || table.color === 'purple') {
-                          toast("This table has an active Non-Chargeable KOT and cannot be billed.");
-                          return;
-                        }
-                        setQuickPaymentTable(table);
-                      } else {
-                        // Prevent accidental navigation if a modal is currently open
-                        if (quickPaymentTable || showQuickSwitch || kotCancelTable || ncReleaseTable) return;
-
-                        setIsKeyboardNav(false);
-                        setFocusedTableIndex(idx);
-                        handleTableCardClick(table);
-                      }
+      {/* 2. LEVEL 2 & Main Content */}
+      <>
+          {/* 2. LEVEL 2: Combined Section Filters & Live Status Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '10px 24px', borderBottom: '1px solid #f1f5f9', background: '#fff', overflowX: 'auto' }}>
+            {/* Floors/Areas pill buttons */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {dynamicAreas.map(ar => {
+                const isSelected = filter === ar;
+                return (
+                  <button
+                    key={ar}
+                    onClick={() => setFilter(ar)}
+                    style={{
+                      padding: '5px 16px',
+                      borderRadius: '20px',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      border: isSelected ? '1.5px solid #0d9488' : '1px solid #e2e8f0',
+                      background: isSelected ? '#f0fdfa' : '#fff',
+                      color: isSelected ? '#0d9488' : '#64748b',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
                     }}
-                    onView={(e) => {
-                      e?.stopPropagation?.();
-                      const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
-                      const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
-                      console.log('%c👁️ [EYE ICON PAX DEBUG] table =', 'color: #7c3aed; font-weight:bold;', { id: table.id, pax: table.pax, guests: table.guests, paxCount: table.paxCount, seats: table.seats, extra_details: table.extra_details });
+                  >
+                    {ar === 'All' ? 'All Areas' : ar}
+                  </button>
+                );
+              })}
+            </div>
 
-                      navigate(getBillingPath(), {
-                        state: {
-                          table,
-                          tableId: table.id,
-                          tableNumber: `T${table.no}`,
-                          rows: tableRows,
-                          existingRows: [],
-                          isViewMode: true
-                        }
-                      });
+            {/* Live Status KPI Pills */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {STATUS_FILTERS.map(st => {
+                const isSelected = statusFilter === st;
+                let count = 0;
+                if (st === 'All') {
+                  count = dateAdjustedTables.length;
+                } else if (st === 'Blank') {
+                  count = dateAdjustedTables.filter(t => !t.status || t.status === 'Blank' || t.status === 'AVAILABLE' || t.color === 'white').length;
+                } else if (st === 'Running') {
+                  count = dateAdjustedTables.filter(t => {
+                    const sUpper = (t.status || '').toUpperCase();
+                    const kotCnt = t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0);
+                    const hasAct = (Number(t.amount || 0) > 0) || kotCnt > 0;
+                    return sUpper !== 'BLANK' && sUpper !== 'AVAILABLE' && sUpper !== 'NC_BLOCKED' && sUpper !== 'RESERVED' && sUpper !== 'PAID' && sUpper !== 'CLEANING' && sUpper !== 'UNPAID' && t.color !== 'blue' && t.color !== 'purple' && hasAct;
+                  }).length;
+                } else if (st === 'Unpaid') {
+                  count = dateAdjustedTables.filter(t => t.status === 'Unpaid' || t.status === 'UNPAID_BILL' || t.color === 'blue' || t.color === 'red').length;
+                } else if (st === 'Reserved') {
+                  count = dateAdjustedTables.filter(t => t.status === 'Reserved' || t.color === 'orange').length;
+                } else if (st === 'Paid') {
+                  count = dateAdjustedTables.filter(t => t.status === 'Paid' || ['PAYMENT_COMPLETED', 'PAID', 'BILL GENERATED'].includes((t.status || '').toUpperCase())).length;
+                } else if (st === 'Cleaning') {
+                  count = dateAdjustedTables.filter(t => t.status === 'Cleaning' || (t.status || '').toUpperCase() === 'CLEANING').length;
+                } else if (st === 'NC Blocked') {
+                  count = dateAdjustedTables.filter(t => (t.status || '').toUpperCase() === 'NC_BLOCKED' || t.color === 'purple').length;
+                }
+
+                let dotColor = '#94a3b8';
+                if (st === 'Running') dotColor = '#eab308';
+                if (st === 'Unpaid') dotColor = '#0284c7';
+                if (st === 'Reserved') dotColor = '#f97316';
+                if (st === 'Paid') dotColor = '#10b981';
+                if (st === 'NC Blocked') dotColor = '#8b5cf6';
+
+                return (
+                  <button
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: isSelected ? '1px solid #cbd5e1' : '1px solid transparent',
+                      background: isSelected ? '#f8fafc' : 'transparent',
+                      color: isSelected ? '#0f172a' : '#64748b',
+                      fontSize: '0.78rem',
+                      fontWeight: isSelected ? 800 : 600,
+                      cursor: 'pointer'
                     }}
-                    onSave={(e) => {
-                      e?.stopPropagation?.();
-                      handleOpenInvoicePreview(table);
-                    }}
-                    onDelete={handleDeleteClick}
-                  />
+                  >
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: dotColor }} />
+                    <span>{st === 'All' ? 'All' : st}</span>
+                    <span style={{ fontSize: '0.76rem', color: isSelected ? '#0f172a' : '#64748b', fontWeight: 700 }}>
+                      ({count})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Main Tables grid */}
+          {loading ? (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: '55vh',
+              gap: '16px'
+            }}>
+              <style>{`
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                border: '4px solid #e2e8f0',
+                borderTop: '4px solid #0f172a',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#475569' }}>Loading Tables & Backend Data...</span>
+            </div>
+          ) : (
+            <div className="pos-table-grid" style={{
+              flex: 1,
+              padding: '18px 190px 42px 24px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 104px))',
+              gap: '24px 12px',
+              alignContent: 'start',
+              overflowY: 'auto',
+              filter: previewModalOpen ? 'blur(4px)' : 'none',
+              transition: 'filter 0.3s ease',
+            }}>
+              {filteredData.map((table, idx) => {
+                const isBlank = table.status === 'Blank';
+                const isHighlighted = isBookingMode && isBlank;
+                const isFaded = isBookingMode && !isBlank;
+                const defaultArea = (dbAreasList && dbAreasList.length > 0) ? dbAreasList[0] : 'MAIN RESTAURANT';
+                let currentArea = (table.area || defaultArea).trim();
+                if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(currentArea)) {
+                  currentArea = defaultArea;
+                }
+
+                let previousArea = null;
+                if (idx > 0) {
+                  previousArea = (filteredData[idx - 1].area || defaultArea).trim();
+                  if (dbAreasList && dbAreasList.length > 0 && !dbAreasList.includes(previousArea)) {
+                    previousArea = defaultArea;
+                  }
+                }
+
+                const isNewArea = currentArea !== previousArea;
+
+                return (
+                  <React.Fragment key={`fragment-${table.id}-${idx}`}>
+                    {isNewArea && (
+                      <div style={{
+                        gridColumn: '1 / -1',
+                        fontSize: '0.95rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        padding: '12px 0 6px',
+                        borderBottom: '1px solid #f1f5f9',
+                        marginTop: idx > 0 ? '20px' : '0',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.3px'
+                      }}>
+                        {currentArea}
+                      </div>
+                    )}
+                    <div key={`table-${table.id}-${idx}`} style={{
+                      position: 'relative',
+                      width: '100%',
+                      borderRadius: '10px',
+                      border: isHighlighted ? '3px solid #ea580c' : 'none',
+                      boxShadow: isHighlighted ? '0 0 15px rgba(234, 88, 12, 0.8)' : 'none',
+                      transform: isHighlighted ? 'scale(1.02)' : 'none',
+                      opacity: isFaded ? 0.4 : 1,
+                      pointerEvents: isFaded ? 'none' : 'auto',
+                      transition: 'all 0.2s ease-in-out'
+                    }}>
+                      <TableCard
+                        table={table}
+                        globalTaxRate={globalTaxRate}
+                        isSelected={isKeyboardNav && focusedTableIndex === idx}
+                        onClick={(e, actionType) => {
+                          if (actionType === 'quick_pay') {
+                            e?.stopPropagation?.();
+                            const statusUpper = (table.status || table.order_state || '').toUpperCase();
+                            if (statusUpper === 'NC_BLOCKED' || table.color === 'purple') {
+                              toast("This table has an active Non-Chargeable KOT and cannot be billed.");
+                              return;
+                            }
+                            setQuickPaymentTable(table);
+                          } else {
+                            // Prevent accidental navigation if a modal is currently open
+                            if (quickPaymentTable || showQuickSwitch || kotCancelTable || ncReleaseTable) return;
+
+                            setIsKeyboardNav(false);
+                            setFocusedTableIndex(idx);
+                            handleTableCardClick(table);
+                          }
+                        }}
+                        onView={(e) => {
+                          e?.stopPropagation?.();
+                          const kotItemsFromTable = aggregateItems(Array.isArray(table.kots) ? table.kots.flatMap(k => Array.isArray(k.items) ? k.items : []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []);
+                          const tableRows = (orderItemsMap[table.id] && orderItemsMap[table.id].length > 0 ? orderItemsMap[table.id] : null) || kotItemsFromTable;
+                          console.log('%c👁️ [EYE ICON PAX DEBUG] table =', 'color: #7c3aed; font-weight:bold;', { id: table.id, pax: table.pax, guests: table.guests, paxCount: table.paxCount, seats: table.seats, extra_details: table.extra_details });
+
+                          navigate(getBillingPath(), {
+                            state: {
+                              table,
+                              tableId: table.id,
+                              tableNumber: `T${table.no}`,
+                              rows: tableRows,
+                              existingRows: [],
+                              isViewMode: true
+                            }
+                          });
+                        }}
+                        onSave={(e) => {
+                          e?.stopPropagation?.();
+                          handleOpenInvoicePreview(table);
+                        }}
+                        onDelete={handleDeleteClick}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+
+              {filteredData.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600 }}>
+                  No tables found for {activeRestaurant === 'All Outlets' ? 'any outlet' : `outlet "${activeRestaurant}"`}{filter && filter !== 'All' && filter !== 'All Floors' ? ` on ${filter}` : ''}.
                 </div>
-              </React.Fragment>
-            );
-          })}
-
-          {filteredData.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', padding: '80px 20px', textAlign: 'center', color: '#64748b', border: '1px dashed #cbd5e1', borderRadius: '12px', fontSize: '0.9rem', fontWeight: 600 }}>
-              No tables found for {activeRestaurant === 'All Outlets' ? 'any outlet' : `outlet "${activeRestaurant}"`}{filter && filter !== 'All' && filter !== 'All Floors' ? ` on ${filter}` : ''}.
+              )}
             </div>
           )}
-        </div>
-      )}
+        </>
+      
 
       {/* 4. Operations modal wrapper */}
       <TableOperationsModal
@@ -1492,7 +1888,7 @@ const DisplayTablePage = () => {
           <div style={{
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
             background: '#fff', padding: '28px 24px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
-            width: '380px', zIndex: 10000, textAlign: 'center', fontFamily: 'system-ui', border: '1px solid #e2e8f0'
+            width: '380px', zIndex: 10000, textAlign: 'center', fontFamily: 'var(--font-family, system-ui)', border: '1px solid #e2e8f0'
           }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ea580c', margin: '0 0 8px 0' }}>Select a Table First</h3>
             <p style={{ fontSize: '0.88rem', color: '#475569', margin: '0 0 24px 0', lineHeight: '1.5' }}>
@@ -1525,21 +1921,13 @@ const DisplayTablePage = () => {
       <style>{`
         .pos-table-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 28px 20px;
-          padding: 24px;
+          grid-template-columns: repeat(auto-fill, minmax(88px, 104px));
+          gap: 24px 12px;
+          padding: 16px 190px 32px 24px;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
         }
-        @media (min-width: 1024px) {
-          .pos-table-grid { grid-template-columns: repeat(5, 1fr); }
-        }
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .pos-table-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-        @media (min-width: 550px) and (max-width: 767px) {
-          .pos-table-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-        @media (max-width: 549px) {
-          .pos-table-grid { grid-template-columns: repeat(2, 1fr); }
+        .pos-table-grid * {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
         }
       `}</style>
 
@@ -1676,23 +2064,65 @@ const DisplayTablePage = () => {
         isOpen={!!quickPaymentTable}
         onClose={() => setQuickPaymentTable(null)}
         table={quickPaymentTable}
-        items={quickPaymentTable ? (
-          orderItemsMap[quickPaymentTable.id] ||
-          orderItemsMap[quickPaymentTable.no] ||
-          orderItemsMap[String(quickPaymentTable.no)] ||
-          orderItemsMap[Number(quickPaymentTable.no)] ||
-          (quickPaymentTable.kots ? quickPaymentTable.kots.flatMap(k => k.items || []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []) ||
-          (quickPaymentTable.items || [])
-        ) : []}
-        onTableUpdated={refreshTables}
+        items={quickPaymentTable ? (() => {
+          // For Takeaway/Delivery orders (serviceType set), use items from order directly
+          const isTkDl = quickPaymentTable.serviceType === 'Takeaway' || quickPaymentTable.serviceType === 'Delivery';
+          if (isTkDl && Array.isArray(quickPaymentTable.items) && quickPaymentTable.items.length > 0) {
+            return quickPaymentTable.items;
+          }
+          // Dine-in: lookup by table id/no
+          return (
+            orderItemsMap[quickPaymentTable.id] ||
+            orderItemsMap[quickPaymentTable.no] ||
+            orderItemsMap[String(quickPaymentTable.no)] ||
+            orderItemsMap[Number(quickPaymentTable.no)] ||
+            (quickPaymentTable.kots ? quickPaymentTable.kots.flatMap(k => k.items || []).filter(i => i.status !== 'Cancelled' && String(i.status) !== '5' && i.is_active !== 0 && i.status !== 'Deleted') : []) ||
+            (quickPaymentTable.items || [])
+          );
+        })() : []}
+        onTableUpdated={() => {
+          refreshTables();
+          refreshSpecialOrders();
+          setQuickPaymentTable(null);
+        }}
         showToast={toast}
       />
 
       {/* Keyboard shortcut hint bar */}
-      <div style={{ position: 'sticky', bottom: 0, zIndex: 100, padding: '8px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', boxShadow: '0 -2px 10px rgba(0,0,0,0.05)' }}>
-        {[['←→ / ↑↓', 'Navigate'], ['Enter', 'Open Table'], ['F2', 'Book Table'], ['F4', 'Print KOT'], ['F10', 'Quick Bill'], ['Esc', 'Cancel']].map(([key, label]) => (
-          <span key={key} style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <kbd style={{ background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 700, fontFamily: 'monospace' }}>{key}</kbd>
+      <div style={{
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 100,
+        padding: '10px 24px',
+        borderTop: '1px solid #e2e8f0',
+        background: '#ffffff',
+        display: 'flex',
+        gap: '24px',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        {[
+          ['← / ↑', 'Navigate'],
+          ['Enter', 'Open Table'],
+          ['F2', 'Book Table'],
+          ['F4', 'Print KOT'],
+          ['F10', 'Quick Bill'],
+          ['Esc', 'Cancel']
+        ].map(([key, label]) => (
+          <span key={key} style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <kbd style={{
+              background: '#f1f5f9',
+              color: '#334155',
+              padding: '2px 7px',
+              borderRadius: '5px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              fontFamily: 'inherit'
+            }}>
+              {key}
+            </kbd>
             {label}
           </span>
         ))}

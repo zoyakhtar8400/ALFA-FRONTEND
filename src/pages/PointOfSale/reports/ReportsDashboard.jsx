@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CommonSearch from '../../../components/common/CommonSearch';
 import PageHeader from '../../../components/common/PageHeader';
-import { FaArrowRight } from 'react-icons/fa';
+import { FaArrowRight, FaChartLine, FaFileAlt } from 'react-icons/fa';
 import { REPORT_CATALOG } from './reportCatalog';
 import '../../FrontDesk/report/reports.css';
 
@@ -31,14 +31,77 @@ const ReportsDashboard = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', fontFamily: 'var(--font-family, system-ui)' }}>
-      {/* Page Header */}
-      <PageHeader
-        title="POS Report Hub"
-        breadcrumbs={['Dashboard', 'Point Of Sale', 'Reports']}
-      />
+      {/* Page Header & View Toggle */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <PageHeader
+            title="All Reports Catalog"
+            breadcrumbs={['Dashboard', 'Point Of Sale', 'Reports']}
+          />
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '8px' }}>
+            Currently managing <strong>{totalReports}</strong> report registers across <strong>{REPORT_CATALOG.length}</strong> categories.
+          </div>
+        </div>
 
-      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '-8px', paddingLeft: '8px' }}>
-        Currently managing <strong>{totalReports}</strong> report registers across <strong>{REPORT_CATALOG.length}</strong> categories.
+        {/* Top Navigation Tabs */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: '#ffffff',
+          padding: '4px',
+          borderRadius: '10px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+        }}>
+          <button
+            onClick={() => navigate('/pos/report')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '7px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              border: 'none',
+              cursor: 'pointer',
+              background: 'transparent',
+              color: '#64748b',
+              transition: 'all 0.15s ease'
+            }}
+            className="hover:text-teal-700 hover:bg-slate-100"
+          >
+            <FaChartLine size={12} />
+            <span>Growth Dashboard</span>
+          </button>
+          <button
+            onClick={() => navigate('/pos/report/catalog')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '7px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              background: '#0d9488',
+              color: '#ffffff',
+              boxShadow: '0 1px 2px rgba(13, 148, 136, 0.2)'
+            }}
+          >
+            <FaFileAlt size={11} />
+            <span>All Reports ({totalReports})</span>
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}

@@ -27,7 +27,8 @@ const ItemGroupPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useItemMenu('item-group', toastTrigger);
 
   const handleOpenAdd = () => {
@@ -41,19 +42,20 @@ const ItemGroupPage = ({ showToast }) => {
   return (
     <div className="w-full flex flex-col p-6 animate-in fade-in duration-200">
       <CommonTable
-        title="Item Menu - Item Group Entry"
+        title="Item Menu - Item Category"
         columns={columns}
         data={data}
         actions={[
           { label: 'Edit', onClick: handleOpenEdit },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={handleOpenAdd}
-        addEntryLabel="+ Add Item Group Entry"
-        searchPlaceholder="Search Item Group Entry..."
+        addEntryLabel="+ Add Item Category"
+        searchPlaceholder="Search Item Category..."
         showToast={toastTrigger}
-        breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Menu', 'Item Group Entry']}
-        emptyMessage="No Item Group Entry records found."
+        breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Menu', 'Item Category']}
+        emptyMessage="No Item Category records found."
       />
 
       {modal.open && (

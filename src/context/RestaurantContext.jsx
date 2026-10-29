@@ -3,6 +3,7 @@ import { INITIAL_TABLES, INITIAL_MOCK_ORDER_DETAILS } from '../pages/Restaurant/
 import { tableService } from '../services/tableService';
 import { menuService } from '../services/menuService';
 import posApi from '../api/posApi';
+import { formatTableNo, getOutletPrefix } from '../utils/tableFormat';
 
 const RestaurantContext = createContext(null);
 
@@ -59,10 +60,18 @@ export const RestaurantProvider = ({ children }) => {
         setAllOutlets(outlets);
         try {
           localStorage.setItem('alfa_outlets', JSON.stringify(outlets));
+          const currentStoreId = activeStoreId || localStorage.getItem('activeOutletId') || 'STORE_1';
+          const matched = outlets.find(o => String(o.store_id || `STORE_${o.id}`) === String(currentStoreId)) || outlets[0];
+          if (matched) {
+            const outName = matched.name || matched.store_name || '';
+            if (outName) localStorage.setItem('active_outlet_name', outName);
+            const pfx = getOutletPrefix(matched);
+            localStorage.setItem('active_outlet_prefix', pfx);
+          }
         } catch (e) {}
       })
       .catch(err => console.warn('Failed to preload/refresh outlets:', err.message));
-  }, []);
+  }, [activeStoreId]);
 
   // Fetch all outlets on mount so sidebar/navbar can resolve outlet names immediately
   useEffect(() => {
@@ -108,10 +117,24 @@ export const RestaurantProvider = ({ children }) => {
       ? t.available_actions
       : (color === 'yellow' || color === 'blue' || (!isAvailable && !isReserved)) ? ['print_kot', 'view_kot'] : [];
 
-    const prefix = t.prefix || extra.prefix || '';
+    let pfx = '';
+    if (extra.prefix !== undefined && extra.prefix !== null && String(extra.prefix).trim() !== '') {
+      pfx = String(extra.prefix).trim();
+    } else if (t.prefix !== undefined && t.prefix !== null && String(t.prefix).trim() !== '') {
+      pfx = String(t.prefix).trim();
+    } else {
+      const nameMatch = String(t.table_name || '').match(/^([A-Za-z]+)[-_\s]*\d+$/);
+      if (nameMatch) {
+        pfx = nameMatch[1];
+      } else {
+        const matchedOutlet = allOutlets.find(o => String(o.store_id || `STORE_${o.id}`) === String(t.store_id || activeStoreId));
+        pfx = getOutletPrefix(matchedOutlet || t.outlet_name || t.store_name);
+      }
+    }
+    const prefix = pfx || 'T';
     const tableNoStr = String(t.no || t.table_no || t.id).replace(/[^0-9]/g, '') || String(t.id);
     const cleanNum = parseInt(tableNoStr, 10) || tableNoStr;
-    const displayName = prefix ? `${prefix}${cleanNum}` : (t.table_name || `Table ${tableNoStr}`);
+    const displayName = formatTableNo(t.table_name || t.no || t.id, prefix);
 
     return {
       id: t.id,
@@ -140,8 +163,14 @@ export const RestaurantProvider = ({ children }) => {
       section: t.section || (t.extra_details && t.extra_details.section) || t.department || 'Restaurant',
       department: t.department || (t.extra_details && (t.extra_details.department || t.extra_details.section)) || 'Restaurant',
       store_id: t.store_id || (t.extra_details && t.extra_details.store_id) || 'STORE_1',
+      isactive: t.isactive !== undefined ? t.isactive : (t.isActive !== undefined ? (t.isActive ? 1 : 0) : 1),
+      isActive: t.isactive !== undefined ? (t.isactive !== 0 && t.isactive !== '0' && t.isactive !== false) : (t.isActive !== false),
       kots: isAvailable ? [] : (Array.isArray(t.kots) ? t.kots : []),
-      kotCount: isAvailable ? 0 : Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0))
+      kotCount: isAvailable ? 0 : Number(t.kotCount || (Array.isArray(t.kots) ? t.kots.length : 0)),
+      opened_at: extra.opened_at || extra.openedAt || t.opened_at || t.openedAt || (Array.isArray(t.kots) && t.kots[0]?.time) || null,
+      openedAt: extra.opened_at || extra.openedAt || t.opened_at || t.openedAt || (Array.isArray(t.kots) && t.kots[0]?.time) || null,
+      created_at: t.created_at || t.createdAt || extra.created_at || null,
+      updated_at: t.updated_at || t.updatedAt || extra.updated_at || null
     };
   }
 
@@ -178,8 +207,14 @@ export const RestaurantProvider = ({ children }) => {
           if (tbl.no) {
             nextItemsMap[tbl.no] = allItems;
             nextItemsMap[String(tbl.no)] = allItems;
-            nextItemsMap[Number(tbl.no)] = allItems;
-            nextItemsMap[`T${tbl.no}`] = allItems;
+            const cleanDigits = String(tbl.no).replace(/\D/g, '');
+            if (cleanDigits) {
+              nextItemsMap[cleanDigits] = allItems;
+              nextItemsMap[`T${cleanDigits}`] = allItems;
+            }
+          }
+          if (tbl.table_name) {
+            nextItemsMap[tbl.table_name] = allItems;
           }
         }
       });
@@ -273,12 +308,15 @@ export const RestaurantProvider = ({ children }) => {
       // Update local storage so session stays aligned
       try {
         localStorage.setItem('activeOutletId', storeIdStr);
-        localStorage.setItem('active_outlet_name', matched.name || matched.store_name || '');
+        const outName = matched.name || matched.store_name || '';
+        localStorage.setItem('active_outlet_name', outName);
+        const outPrefix = getOutletPrefix(matched);
+        localStorage.setItem('active_outlet_prefix', outPrefix);
         const user = JSON.parse(localStorage.getItem('alfa_user') || localStorage.getItem('user') || '{}');
         user.store_id = storeIdStr;
         localStorage.setItem('alfa_user', JSON.stringify(user));
         localStorage.setItem('user', JSON.stringify(user));
-        window.dispatchEvent(new CustomEvent('outletChanged', { detail: { storeId: storeIdStr, outletId, outletName: matched.name || matched.store_name } }));
+        window.dispatchEvent(new CustomEvent('outletChanged', { detail: { storeId: storeIdStr, outletId, outletName: outName, prefix: outPrefix } }));
       } catch (e) { }
 
       // Trigger table refresh for this specific store_id

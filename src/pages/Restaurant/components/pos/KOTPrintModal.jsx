@@ -51,7 +51,7 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
   const printOne = useCallback(async (group, payload) => {
     const pid = group.printer?.id || group.key;
     setPrintStatuses(prev => ({ ...prev, [pid]: { state: 'printing', error: null } }));
-    
+
     // Check if configuration error exists
     if (group.hasError || payload.hasError) {
       const errMsg = group.errorMessage || payload.errorMessage || 'No printer configured for this station.';
@@ -175,13 +175,13 @@ const KOTPrintModal = ({ isOpen, onClose, kotGroups = [], payloads = [], kotNo, 
 
             const cardBg = status.state === 'success' ? '#f0fdf4'
               : status.state === 'failed' ? '#fef2f2'
-              : status.state === 'printing' ? '#f0f9ff'
-              : '#fff';
+                : status.state === 'printing' ? '#f0f9ff'
+                  : '#fff';
 
             const borderColor = status.state === 'success' ? '#16a34a'
               : status.state === 'failed' ? '#ef4444'
-              : status.state === 'printing' ? '#0ea5e9'
-              : catColor;
+                : status.state === 'printing' ? '#0ea5e9'
+                  : catColor;
 
             return (
               <div key={pid} style={{

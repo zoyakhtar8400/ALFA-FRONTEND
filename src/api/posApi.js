@@ -29,6 +29,7 @@ export const posApi = {
   // Outlet / Store Master
   getOutlets: () => apiClient.get('/stores'),
   saveOutlet: (data) => apiClient.post('/stores', data),
+  saveOutletConfig: (id, data) => apiClient.post(`/stores/${id}/config`, data),
   deleteOutlet: (id) => apiClient.delete(`/stores/${id}`),
 
   // Item Tax Categories & Slabs
@@ -72,86 +73,65 @@ export const posApi = {
   getMenuItems: (params) => apiClient.get('/menu-items', { params }),
   saveMenuItem: (data) => apiClient.post('/menu-items', data),
   deleteMenuItem: (id) => apiClient.delete(`/menu-items/${id}`),
+  bulkDeleteMenuItems: (ids) => apiClient.post('/menu-items/bulk-delete', { ids }),
+  clearAllMenuItems: (store_id) => apiClient.post('/menu-items/bulk-delete', { deleteAll: true, store_id }),
+  markItemBilled: (id) => apiClient.post(`/menu-items/${id}/mark-billed`),
 
   sendPrintRequest: async (data) => {
-    console.log('%c🖨️ [Print Manager] Initiating print job...', 'color: #0284c7; font-weight: bold;', data);
+    const targetPrinter = data.printerName || data.deviceName || data.printer;
+    const docType = String(data.job_type || data.type || data.print_purpose || '').toUpperCase();
+    const rawId = data.id || data.kotNo || data.bill_number || data.invoice_number || '';
 
-    // 1. Direct browser WebSocket connection to ws://localhost:8989
-    const sendViaDirectWebSocket = () => new Promise((resolve) => {
-      try {
-        console.log('%c🔌 [Print WebSocket] Connecting to ws://localhost:8989...', 'color: #059669; font-weight: bold;');
-        const ws = new WebSocket('ws://localhost:8989');
-        let done = false;
-
-        ws.onopen = () => {
-          const payload = {
-            id: data.id || 'print-test',
-            type: 'print',
-            html: data.html,
-            ...(data.printerIp ? { printerIp: data.printerIp, printerPort: data.printerPort || 9100 } : {}),
-            ...(data.deviceName ? { deviceName: data.deviceName } : {})
-          };
-          console.log('%c🚀 [Print WebSocket] Connection opened! Sending payload to ws://localhost:8989:', 'color: #16a34a; font-weight: bold;', payload);
-          ws.send(JSON.stringify(payload));
-          setTimeout(() => {
-            if (!done) {
-              done = true;
-              try { ws.close(); } catch (e) {}
-              console.log('%c✅ [Print WebSocket] Job successfully dispatched to Windows Print Spooler!', 'color: #10b981; font-weight: bold;');
-              resolve({ success: true, message: 'Print job dispatched via WebSocket' });
-            }
-          }, 2000);
-        };
-
-        ws.onmessage = (msg) => {
-          console.log('%c📩 [Print WebSocket] Response from print server:', 'color: #0ea5e9; font-weight: bold;', msg.data);
-          try {
-            const res = JSON.parse(msg.data);
-            if (!done) {
-              done = true;
-              try { ws.close(); } catch (e) {}
-              resolve(res);
-            }
-          } catch (e) {
-            if (!done) {
-              done = true;
-              try { ws.close(); } catch (e) {}
-              resolve({ success: true });
-            }
-          }
-        };
-
-        ws.onerror = (err) => {
-          console.warn('⚠️ [Print WebSocket] Direct socket connection to ws://localhost:8989 failed. Falling back to backend relay...', err);
-          if (!done) {
-            done = true;
-            resolve(null);
-          }
-        };
-
-        setTimeout(() => {
-          if (!done) {
-            done = true;
-            resolve(null);
-          }
-        }, 3000);
-      } catch (err) {
-        console.warn('⚠️ [Print WebSocket] Exception opening direct socket:', err);
-        resolve(null);
+    // Format clean default document name e.g. BILL-17930078191136, KOT-38, SHIFT-TAC3-TO-TAC5
+    let docName = String(rawId).trim();
+    if (docType.includes('BILL') || docType.includes('INVOICE')) {
+      if (!docName.toUpperCase().startsWith('BILL')) {
+        docName = `BILL-${docName || Date.now()}`;
       }
-    });
+    } else if (docType.includes('KOT')) {
+      if (!docName.toUpperCase().startsWith('KOT') && !docName.toUpperCase().startsWith('NC')) {
+        docName = `KOT-${docName || Date.now()}`;
+      }
+    } else if (docType.includes('SHIFT') || docType.includes('MOVE')) {
+      if (!docName.toUpperCase().startsWith('SHIFT')) {
+        docName = `SHIFT-${docName || Date.now()}`;
+      }
+    }
+    if (!docName) {
+      docName = `Print-${Date.now()}`;
+    }
+    docName = docName.replace(/\s+/g, '-');
 
-    const wsRes = await sendViaDirectWebSocket();
-    if (wsRes && (wsRes.success || wsRes.data?.success)) {
-      console.log('%c🎉 [Print Manager] Direct WebSocket print successful!', 'color: #16a34a; font-weight: bold;');
-      return { data: wsRes, success: true };
+    // 1. Silent native hardware printing inside alfa.exe with native "Save Print Output As" dialog
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.printSilent === 'function') {
+      try {
+        console.log('%c🖨️ [Electron Print] Printing silently to:', 'color: #0284c7; font-weight: bold;', targetPrinter);
+        const res = await window.electronAPI.printSilent({
+          html: data.html,
+          deviceName: targetPrinter,
+          filename: docName
+        });
+        if (res && res.success) {
+          return { success: true, message: `Printed silently to ${targetPrinter}` };
+        }
+      } catch (electronPrintErr) {
+        console.warn('[Electron Print] Native print error, trying backend fallback:', electronPrintErr);
+      }
     }
 
-    // 2. Fallback to backend relay endpoint
-    console.log('%c📡 [Print Manager] Relaying print request via backend POST /api/v1/print/send-print-request...', 'color: #d97706; font-weight: bold;');
-    const backendRes = await apiClient.post('/v1/print/send-print-request', data);
-    console.log('%c📦 [Print Manager] Backend relay response:', 'color: #d97706; font-weight: bold;', backendRes?.data || backendRes);
-    return backendRes;
+    // 2. Fallback to backend API
+    console.log('%c🖨️ [Print Manager] Dispatching print job to backend POST /api/v1/print/send-print-request...', 'color: #0284c7; font-weight: bold;', data);
+    try {
+      const backendRes = await apiClient.post('/v1/print/send-print-request', {
+        ...data,
+        filename: docName
+      });
+      console.log('%c📦 [Print Manager] Backend print response:', 'color: #10b981; font-weight: bold;', backendRes?.data || backendRes);
+      return backendRes?.data || backendRes;
+    } catch (err) {
+      console.error('%c❌ [Print Manager] Backend print error:', 'color: #ef4444; font-weight: bold;', err.response?.data || err.message);
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
   },
   saveAsPdf: (data) => apiClient.post('/v1/print', data, { responseType: 'blob' }),
 };

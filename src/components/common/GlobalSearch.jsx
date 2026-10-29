@@ -59,6 +59,7 @@ const SEARCH_ITEMS = [
   { name: 'POS Reports Hub', path: '/pos/report', category: 'Reports' },
 
   // POS Masters
+  { name: 'Company Master', path: '/pos/master/company', category: 'POS Masters' },
   { name: 'Steward Master', path: '/pos/masters/steward-master', category: 'POS Masters' },
   { name: 'Delivery Master', path: '/pos/master/delivery', category: 'POS Masters' },
   { name: 'Outlet Master', path: '/pos/master/outlet', category: 'POS Masters' },
@@ -73,7 +74,6 @@ const SEARCH_ITEMS = [
   { name: 'Main Group Entry', path: '/pos/master/item-menu/main-group', category: 'Item Menu Master' },
   { name: 'Item Group Entry', path: '/pos/master/item-menu/item-group', category: 'Item Menu Master' },
   { name: 'Menu Item Entry', path: '/pos/master/item-menu/menu-item', category: 'Item Menu Master' },
-  { name: 'Item Entry CSV upload', path: '/pos/master/item-menu/csv-upload', category: 'Item Menu Master' },
   { name: 'HSN Update', path: '/pos/master/item-menu/hsn-update', category: 'Item Menu Master' },
 ];
 

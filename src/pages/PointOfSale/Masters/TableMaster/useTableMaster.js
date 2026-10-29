@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import posApi from '../../../../api/posApi';
 import areaService from '../../../../services/areaService';
+import { formatTableNo, getOutletPrefix } from '../../../../utils/tableFormat';
 
 export function getActiveOutletId() {
   try {
@@ -10,7 +11,7 @@ export function getActiveOutletId() {
     if (userRaw) {
       const u = JSON.parse(userRaw);
       const isAdmin = String(u.role || u.type || '').toUpperCase() === 'ADMIN' || u.username === 'admin';
-      
+
       if (isAdmin) {
         return selectedOutlet || u.store_id || 'STORE_1';
       }
@@ -81,20 +82,33 @@ export const useTableMaster = (showToast) => {
       const res = await posApi.getTables({ store_id: 'all' });
       const tablesList = Array.isArray(res?.tables) ? res.tables
         : Array.isArray(res?.data) ? res.data
-        : [];
+          : [];
 
       const mapped = tablesList.map((t, idx) => {
+        const extra = t.extra_details || {};
+        let pfx = '';
+        if (extra.prefix !== undefined && extra.prefix !== null && String(extra.prefix).trim() !== '') {
+          pfx = String(extra.prefix).trim();
+        } else if (t.prefix !== undefined && t.prefix !== null && String(t.prefix).trim() !== '') {
+          pfx = String(t.prefix).trim();
+        } else {
+          const nameMatch = String(t.table_name || t.name || '').match(/^([A-Za-z]+)[-_\s]*\d+$/);
+          pfx = nameMatch ? nameMatch[1] : getOutletPrefix(t.department || t.section || t.store_name || t.store_id);
+        }
+        const formattedName = formatTableNo(t.table_name || t.name || t.no || (idx + 1), pfx);
+        const isTableActive = (t.status || '').toUpperCase() !== 'INACTIVE' && t.isactive !== 0 && t.isactive !== '0' && t.isactive !== false && t.isActive !== false;
         return {
           id: t.id || t.table_id || idx + 1,
           no: t.no || t.table_no || String(idx + 1).padStart(2, '0'),
-          name: t.table_name || t.name || `T${String(idx + 1).padStart(2, '0')}`,
+          name: formattedName,
           pax: Number(t.seats || t.max_person || 4),
           department: t.section || t.department || 'Restaurant',
           area: t.area || t.floor || 'Main Area',
           floor: t.area || t.floor || 'Main Area',
-          status: t.status || 'AVAILABLE',
-          isActive: (t.status || '').toUpperCase() !== 'INACTIVE' && t.isactive !== 0,
-          prefix: t.prefix || (t.extra_details && t.extra_details.prefix) || '',
+          status: isTableActive ? 'Active' : 'Inactive',
+          isActive: isTableActive,
+          isactive: isTableActive ? 1 : 0,
+          prefix: pfx,
           store_id: t.store_id || 'STORE_1',
           extra_details: t.extra_details || {}
         };
@@ -182,7 +196,9 @@ export const useTableMaster = (showToast) => {
       department: fields.department || 'Main Area',
       area: fields.area || fields.floor || 'Main Area',
       floor: fields.area || fields.floor || 'Main Area',
-      status: fields.isActive !== false ? 'AVAILABLE' : 'INACTIVE',
+      status: fields.isActive !== false ? (fields.status && fields.status !== 'INACTIVE' ? fields.status : 'AVAILABLE') : 'INACTIVE',
+      isactive: fields.isActive !== false ? 1 : 0,
+      isActive: fields.isActive !== false,
       store_id: fields.store_id || activeStoreId,
       prefix: fields.prefix || ''
     };
@@ -216,14 +232,30 @@ export const useTableMaster = (showToast) => {
     }
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    try {
+      for (const row of selectedRows) {
+        if (row.id) {
+          await posApi.deleteTable(row.id);
+        }
+      }
+      showToast(`Deleted ${selectedRows.length} table(s) successfully.`);
+      await fetchTables();
+      window.dispatchEvent(new CustomEvent('tablesMasterRefreshed'));
+      window.dispatchEvent(new CustomEvent('tableMasterSync'));
+    } catch (err) {
+      showToast(err?.response?.data?.message || 'Failed to delete selected tables.');
+    }
+  };
+
   // ─── BULK CREATE ──────────────────────────────────────────────────────────
   const handleBulkSave = async (bulkConfig) => {
-    const prefix   = (bulkConfig.prefix || '').trim();
+    const prefix = (bulkConfig.prefix || '').trim();
     const startNum = parseInt(bulkConfig.startNum);
-    const endNum   = parseInt(bulkConfig.endNum);
-    const pax      = parseInt(bulkConfig.pax) || 4;
-    const dept     = bulkConfig.department || 'Restaurant';
-    const area     = bulkConfig.area || bulkConfig.floor || 'Main Area';
+    const endNum = parseInt(bulkConfig.endNum);
+    const pax = parseInt(bulkConfig.pax) || 4;
+    const dept = bulkConfig.department || 'Restaurant';
+    const area = bulkConfig.area || bulkConfig.floor || 'Main Area';
     const isActive = bulkConfig.isActive !== false;
 
     const activeStoreId = getActiveOutletId();
@@ -238,15 +270,18 @@ export const useTableMaster = (showToast) => {
 
     const payloads = [];
     for (let i = startNum; i <= endNum; i++) {
-      const numStr    = String(i).padStart(2, '0');
+      const numStr = String(i).padStart(2, '0');
       const tableName = `${prefix}${numStr}`;
       payloads.push({
         name: tableName, table_name: tableName, no: numStr,
         seats: pax, max_person: pax,
-        section: dept, department: dept, 
+        section: dept, department: dept,
         area, floor: area,
         status: isActive ? 'AVAILABLE' : 'INACTIVE',
+        isactive: isActive ? 1 : 0,
+        isActive: isActive,
         store_id: bulkConfig.store_id || activeStoreId,
+        prefix: prefix
       });
     }
 
@@ -286,6 +321,7 @@ export const useTableMaster = (showToast) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete,
     handleBulkSave
   };
 };

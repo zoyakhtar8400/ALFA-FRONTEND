@@ -7,12 +7,6 @@ import StewardMasterForm from './StewardMasterForm';
 import DuplicateConfirmationModal from '../../../../components/common/DuplicateConfirmationModal';
 import { useStewardMaster } from './useStewardMaster';
 
-const columns = [
-  { key: 'name', label: 'Steward Name', sortable: true },
-  { key: 'active', label: 'Active', sortable: true, renderStatus: true },
-  { key: 'action', label: 'Action', sortable: false }
-];
-
 const StewardMasterPage = ({ showToast }) => {
   const toastTrigger = React.useCallback((msg) => {
     if (showToast) showToast(msg);
@@ -39,11 +33,22 @@ const StewardMasterPage = ({ showToast }) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   } = useStewardMaster(toastTrigger);
 
   const columns = [
     { key: 'name', label: 'Steward Name', sortable: true },
+    {
+      key: 'area',
+      label: 'Assigned Area',
+      sortable: true,
+      render: (v) => (
+        <span className="font-semibold text-slate-700">
+          {v || <span className="text-slate-400 font-normal">All Dining Areas</span>}
+        </span>
+      )
+    },
     {
       key: 'store_id',
       label: 'Outlet',
@@ -94,6 +99,7 @@ const StewardMasterPage = ({ showToast }) => {
           { label: 'Edit', onClick: openEdit },
           { label: 'Delete', isDanger: true, onClick: openDelete }
         ]}
+        onBulkDelete={handleBulkDelete}
         onAddEntry={openAdd}
         addEntryLabel="+ Add Steward Master"
         searchPlaceholder="Search Steward..."

@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LuUpload } from 'react-icons/lu';
 import {
   FaCloudUploadAlt, FaDownload, FaCheckCircle, FaExclamationTriangle,
@@ -9,8 +10,10 @@ import posApi from '../../../../../api/posApi';
 import { parseExcelOrCsvFile, downloadSampleTemplate, getRowFieldValue } from '../../../../../utils/excelImportUtils';
 import CommonModal from '../../../../../components/common/CommonModal';
 import useOutletFilter from '../../../../../hooks/useOutletFilter';
+import { SAMPLE_MENU_ROWS } from '../MenuItemEntry/SpreadsheetMenuGrid';
 
-const ItemEnterPage = ({ showToast }) => {
+const ItemEnterPage = ({ showToast, isModal = false, onClose, onSuccess }) => {
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedRows, setParsedRows] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -23,9 +26,33 @@ const ItemEnterPage = ({ showToast }) => {
   const [filterTab, setFilterTab] = useState('ALL');
 
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [targetOutlet, setTargetOutlet] = useState('');
+  const [selectedOutlets, setSelectedOutlets] = useState([]);
   const [pendingFile, setPendingFile] = useState(null);
   const { outlets } = useOutletFilter();
+
+  useEffect(() => {
+    if (outlets.length > 0 && selectedOutlets.length === 0) {
+      setSelectedOutlets([outlets[0].store_id]);
+    }
+  }, [outlets]);
+
+  const handleToggleOutlet = (storeId) => {
+    setSelectedOutlets((prev) => {
+      if (prev.includes(storeId)) {
+        return prev.filter((id) => id !== storeId);
+      } else {
+        return [...prev, storeId];
+      }
+    });
+  };
+
+  const handleToggleSelectAllOutlets = () => {
+    if (selectedOutlets.length === outlets.length) {
+      setSelectedOutlets([]);
+    } else {
+      setSelectedOutlets(outlets.map((o) => o.store_id));
+    }
+  };
 
   const toastTrigger = useCallback((msg) => {
     if (showToast) showToast(msg);
@@ -62,37 +89,51 @@ const ItemEnterPage = ({ showToast }) => {
     });
   }, []);
 
-  // Complete sample generator containing EVERY SINGLE POS Menu Item field in the software
+  // Complete sample generator containing POS Menu Item fields with both variant and non-variant items
   const getDynamicSampleData = () => {
-    if (dbMenuItems && dbMenuItems.length > 0) {
-      return dbMenuItems.slice(0, 5).map((m, idx) => ({
-        ItemName: m.name || m.title || `Menu Item ${idx + 1}`,
-        SaleRate: Number(m.price || m.sale_price || 150),
-        ItemCategory: m.foodType || m.category || dbCategories[0] || 'Veg',
-        ItemGroup: m.category || dbItemGroups[0] || 'General',
-        MainGroup: m.mainGroup || dbMainGroups[0] || 'Food',
-        DispCode: String(m.id || m.item_id || 100 + idx),
-        UnitType: m.unitType || 'Plate',
-        Outlet: m.outlet || 'Main Restaurant',
-        Kitchen: m.kitchen || 'Main Kitchen',
-        RateEdit: m.rateEdit || 'No',
-        DiscApp: m.discApp || 'Yes',
-        Status: m.active !== 0 ? 'Active' : 'Inactive',
-        HsnCode: m.hsnCode || '2106'
-      }));
-    }
-
-    const defaultCat = dbCategories[0] || 'Veg';
-    const defaultGroup = dbItemGroups[0] || 'General';
-    const defaultMain = dbMainGroups[0] || 'Food';
-
     return [
       {
+        ItemName: 'Classic Momos',
+        VariantName: 'HALF',
+        ServingQty: '4 PC',
+        SaleRate: 49,
+        ItemCategory: 'Veg',
+        ItemGroup: 'Steam Momos',
+        MainGroup: 'Food',
+        DispCode: 'MOM-01',
+        UnitType: 'Plate',
+        Outlet: 'Main Restaurant',
+        Kitchen: 'Main Kitchen',
+        RateEdit: 'No',
+        DiscApp: 'Yes',
+        Status: 'Active',
+        HsnCode: '2106'
+      },
+      {
+        ItemName: 'Classic Momos',
+        VariantName: 'FULL',
+        ServingQty: '8 PC',
+        SaleRate: 99,
+        ItemCategory: 'Veg',
+        ItemGroup: 'Steam Momos',
+        MainGroup: 'Food',
+        DispCode: 'MOM-01',
+        UnitType: 'Plate',
+        Outlet: 'Main Restaurant',
+        Kitchen: 'Main Kitchen',
+        RateEdit: 'No',
+        DiscApp: 'Yes',
+        Status: 'Active',
+        HsnCode: '2106'
+      },
+      {
         ItemName: 'Paneer Butter Masala',
-        SaleRate: 340,
-        ItemCategory: defaultCat,
-        ItemGroup: defaultGroup,
-        MainGroup: defaultMain,
+        VariantName: '',
+        ServingQty: '',
+        SaleRate: 260,
+        ItemCategory: dbCategories[0] || 'Veg',
+        ItemGroup: dbItemGroups[0] || 'Main Course',
+        MainGroup: dbMainGroups[0] || 'Food',
         DispCode: '101',
         UnitType: 'Plate',
         Outlet: 'Main Restaurant',
@@ -103,12 +144,14 @@ const ItemEnterPage = ({ showToast }) => {
         HsnCode: '2106'
       },
       {
-        ItemName: 'Chicken Biryani Special',
-        SaleRate: 380,
-        ItemCategory: 'Non-Veg',
-        ItemGroup: defaultGroup,
-        MainGroup: defaultMain,
-        DispCode: '102',
+        ItemName: 'Margherita Pizza',
+        VariantName: '',
+        ServingQty: '',
+        SaleRate: 139,
+        ItemCategory: 'Veg',
+        ItemGroup: 'Pizza & Bakes',
+        MainGroup: 'Food',
+        DispCode: 'PIZ-01',
         UnitType: 'Plate',
         Outlet: 'Main Restaurant',
         Kitchen: 'Main Kitchen',
@@ -118,19 +161,21 @@ const ItemEnterPage = ({ showToast }) => {
         HsnCode: '2106'
       },
       {
-        ItemName: 'Fresh Lime Soda',
-        SaleRate: 90,
-        ItemCategory: 'Beverage',
-        ItemGroup: 'Beverages',
-        MainGroup: 'Beverages',
-        DispCode: '103',
-        UnitType: 'Glass',
-        Outlet: 'Bar Outlet',
-        Kitchen: 'Bar Kitchen',
+        ItemName: 'Chicken Biryani Special',
+        VariantName: '',
+        ServingQty: '',
+        SaleRate: 380,
+        ItemCategory: 'Non-Veg',
+        ItemGroup: 'Biryani',
+        MainGroup: 'Food',
+        DispCode: '102',
+        UnitType: 'Plate',
+        Outlet: 'Main Restaurant',
+        Kitchen: 'Main Kitchen',
         RateEdit: 'No',
         DiscApp: 'Yes',
         Status: 'Active',
-        HsnCode: '2202'
+        HsnCode: '2106'
       }
     ];
   };
@@ -139,6 +184,197 @@ const ItemEnterPage = ({ showToast }) => {
     const sampleData = getDynamicSampleData();
     downloadSampleTemplate(sampleData, 'ALFA_POS_Menu_Item_Full_Fields_Template', format);
     toastTrigger(`Downloaded Complete Sample ${format.toUpperCase()} Template (All Software Fields Included)`);
+  };
+
+  const preprocessMenuRows = (rawRows) => {
+    const expanded = [];
+    let currentCategory = 'Steam Momos';
+    let currentGroup = 'Steam Momos';
+
+    rawRows.forEach((row) => {
+      const rowKeys = Object.keys(row || {});
+
+      // 1. Resolve raw name
+      let rawName = String(getRowFieldValue(row, ['ItemName', 'Name', 'item_name', 'Item Name', 'Title', 'title', 'ITEM NAME', 'ITEM_NAME', 'Item', 'item', 'DESCRIPTION', 'Description', 'Particulars', 'particulars', 'Menu Item', 'menu item'])).trim();
+
+      // If no name found via standard headers, find the first non-numeric string value in row
+      if (!rawName) {
+        for (const k of rowKeys) {
+          const val = String(row[k] || '').trim();
+          if (val && isNaN(Number(val)) && !['true', 'false', 'veg', 'non-veg', 'nonveg', 'active', 'plate', 'pcs'].includes(val.toLowerCase())) {
+            rawName = val;
+            break;
+          }
+        }
+      }
+
+      if (!rawName) return;
+
+      // Filter out non-item rows (e.g. Remark, Note, Header lines, S.No, Total)
+      const lowerName = rawName.toLowerCase();
+      if (['remark', 'remarks', 'note', 'notes', 'instruction', 'instructions', 'sl no', 's.no', 'sr no', 'sr.no', 'serial no', 'total', 'grand total', 'sub total', 'price', 'rate'].includes(lowerName)) {
+        return;
+      }
+
+      // Check explicit Category in row if present
+      const explicitCat = getRowFieldValue(row, ['Category', 'category', 'ItemGroup', 'itemgroup', 'ItemCategory', 'item_category', 'Food Category', 'food_category']);
+      if (explicitCat && typeof explicitCat === 'string' && explicitCat.trim() !== '') {
+        currentCategory = explicitCat.trim();
+        currentGroup = explicitCat.trim();
+      }
+
+      // 2. Check for Horizontal Variant columns (Half / Full or 4 PC / 8 PC)
+      let halfVal = getRowFieldValue(row, ['HalfPrice', 'Half Price', 'halfprice', 'half_price', 'Half', 'half', '4 Pc', '4Pc', '4PC', '4 pc', 'Half (4PC)', 'Half (4 Pc)', 'HALF', '4 Piece', '4 Pieces', 'Half 4PC']);
+      let fullVal = getRowFieldValue(row, ['FullPrice', 'Full Price', 'fullprice', 'full_price', 'Full', 'full', '8 Pc', '8Pc', '8PC', '8 pc', 'Full (8PC)', 'Full (8 Pc)', 'FULL', '8 Piece', '8 Pieces', 'Full 8PC']);
+
+      if (!halfVal) {
+        const matchedHalfKey = rowKeys.find(k => {
+          const cl = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return (cl.includes('half') || cl.includes('4pc') || cl.includes('4piece')) && !cl.includes('full') && !cl.includes('8pc');
+        });
+        if (matchedHalfKey && row[matchedHalfKey] !== undefined && row[matchedHalfKey] !== '') {
+          halfVal = row[matchedHalfKey];
+        }
+      }
+
+      if (!fullVal) {
+        const matchedFullKey = rowKeys.find(k => {
+          const cl = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return (cl.includes('full') || cl.includes('8pc') || cl.includes('8piece')) && !cl.includes('half') && !cl.includes('4pc');
+        });
+        if (matchedFullKey && row[matchedFullKey] !== undefined && row[matchedFullKey] !== '') {
+          fullVal = row[matchedFullKey];
+        }
+      }
+
+      // Check if price is embedded in description e.g. "Add-on pricing: 4 Pc +₹29; 8 Pc +₹39"
+      const rawDesc = String(getRowFieldValue(row, ['Description', 'description', 'Serving', 'serving', 'Remarks', 'remarks']) || '');
+      if (!halfVal && /4\s*pc[^\d]*(\d+)/i.test(rawDesc)) {
+        const m = rawDesc.match(/4\s*pc[^\d]*(\d+)/i);
+        if (m) halfVal = m[1];
+      }
+      if (!fullVal && /8\s*pc[^\d]*(\d+)/i.test(rawDesc)) {
+        const m = rawDesc.match(/8\s*pc[^\d]*(\d+)/i);
+        if (m) fullVal = m[1];
+      }
+
+      // Collect all numeric columns present in this row
+      const numericColumns = [];
+      rowKeys.forEach(k => {
+        const val = row[k];
+        const num = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+        if (!isNaN(num) && num > 0 && num < 10000) {
+          numericColumns.push({ key: k, val: num });
+        }
+      });
+
+      // If half/full was not explicitly mapped but row has two positive prices (e.g. 49 and 99)
+      if (!halfVal && !fullVal && numericColumns.length === 2) {
+        halfVal = Math.min(numericColumns[0].val, numericColumns[1].val);
+        fullVal = Math.max(numericColumns[0].val, numericColumns[1].val);
+      }
+
+      // Detect section banner rows (e.g. "Steam Momos", "Toppings", "Momo Platter", "Pizza & Bakes", "Chinese")
+      const isKnownCategoryBanner = ['steam momos', 'momos', 'toppings', 'momo platter', 'platter', 'pizza', 'pizza & bakes', 'chinese', 'cold coffee', 'beverages', 'burger', 'shakes', 'mocktails', 'fries', 'dessert', 'main course', 'starters', 'rolls'].some(cat => lowerName.includes(cat));
+
+      if (isKnownCategoryBanner && numericColumns.length === 0 && !halfVal && !fullVal) {
+        currentCategory = rawName;
+        currentGroup = rawName;
+        return; // Skip section banner row from item list
+      }
+
+      const smallVal = getRowFieldValue(row, ['Small', 'small', 'Small Price', 'small_price', 'Regular', 'regular']);
+      const medVal = getRowFieldValue(row, ['Medium', 'medium', 'Medium Price', 'medium_price']);
+      const largeVal = getRowFieldValue(row, ['Large', 'large', 'Large Price', 'large_price']);
+
+      const existingVariant = String(getRowFieldValue(row, ['VariantName', 'Variant', 'variant', 'variant_name', 'Size', 'size', 'Portion', 'portion', 'PORTION', 'VARIANT', 'Variant Name'])).trim();
+
+      // 2b. Check if already a multi-row variant
+      if (existingVariant) {
+        const variantServing = String(getRowFieldValue(row, ['ServingQty', 'Serving', 'serving', 'serving_qty', 'Serving Quantity', 'Pieces', 'pieces', 'PC', 'pc', 'Description', 'description', 'Serving Qty'])).trim();
+        const variantPrice = getRowFieldValue(row, ['SaleRate', 'salerate', 'sale_rate', 'Price', 'price', 'Rate', 'rate', 'Cost', 'cost', 'Amount', 'amount', 'SALE RATE', 'RATE', 'PRICE', 'MRP', 'mrp', 'VariantPrice', 'Variant Price', 'PortionPrice', 'Portion Price', 'Variant Rate', 'VariantRate']);
+        expanded.push({
+          ...row,
+          ItemName: rawName,
+          VariantName: existingVariant,
+          ServingQty: variantServing,
+          SaleRate: variantPrice,
+          Category: row.Category || currentCategory,
+          ItemGroup: row.ItemGroup || currentGroup
+        });
+        return;
+      }
+
+      // If horizontal Half / Full columns are present
+      const cleanHalf = String(halfVal || '').replace(/[^0-9.]/g, '');
+      const cleanFull = String(fullVal || '').replace(/[^0-9.]/g, '');
+      const hasHalf = cleanHalf !== '' && !isNaN(parseFloat(cleanHalf)) && parseFloat(cleanHalf) > 0;
+      const hasFull = cleanFull !== '' && !isNaN(parseFloat(cleanFull)) && parseFloat(cleanFull) > 0;
+
+      if (hasHalf || hasFull) {
+        if (hasHalf) {
+          expanded.push({
+            ...row,
+            ItemName: rawName,
+            VariantName: 'HALF',
+            ServingQty: '4 PC',
+            SaleRate: parseFloat(cleanHalf),
+            Category: row.Category || currentCategory,
+            ItemGroup: row.ItemGroup || currentGroup
+          });
+        }
+        if (hasFull) {
+          expanded.push({
+            ...row,
+            ItemName: rawName,
+            VariantName: 'FULL',
+            ServingQty: '8 PC',
+            SaleRate: parseFloat(cleanFull),
+            Category: row.Category || currentCategory,
+            ItemGroup: row.ItemGroup || currentGroup
+          });
+        }
+        return;
+      }
+
+      // If horizontal Small / Med / Large columns are present
+      if (smallVal || medVal || largeVal) {
+        if (smallVal && Number(String(smallVal).replace(/[^0-9.]/g, '')) > 0) expanded.push({ ...row, ItemName: rawName, VariantName: 'Small', SaleRate: smallVal, Category: row.Category || currentCategory, ItemGroup: row.ItemGroup || currentGroup });
+        if (medVal && Number(String(medVal).replace(/[^0-9.]/g, '')) > 0) expanded.push({ ...row, ItemName: rawName, VariantName: 'Medium', SaleRate: medVal, Category: row.Category || currentCategory, ItemGroup: row.ItemGroup || currentGroup });
+        if (largeVal && Number(String(largeVal).replace(/[^0-9.]/g, '')) > 0) expanded.push({ ...row, ItemName: rawName, VariantName: 'Large', SaleRate: largeVal, Category: row.Category || currentCategory, ItemGroup: row.ItemGroup || currentGroup });
+        return;
+      }
+
+      // Check flat rate price for non-variant item
+      let flatPrice = getRowFieldValue(row, ['SaleRate', 'salerate', 'sale_rate', 'Price', 'price', 'Rate', 'rate', 'Cost', 'cost', 'Amount', 'amount', 'SALE RATE', 'RATE', 'PRICE', 'MRP', 'mrp']);
+      if (!flatPrice) {
+        const priceKey = rowKeys.find(k => {
+          const cl = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return cl === 'price' || cl === 'rate' || cl === 'salerate' || cl === 'mrp' || cl === 'amount' || cl === 'cost';
+        });
+        if (priceKey && row[priceKey] !== undefined && row[priceKey] !== '') {
+          flatPrice = row[priceKey];
+        }
+      }
+
+      if (!flatPrice && numericColumns.length === 1) {
+        flatPrice = numericColumns[0].val;
+      }
+
+      const cleanFlat = String(flatPrice || '').replace(/[^0-9.]/g, '');
+
+      // Regular item with flat price (or empty for validation to catch)
+      expanded.push({
+        ...row,
+        ItemName: rawName,
+        VariantName: '',
+        ServingQty: '',
+        SaleRate: cleanFlat !== '' ? parseFloat(cleanFlat) : (flatPrice !== undefined ? flatPrice : ''),
+        Category: row.Category || currentCategory,
+        ItemGroup: row.ItemGroup || currentGroup
+      });
+    });
+    return expanded;
   };
 
   const handleFileSelect = async (file) => {
@@ -157,47 +393,69 @@ const ItemEnterPage = ({ showToast }) => {
     try {
       const result = await parseExcelOrCsvFile(
         file,
-        [['ItemName', 'Name', 'item_name', 'Item Name', 'Title', 'title']], // Flexible header matching
+        [['ItemName', 'Name', 'item_name', 'Item Name', 'Title', 'title', 'ITEM NAME', 'ITEM_NAME', 'Item', 'item', 'DESCRIPTION', 'Description', 'Particulars', 'particulars', 'Menu Item', 'menu item']], // Flexible header matching
         (row, index, seenKeys) => {
-          const rawName = String(getRowFieldValue(row, ['ItemName', 'Name', 'item_name', 'Item Name', 'Title', 'title'])).trim();
-          const rawPrice = getRowFieldValue(row, ['SaleRate', 'salerate', 'sale_rate', 'Price', 'price', 'Rate', 'rate', 'Cost', 'cost', 'Amount', 'amount']);
-          const rawCategory = getRowFieldValue(row, ['ItemCategory', 'itemcategory', 'item_category', 'Category', 'category', 'FoodType', 'food_type', 'Type', 'type']);
+          const rawName = String(getRowFieldValue(row, ['ItemName', 'Name', 'item_name', 'Item Name', 'Title', 'title', 'ITEM NAME', 'ITEM_NAME', 'Item', 'item', 'DESCRIPTION', 'Description', 'Particulars', 'particulars', 'Menu Item', 'menu item'])).trim();
+          const rawPrice = getRowFieldValue(row, ['SaleRate', 'salerate', 'sale_rate', 'Price', 'price', 'Rate', 'rate', 'Cost', 'cost', 'Amount', 'amount', 'SALE RATE', 'RATE', 'PRICE', 'MRP', 'mrp', 'VariantPrice', 'Variant Price', 'PortionPrice', 'Portion Price', 'Variant Rate', 'VariantRate']);
+          const rawCategory = getRowFieldValue(row, ['ItemCategory', 'itemcategory', 'item_category', 'Category', 'category', 'FoodType', 'food_type', 'Type', 'type', 'ITEM CATEGORY', 'CATEGORY', 'Food Type', 'food type']);
+          const rawVariant = String(getRowFieldValue(row, ['VariantName', 'Variant', 'variant', 'variant_name', 'Size', 'size', 'Portion', 'portion', 'PORTION', 'VARIANT', 'Variant Name'])).trim();
+          const rawServing = String(getRowFieldValue(row, ['ServingQty', 'Serving', 'serving', 'serving_qty', 'Serving Quantity', 'Pieces', 'pieces', 'PC', 'pc', 'Description', 'description', 'Serving Qty'])).trim();
 
           if (!rawName) {
             return { isValid: false, errorReason: 'Missing Item Name' };
           }
 
-          const cleanPriceStr = String(rawPrice).replace(/[^0-9.]/g, '');
+          const cleanPriceStr = String(rawPrice || '').replace(/[^0-9.]/g, '');
           const priceNum = parseFloat(cleanPriceStr);
-          if (rawPrice !== '' && isNaN(priceNum)) {
-            return { isValid: false, errorReason: 'Non-numeric Sale Rate' };
+
+          // Validation for non-variant items: must have a valid positive price
+          if (!rawVariant && (rawPrice === '' || rawPrice === undefined || rawPrice === null || isNaN(priceNum) || priceNum <= 0)) {
+            return { isValid: false, errorReason: 'Sale Rate must be greater than ₹0' };
+          }
+
+          // Validation for variant items: must have a valid positive variant price
+          if (rawVariant && (rawPrice === '' || rawPrice === undefined || rawPrice === null || isNaN(priceNum) || priceNum <= 0)) {
+            return { isValid: false, errorReason: `Missing or zero price for variant "${rawVariant}"` };
           }
 
           const itemKey = rawName.toLowerCase();
-          if (seenKeys.has(itemKey)) {
-            return { isValid: false, errorReason: 'Duplicate item name in file' };
+          const variantKey = rawVariant.toLowerCase();
+          const comboKey = variantKey ? `${itemKey}__${variantKey}` : itemKey;
+
+          if (seenKeys.has(comboKey)) {
+            return {
+              isValid: false,
+              errorReason: variantKey
+                ? `Duplicate variant "${rawVariant}" for item "${rawName}"`
+                : `Duplicate item name "${rawName}" in file`
+            };
           }
-          seenKeys.add(itemKey);
+          seenKeys.add(comboKey);
 
           // Map all fields from software schema
           row.__resolvedName = rawName;
+          row.__resolvedVariant = rawVariant;
+          row.__resolvedServing = rawServing;
           row.__resolvedPrice = isNaN(priceNum) ? 0 : priceNum;
           row.__resolvedCategory = rawCategory || dbCategories[0] || 'Veg';
-          row.__resolvedGroup = getRowFieldValue(row, ['ItemGroup', 'itemgroup', 'item_group', 'Group', 'group']) || 'General';
-          row.__resolvedMainGroup = getRowFieldValue(row, ['MainGroup', 'maingroup', 'main_group']) || 'Food';
-          row.__resolvedDispCode = getRowFieldValue(row, ['DispCode', 'dispcode', 'disp_code', 'Code', 'code']) || String(100 + index);
-          row.__resolvedUnitType = getRowFieldValue(row, ['UnitType', 'unittype', 'unit_type', 'Unit', 'unit']) || 'Plate';
-          
-          const selectedOutletObj = outlets.find(o => String(o.store_id) === String(targetOutlet));
-          row.__resolvedOutlet = selectedOutletObj ? selectedOutletObj.name : (getRowFieldValue(row, ['Outlet', 'outlet']) || 'Main Restaurant');
-          row.__resolvedKitchen = getRowFieldValue(row, ['Kitchen', 'kitchen']) || 'Main Kitchen';
+          row.__resolvedGroup = getRowFieldValue(row, ['ItemGroup', 'itemgroup', 'item_group', 'Group', 'group', 'ITEM GROUP', 'Category', 'category']) || 'General';
+          row.__resolvedMainGroup = getRowFieldValue(row, ['MainGroup', 'maingroup', 'main_group', 'MAIN GROUP']) || 'Food';
+          row.__resolvedDispCode = getRowFieldValue(row, ['DispCode', 'dispcode', 'disp_code', 'Code', 'code', 'CODE', 'ShortCode', 'short_code']) || String(100 + index);
+          row.__resolvedUnitType = getRowFieldValue(row, ['UnitType', 'unittype', 'unit_type', 'Unit', 'unit', 'UOM', 'uom', 'UNIT']) || 'Plate';
+
+          const targetOutletId = (selectedOutlets && selectedOutlets.length > 0) ? selectedOutlets[0] : null;
+          const selectedOutletObj = outlets.find(o => String(o.store_id) === String(targetOutletId));
+          const fileOutlet = getRowFieldValue(row, ['Outlet', 'outlet', 'OutletName', 'outlet_name', 'Store', 'store']);
+          row.__resolvedOutlet = fileOutlet || (selectedOutletObj ? (selectedOutletObj.store_name || selectedOutletObj.name) : 'Main Restaurant');
+          row.__resolvedKitchen = getRowFieldValue(row, ['Kitchen', 'kitchen', 'KITCHEN']) || 'Main Kitchen';
           row.__resolvedRateEdit = getRowFieldValue(row, ['RateEdit', 'rateedit', 'rate_edit']) || 'No';
           row.__resolvedDiscApp = getRowFieldValue(row, ['DiscApp', 'discapp', 'disc_app']) || 'Yes';
           row.__resolvedStatus = getRowFieldValue(row, ['Status', 'status', 'Active', 'active']) || 'Active';
-          row.__resolvedHsnCode = getRowFieldValue(row, ['HsnCode', 'hsncode', 'hsn_code', 'HSN']) || '2106';
+          row.__resolvedHsnCode = getRowFieldValue(row, ['HsnCode', 'hsncode', 'hsn_code', 'HSN', 'hsn']) || '2106';
 
           return { isValid: true, errorReason: 'Valid' };
-        }
+        },
+        preprocessMenuRows
       );
 
       setParsedRows(result.allRows);
@@ -207,6 +465,62 @@ const ItemEnterPage = ({ showToast }) => {
       setParseError(err.message);
       toastTrigger(`Import Error: ${err.message}`);
       setParsedRows([]);
+    }
+  };
+
+  const handleLoadSampleMenu = () => {
+    try {
+      const rawSample = (SAMPLE_MENU_ROWS || []).map(r => ({
+        ItemName: r.itemName,
+        ItemCategory: r.foodType || 'Veg',
+        ItemGroup: r.category || 'Steam Momos',
+        Category: r.category || 'Steam Momos',
+        HalfPrice: r.halfPrice || '',
+        FullPrice: r.fullPrice || '',
+        SaleRate: r.price || '',
+        Description: r.description || ''
+      }));
+
+      const expanded = preprocessMenuRows(rawSample);
+      const seenKeys = new Set();
+      const processed = expanded.map((row, index) => {
+        const itemKey = (row.ItemName || '').toLowerCase();
+        const variantKey = (row.VariantName || '').toLowerCase();
+        const comboKey = variantKey ? `${itemKey}__${variantKey}` : itemKey;
+        seenKeys.add(comboKey);
+
+        const cleanPrice = parseFloat(String(row.SaleRate || '').replace(/[^0-9.]/g, '')) || 0;
+        row.__resolvedName = row.ItemName;
+        row.__resolvedVariant = row.VariantName || '';
+        row.__resolvedServing = row.ServingQty || '';
+        row.__resolvedPrice = cleanPrice;
+        row.__resolvedCategory = row.ItemCategory || 'Veg';
+        row.__resolvedGroup = row.ItemGroup || 'Steam Momos';
+        row.__resolvedMainGroup = 'Food';
+        row.__resolvedDispCode = `MOM-${String(100 + index)}`;
+        row.__resolvedUnitType = 'Plate';
+        row.__resolvedOutlet = (outlets[0]?.store_name || outlets[0]?.name) || 'Main Restaurant';
+        row.__resolvedKitchen = 'Main Kitchen';
+        row.__resolvedRateEdit = 'No';
+        row.__resolvedDiscApp = 'Yes';
+        row.__resolvedStatus = 'Active';
+        row.__resolvedHsnCode = '2106';
+
+        return {
+          ...row,
+          __rowIndex: index + 2,
+          __isValid: cleanPrice > 0,
+          __errorReason: cleanPrice > 0 ? 'Valid' : 'Zero price'
+        };
+      });
+
+      setParsedRows(processed);
+      setSelectedFile({ name: 'Momo_Bars_Full_Standard_Menu.xlsx' });
+      setParseError('');
+      toastTrigger(`⚡ Loaded ${processed.length} menu items with exact Half & Full variants and prices! Click "Upload to Database" to import.`);
+    } catch (err) {
+      console.error('Error loading sample menu:', err);
+      toastTrigger(`Failed to load menu: ${err.message}`);
     }
   };
 
@@ -222,13 +536,17 @@ const ItemEnterPage = ({ showToast }) => {
   const handleDropzoneClick = (e) => {
     if (e.target.id === 'posItemFileInputPage') return;
     e.preventDefault();
-    if (outlets.length > 0) {
-      setTargetOutlet(outlets[0].store_id);
+    if (outlets.length > 0 && selectedOutlets.length === 0) {
+      setSelectedOutlets([outlets[0].store_id]);
     }
     setUploadModalOpen(true);
   };
 
   const handleUploadConfirm = () => {
+    if (selectedOutlets.length === 0) {
+      toastTrigger('Please select at least one outlet.');
+      return;
+    }
     setUploadModalOpen(false);
     if (pendingFile) {
       handleFileSelect(pendingFile);
@@ -247,28 +565,73 @@ const ItemEnterPage = ({ showToast }) => {
 
     setUploading(true);
 
-    const payload = validRows.map((r) => ({
-      name: r.__resolvedName,
-      price: r.__resolvedPrice,
-      type: r.__resolvedCategory,
-      dispCode: r.__resolvedDispCode,
-      itemGroup: r.__resolvedGroup,
-      mainGroup: r.__resolvedMainGroup,
-      unitType: r.__resolvedUnitType,
-      outlet: targetOutlet || r.__resolvedOutlet || 'STORE_1',
-      store_id: targetOutlet || r.__resolvedOutlet || 'STORE_1',
-      kitchen: r.__resolvedKitchen,
-      rateEdit: r.__resolvedRateEdit,
-      discApp: r.__resolvedDiscApp,
-      status: r.__resolvedStatus,
-      hsnCode: r.__resolvedHsnCode
-    }));
+    const targetOutletsList = selectedOutlets.length > 0
+      ? selectedOutlets
+      : (outlets.length > 0 ? [outlets[0].store_id] : ['STORE_1']);
+
+    const payload = [];
+    targetOutletsList.forEach((outletId) => {
+      const matched = outlets.find((o) => String(o.store_id) === String(outletId));
+      const outletName = matched?.name || outletId;
+
+      // Group validRows by lowercase item name for this outlet so variants merge into a single item
+      const itemMap = new Map();
+
+      validRows.forEach((r, rIdx) => {
+        const itemKey = (r.__resolvedName || '').trim().toLowerCase();
+        if (!itemMap.has(itemKey)) {
+          itemMap.set(itemKey, {
+            name: r.__resolvedName,
+            price: r.__resolvedPrice,
+            type: r.__resolvedCategory,
+            dispCode: r.__resolvedDispCode,
+            itemGroup: r.__resolvedGroup,
+            mainGroup: r.__resolvedMainGroup,
+            unitType: r.__resolvedUnitType,
+            outlet: outletName,
+            store_id: outletId,
+            kitchen: r.__resolvedKitchen,
+            rateEdit: r.__resolvedRateEdit,
+            discApp: r.__resolvedDiscApp,
+            status: r.__resolvedStatus,
+            hsnCode: r.__resolvedHsnCode,
+            variants: []
+          });
+        }
+
+        const parentItem = itemMap.get(itemKey);
+        if (r.__resolvedVariant) {
+          parentItem.variants.push({
+            id: `v_${Date.now()}_${rIdx}_${Math.random().toString(36).substr(2, 5)}`,
+            name: r.__resolvedVariant,
+            serving: r.__resolvedServing || '',
+            description: r.__resolvedServing || '',
+            price: r.__resolvedPrice,
+            code: r.__resolvedDispCode || '',
+            active: true
+          });
+        }
+      });
+
+      // Ensure base price is valid for variant items
+      itemMap.forEach((itemObj) => {
+        if (itemObj.variants.length > 0 && (!itemObj.price || itemObj.price <= 0)) {
+          itemObj.price = itemObj.variants[0].price;
+        }
+        payload.push(itemObj);
+      });
+    });
 
     posApi.uploadItemsCsv(payload)
       .then((res) => {
-        toastTrigger(res?.data?.message || `Successfully imported ${payload.length} menu items into PostgreSQL!`);
+        toastTrigger(res?.data?.message || `Successfully imported ${payload.length} menu items into PostgreSQL across ${targetOutletsList.length} outlet(s)!`);
         setSelectedFile(null);
         setParsedRows([]);
+        if (typeof onSuccess === 'function') onSuccess();
+        if (isModal && typeof onClose === 'function') onClose();
+        if (!isModal) {
+          navigate('/pos/master/item-menu/menu-item');
+        }
       })
       .catch((err) => {
         toastTrigger(err?.response?.data?.message || 'Failed to upload items to PostgreSQL');
@@ -284,13 +647,40 @@ const ItemEnterPage = ({ showToast }) => {
   };
 
   return (
-    <div style={{ padding: '24px 32px', backgroundColor: '#F8FAFC', minHeight: '100vh', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ padding: isModal ? '8px 4px' : '24px 32px', backgroundColor: isModal ? '#ffffff' : '#F8FAFC', minHeight: isModal ? 'auto' : '100vh', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Top Header */}
-      <PageHeader
-        title="POS Item Menu Bulk Import (Full Software Field Mapping)"
-        breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Menu', 'Bulk Upload']}
-        style={{ marginBottom: 0 }}
-      />
+      {!isModal && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <PageHeader
+            title="POS Item Menu Bulk Import (Full Software Field Mapping)"
+            breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Menu', 'CSV Bulk Upload']}
+            style={{ marginBottom: 0 }}
+          />
+          <button
+            type="button"
+            onClick={() => navigate('/pos/master/item-menu/menu-item')}
+            style={{
+              padding: '9px 18px',
+              backgroundColor: '#ffffff',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '8px',
+              color: '#334155',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+          >
+            ← Back to Menu Item Entry
+          </button>
+        </div>
+      )}
 
       {/* Main Container Card */}
       <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)', padding: '28px' }}>
@@ -362,8 +752,8 @@ const ItemEnterPage = ({ showToast }) => {
             setDragActive(false);
             if (e.dataTransfer.files?.[0]) {
               setPendingFile(e.dataTransfer.files[0]);
-              if (outlets.length > 0) {
-                setTargetOutlet(outlets[0].store_id);
+              if (outlets.length > 0 && selectedOutlets.length === 0) {
+                setSelectedOutlets([outlets[0].store_id]);
               }
               setUploadModalOpen(true);
             }
@@ -408,6 +798,32 @@ const ItemEnterPage = ({ showToast }) => {
           <span style={{ fontSize: '0.74rem', color: '#94a3b8', background: '#ffffff', padding: '4px 12px', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
             Supports SheetJS XLSX Parser (.xlsx, .xls, .csv up to 10MB)
           </span>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }} onClick={(e) => e.stopPropagation()}>
+            {/* <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleLoadSampleMenu(); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(13, 148, 136, 0.25)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+            >
+              ⚡ Load Momo Bars Menu (53 Items with Half & Full Variants & Prices)
+            </button> */}
+          </div>
         </div>
 
         {/* Error Notification Banner */}
@@ -472,6 +888,8 @@ const ItemEnterPage = ({ showToast }) => {
                       <th style={{ padding: '12px 14px', textAlign: 'center', width: '50px' }}>Status</th>
                       <th style={{ padding: '12px 14px', width: '50px' }}>Row</th>
                       <th style={{ padding: '12px 14px' }}>Item Name</th>
+                      <th style={{ padding: '12px 14px' }}>Variant</th>
+                      <th style={{ padding: '12px 14px' }}>Serving</th>
                       <th style={{ padding: '12px 14px' }}>Code</th>
                       <th style={{ padding: '12px 14px' }}>Sale Rate (₹)</th>
                       <th style={{ padding: '12px 14px' }}>Category</th>
@@ -495,6 +913,16 @@ const ItemEnterPage = ({ showToast }) => {
                           </td>
                           <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#64748b', fontWeight: 600 }}>#{r.__rowIndex || idx + 2}</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: '#0f172a' }}>{r.__resolvedName || '—'}</td>
+                          <td style={{ padding: '10px 14px', color: '#4f46e5', fontWeight: 600 }}>
+                            {r.__resolvedVariant ? (
+                              <span style={{ background: '#e0e7ff', color: '#4338ca', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 }}>
+                                {r.__resolvedVariant}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 14px', color: '#64748b', fontSize: '0.75rem' }}>{r.__resolvedServing || '—'}</td>
                           <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#475569' }}>{r.__resolvedDispCode}</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: '#0e7490' }}>₹{r.__resolvedPrice}</td>
                           <td style={{ padding: '10px 14px', color: '#475569' }}>
@@ -513,7 +941,7 @@ const ItemEnterPage = ({ showToast }) => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={11} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+                        <td colSpan={13} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
                           No rows match the selected filter.
                         </td>
                       </tr>
@@ -562,26 +990,113 @@ const ItemEnterPage = ({ showToast }) => {
         <CommonModal
           isOpen={uploadModalOpen}
           onClose={() => setUploadModalOpen(false)}
-          title="Select Target Outlet for Bulk Import"
-          maxWidth="450px"
+          title="Select Target Outlets for Bulk Import"
+          maxWidth="460px"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '12px 6px' }}>
             <p style={{ margin: 0, fontSize: '0.86rem', color: '#475569', lineHeight: '1.4' }}>
-              Please select the outlet where you want to insert these menu items:
+              Select the outlet(s) where you want to insert these menu items:
             </p>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
-              Outlet *
-              <select
-                value={targetOutlet}
-                onChange={(e) => setTargetOutlet(e.target.value)}
-                style={{ padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', fontSize: '0.85rem', outline: 'none' }}
-              >
-                {outlets.map((o) => (
-                  <option key={o.store_id} value={o.store_id}>{o.name}</option>
-                ))}
-              </select>
-            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                  Target Outlets * <span style={{ color: '#0e7490', fontWeight: 800 }}>({selectedOutlets.length} selected)</span>
+                </span>
+                {outlets.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAllOutlets}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#0e7490',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    {selectedOutlets.length === outlets.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
+
+              <div style={{
+                maxHeight: '220px',
+                overflowY: 'auto',
+                border: '1.5px solid #cbd5e1',
+                borderRadius: '10px',
+                padding: '8px',
+                background: '#f8fafc',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                {outlets.length > 0 ? (
+                  outlets.map((o) => {
+                    const isChecked = selectedOutlets.includes(o.store_id);
+                    return (
+                      <label
+                        key={o.store_id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          background: isChecked ? '#e0f2fe' : '#ffffff',
+                          border: isChecked ? '1.5px solid #0284c7' : '1px solid #e2e8f0',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleOutlet(o.store_id)}
+                          style={{
+                            width: '16px',
+                            height: '16px',
+                            cursor: 'pointer',
+                            accentColor: '#0e7490'
+                          }}
+                        />
+                        <span style={{
+                          fontSize: '0.86rem',
+                          fontWeight: isChecked ? 700 : 500,
+                          color: isChecked ? '#0369a1' : '#334155'
+                        }}>
+                          {o.name}
+                        </span>
+                      </label>
+                    );
+                  })
+                ) : (
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      background: '#e0f2fe',
+                      border: '1.5px solid #0284c7'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      readOnly
+                      style={{ width: '16px', height: '16px', accentColor: '#0e7490' }}
+                    />
+                    <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0369a1' }}>
+                      Main Restaurant Outlet
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
               <button
@@ -594,7 +1109,17 @@ const ItemEnterPage = ({ showToast }) => {
               <button
                 type="button"
                 onClick={handleUploadConfirm}
-                style={{ padding: '8px 20px', background: '#0e7490', border: 'none', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 800, color: '#ffffff', cursor: 'pointer' }}
+                disabled={selectedOutlets.length === 0}
+                style={{
+                  padding: '8px 20px',
+                  background: selectedOutlets.length > 0 ? '#0e7490' : '#94a3b8',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  color: '#ffffff',
+                  cursor: selectedOutlets.length > 0 ? 'pointer' : 'not-allowed'
+                }}
               >
                 Proceed
               </button>

@@ -43,7 +43,7 @@ const HousekeepingChart = memo(({ rooms, showToast }) => {
 
       <div style={{ marginTop: '16px', padding: '12px', background: '#f8fafc', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: '11px', color: '#334155', fontWeight: '700' }}>Total Rooms</span>
-        <span style={{ fontSize: '18px', fontWeight: '800', color: '#244E5F' }}>{total}</span>
+        <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)' }}>{total}</span>
       </div>
     </div>
   );

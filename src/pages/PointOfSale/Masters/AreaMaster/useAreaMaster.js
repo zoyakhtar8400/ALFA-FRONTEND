@@ -148,6 +148,20 @@ export const useAreaMaster = (showToast) => {
     }
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    try {
+      for (const row of selectedRows) {
+        if (row.id) {
+          await areaService.deleteArea(row.id);
+        }
+      }
+      notify(`Deleted ${selectedRows.length} area(s) successfully.`);
+      await fetchAreas();
+    } catch (err) {
+      notify(err?.response?.data?.message || err?.message || 'Failed to delete selected areas.', 'error');
+    }
+  };
+
   return {
     data: filteredData,
     rawList: data,
@@ -164,6 +178,7 @@ export const useAreaMaster = (showToast) => {
     setDuplicateConfirm,
     handleSave,
     handleDelete,
+    handleBulkDelete,
     fetchAreas
   };
 };

@@ -4,6 +4,8 @@ import { FaEdit, FaTrash } from 'react-icons/fa';
 import CommonTable from '../../../components/common/CommonTable';
 import DeleteConfirmationModal from '../../../components/common/DeleteConfirmationModal';
 
+import apiClient from '../../../services/apiClient';
+
 const INITIAL_EXPENSES = [
   { id: 1, expenseDate: '2026-07-20', expenseReason: 'Kitchen Cleaning Supplies', employee: 'Rahul Sharma', paidFrom: 'Petty Cash', amount: 1450, status: 'Approved', createdBy: 'Admin' },
   { id: 2, expenseDate: '2026-07-19', expenseReason: 'Fresh Vegetable Purchase', employee: 'Amit Kumar', paidFrom: 'Cash Register', amount: 3200, status: 'Approved', createdBy: 'Manager' },
@@ -14,17 +16,44 @@ const INITIAL_EXPENSES = [
 
 const ExpenseList = ({ showToast = () => {} }) => {
   const navigate = useNavigate();
-  const [expenses, setExpenses] = useState(() => {
-    try {
-      const saved = localStorage.getItem('alfa_pos_expenses');
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-    } catch {
-      return INITIAL_EXPENSES;
-    }
-  });
+  const [expenses, setExpenses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  const fetchExpenses = async () => {
+    setLoading(true);
+    try {
+      const activeStore = localStorage.getItem('activeOutletId') || 'STORE_1';
+      const response = await apiClient.get('/expenses', { params: { store_id: activeStore } });
+      const list = response?.data || response?.body || (Array.isArray(response) ? response : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setExpenses(list.map(e => ({
+          id: e.expense_id || e.id,
+          expenseDate: e.expense_date || (e.created_date ? new Date(e.created_date).toISOString().slice(0, 10) : '2026-07-20'),
+          expenseReason: e.description || e.remarks || 'General Petty Expense',
+          employee: e.field1 || 'Admin Staff',
+          paidFrom: e.payment_mode || 'Cash',
+          amount: Number(e.amount || 0),
+          status: 'Approved',
+          createdBy: e.field1 || 'Admin'
+        })));
+      } else {
+        const saved = localStorage.getItem('alfa_pos_expenses');
+        setExpenses(saved ? JSON.parse(saved) : INITIAL_EXPENSES);
+      }
+    } catch {
+      const saved = localStorage.getItem('alfa_pos_expenses');
+      setExpenses(saved ? JSON.parse(saved) : INITIAL_EXPENSES);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchExpenses();
+  }, []);
 
   const columns = [
     { key: 'expenseDate', label: 'Expense Date' },
@@ -46,8 +75,13 @@ const ExpenseList = ({ showToast = () => {} }) => {
     setDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
+    try {
+      await apiClient.delete(`/expenses/${itemToDelete.id}`);
+    } catch (e) {
+      /* ignore if offline */
+    }
     const updated = expenses.filter(e => e.id !== itemToDelete.id);
     setExpenses(updated);
     try {
@@ -56,6 +90,22 @@ const ExpenseList = ({ showToast = () => {} }) => {
     showToast('Expense record deleted successfully.');
     setDeleteModalOpen(false);
     setItemToDelete(null);
+  };
+
+  const handleBulkDelete = async (selectedRows, selectedIds) => {
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await apiClient.delete(`/expenses/${row.id}`);
+        } catch (e) { }
+      }
+    }
+    const updated = expenses.filter(e => !selectedIds.includes(String(e.id)) && !selectedRows.some(sr => sr.id === e.id));
+    setExpenses(updated);
+    try {
+      localStorage.setItem('alfa_pos_expenses', JSON.stringify(updated));
+    } catch (e) { }
+    showToast(`Deleted ${selectedRows.length} expense record(s).`);
   };
 
   return (
@@ -73,6 +123,7 @@ const ExpenseList = ({ showToast = () => {} }) => {
           { label: 'Edit', onClick: (row) => navigate(`/setting/expense/edit/${row.id}`), icon: <FaEdit size={14} /> },
           { label: 'Delete', isDanger: true, onClick: handleDeleteClick, icon: <FaTrash size={14} /> }
         ]}
+        onBulkDelete={handleBulkDelete}
         searchPlaceholder="Search reason, employee, or paid from..."
         showToast={showToast}
         breadcrumbs={['Settings', 'Payments & Finance', 'Expense Management']}

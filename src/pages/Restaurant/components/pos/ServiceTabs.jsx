@@ -24,12 +24,11 @@ const ServiceTabs = ({ serviceType, setServiceType }) => {
       tabIndex={0}
       style={{
         display: 'flex',
-        background: '#f1f5f9',
-        padding: '3px',
-        borderRadius: '8px',
-        border: '1px solid #cbd5e1',
+        background: '#ffffff',
+        borderBottom: '2px solid #e2e8f0',
         outline: 'none',
-        cursor: 'pointer'
+        cursor: 'pointer',
+        width: '100%'
       }}
       aria-label="POS Service Type Selector (Use Arrow Keys)"
     >
@@ -43,15 +42,17 @@ const ServiceTabs = ({ serviceType, setServiceType }) => {
             tabIndex={-1}
             style={{
               flex: 1,
-              padding: '8px 12px',
+              padding: '9px 12px',
               fontSize: '0.8rem',
-              fontWeight: 700,
+              fontWeight: 800,
               border: 'none',
-              borderRadius: '6px',
-              background: isSelected ? '#0e7490' : 'transparent',
-              color: isSelected ? '#ffffff' : '#64748b',
+              borderBottom: isSelected ? '3px solid #c92534' : '3px solid transparent',
+              background: isSelected ? '#fff1f2' : 'transparent',
+              color: isSelected ? '#c92534' : '#64748b',
               cursor: 'pointer',
-              transition: 'all 0.15s'
+              transition: 'all 0.15s ease',
+              marginBottom: '-2px',
+              textTransform: 'uppercase'
             }}
           >
             {type}

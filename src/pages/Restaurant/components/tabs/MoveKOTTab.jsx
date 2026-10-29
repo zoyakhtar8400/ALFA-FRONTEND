@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatTableNo } from '../../../../utils/tableFormat';
 
 const MoveKOTTab = ({
   fromTableId,
@@ -38,8 +39,9 @@ const MoveKOTTab = ({
   const selectedItemCount = Object.values(selectedTransferItems).filter(Boolean).length;
   const selectedKotCount = Object.values(selectedTransferKots).filter(Boolean).length;
 
+  const targetTable = tables.find(t => String(t.id) === toTableId);
   const toTableLabel = toTableId
-    ? `T${parseInt(tables.find(t => String(t.id) === toTableId)?.no || toTableId)}`
+    ? formatTableNo(targetTable?.table_name || targetTable?.no || toTableId, targetTable?.prefix)
     : 'No target selected';
 
   return (

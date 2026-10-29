@@ -50,7 +50,7 @@ export const operations = [
   // { name: 'Checkout Entry', path: '/front-desk/operation/checkout-entry' },
   // { name: 'Refund Entry', path: '/front-desk/operation/refund-entry' },
   // { name: 'Add Guest in Room Entry', path: '/front-desk/operation/add-guest-in-room-entry' },
-  // { name: 'Night Audit Entry', path: '/front-desk/operation/night-audit-entry' },
+  { name: 'Night Audit Entry', path: '/front-desk/operation/night-audit-entry' },
   // { name: 'Guest Profile', path: '/front-desk/operation/guest-profile' },
   // { name: 'Multi Room Checkout', path: '/front-desk/operation/multi-room-checkout' },
   // { name: 'Room Enquiry Entry', path: '/front-desk/operation/room-enquiry-entry' },
@@ -71,6 +71,8 @@ export const restaurantItems = [
 ];
 
 export const restaurantMasters = [
+  { name: 'Check Master', label: 'Check Master', path: '/pos/master/check' },
+  { name: 'Company Master', label: 'Company Master', path: '/pos/master/company' },
   { name: 'Steward Master', label: 'Steward Master', path: '/pos/masters/steward-master' },
   { name: 'Delivery Master', label: 'Delivery Master', path: '/pos/master/delivery' },
   { name: 'Outlet Master', label: 'Outlet Master', path: '/pos/master/outlet' },
@@ -87,12 +89,16 @@ export const restaurantMasters = [
     path: '/pos/master/item-menu',
     subitems: [
       { name: 'Main Group Entry', label: 'Main Group Entry', path: '/pos/master/item-menu/main-group' },
-      { name: 'Item Group Entry', label: 'Item Group Entry', path: '/pos/master/item-menu/item-group' },
+      { name: 'Item Group Entry', label: 'Item Category (Group)', path: '/pos/master/item-menu/item-group' },
       { name: 'Menu Item Entry', label: 'Menu Item Entry', path: '/pos/master/item-menu/menu-item' },
-      { name: 'Item Entry CSV upload', label: 'Item Entry CSV upload', path: '/pos/master/item-menu/csv-upload' },
+      { name: 'CSV Bulk Upload', label: 'CSV Bulk Upload', path: '/pos/master/item-menu/csv-upload' },
       { name: 'HSN Update', label: 'HSN Update', path: '/pos/master/item-menu/hsn-update' }
     ]
   },
+  { name: 'Unit of Measure (UOM)', label: 'Unit of Measure (UOM)', path: '/pos/master/uom' },
+  { name: 'Modifier Group', label: 'Modifier Group', path: '/pos/master/modifier-group' },
+  { name: 'Modifier Add-ons', label: 'Modifier Add-ons', path: '/pos/master/modifier-addon' },
+  { name: 'Item Outlet Pricing', label: 'Item Outlet Pricing', path: '/pos/master/item-outlet-pricing' },
   { name: 'NC Type Master', label: 'NC Type Master', path: '/pos/master/nc-type' },
   { name: 'Item Rate Update', label: 'Item Rate Update', path: '/pos/master/rate-update' },
   { name: 'Item Rate Category', label: 'Item Rate Category', path: '/pos/master/rate-category' },

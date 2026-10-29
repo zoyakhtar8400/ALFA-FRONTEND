@@ -72,6 +72,20 @@ const ItemRateUpdatePage = ({ showToast }) => {
     });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    let count = 0;
+    for (const row of selectedRows) {
+      if (row.id) {
+        try {
+          await posApi.deleteMenuItem(row.id);
+          count++;
+        } catch (e) { }
+      }
+    }
+    toastTrigger(`Deleted ${count} item(s) successfully.`);
+    fetchItems();
+  };
+
   const handleBulkUpdate = () => {
     const v = parseFloat(value);
     if (isNaN(v) || v <= 0) {
@@ -179,6 +193,7 @@ const ItemRateUpdatePage = ({ showToast }) => {
           { label: 'Save', onClick: handleSaveRow },
           { label: 'Delete', isDanger: true, onClick: (row) => setDeleteModal({ open: true, row }) }
         ]}
+        onBulkDelete={handleBulkDelete}
         searchPlaceholder="Search menu item or category..."
         showToast={toastTrigger}
         breadcrumbs={['Dashboard', 'Point Of Sale', 'Master', 'Item Rate Update']}

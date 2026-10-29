@@ -24,11 +24,11 @@ export const useOutletMaster = (showToast) => {
           store_id: s.store_id || `STORE_${s.id || idx + 1}`,
           name: s.store_name || s.name || `Outlet ${s.id || idx + 1}`,
           shortName: extra.shortName || (s.store_name || s.name || 'OUT').slice(0, 3).toUpperCase(),
-          companyTitle: extra.companyTitle || 'Alfa Hotels & Resorts',
+          companyTitle: extra.companyTitle || '',
           outletTitle: extra.outletTitle || s.store_name || s.name || 'Main Dining Room',
           customerInfo: extra.customerInfo || 'Optional',
           autoSettlement: extra.autoSettlement || 'No',
-          focusOn: extra.focusOn || 'Item Search',
+          focusOn: (extra.focusOn === 'Item Search' || !extra.focusOn) ? 'BOTH' : extra.focusOn,
           kot: extra.kot || 'Print & Save',
           kotPrint: extra.kotPrint || 'Immediate',
           roomService: extra.roomService || 'Disabled',
@@ -152,6 +152,21 @@ export const useOutletMaster = (showToast) => {
       });
   };
 
+  const handleBulkDelete = async (selectedRows) => {
+    let deletedCount = 0;
+    for (const row of selectedRows) {
+      if (row.id && Number(row.id) !== 1) {
+        try {
+          await posApi.deleteOutlet(row.id);
+          deletedCount++;
+        } catch (e) { }
+      }
+    }
+    showToast(`Deleted ${deletedCount} outlet(s) successfully.`);
+    fetchOutlets();
+    window.dispatchEvent(new CustomEvent('outletsMasterRefreshed'));
+  };
+
   return {
     data: filteredData,
     loading,
@@ -166,7 +181,8 @@ export const useOutletMaster = (showToast) => {
     duplicateConfirm,
     setDuplicateConfirm,
     handleSave,
-    handleDelete
+    handleDelete,
+    handleBulkDelete
   };
 };
 

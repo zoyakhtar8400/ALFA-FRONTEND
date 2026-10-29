@@ -57,6 +57,10 @@ const CompanyProfilePage = ({ showToast }) => {
           country: p.country || '',
           license_key: p.license_key || ''
         });
+        try {
+          localStorage.setItem('alfa_company_profile', JSON.stringify(p));
+          localStorage.setItem('companyProfile', JSON.stringify(p));
+        } catch (e) {}
       } else {
         setProfileId(null);
         setFormData({
@@ -208,7 +212,12 @@ const CompanyProfilePage = ({ showToast }) => {
       if (saved && saved.id) {
         setProfileId(saved.id);
       }
-      window.dispatchEvent(new CustomEvent('companyProfileUpdated', { detail: saved || formData }));
+      const finalProfile = saved || formData;
+      try {
+        localStorage.setItem('alfa_company_profile', JSON.stringify(finalProfile));
+        localStorage.setItem('companyProfile', JSON.stringify(finalProfile));
+      } catch (e) {}
+      window.dispatchEvent(new CustomEvent('companyProfileUpdated', { detail: finalProfile }));
       await fetchProfile();
     } catch (err) {
       toast(err?.response?.data?.message || err.message || 'Failed to save company profile', 'error');
@@ -273,26 +282,6 @@ const CompanyProfilePage = ({ showToast }) => {
         breadcrumbs={['Dashboard', 'Setting', 'Company Profile']}
         actions={
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                borderRadius: '6px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                color: '#475569',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              <FaArrowLeft size={12} />
-              <span>Back</span>
-            </button>
             <button
               type="button"
               onClick={fetchProfile}
